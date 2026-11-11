@@ -138,15 +138,16 @@ class SubtitleGenStage(io.ComfyNode):
     @classmethod
     async def execute(cls, force_run_token=0, project_id="", parent_output_id=0,
                       workflow="", video="", audio=""):
+        source = (audio or '').strip() or (video or '').strip()
+        if not source:
+            raise RuntimeError(
+                "Speech-to-Text needs an upstream audio or video."
+            )
         upstream = {}
         if (audio or '').strip():
             upstream['audio'] = [audio]
         elif (video or '').strip():
             upstream['videos'] = [video]
-        else:
-            raise RuntimeError(
-                "Speech-to-Text needs an upstream audio or video."
-            )
         return await run_stage_workflow(
             cls,
             kind='speech-to-text',
@@ -155,5 +156,5 @@ class SubtitleGenStage(io.ComfyNode):
             parent_output_id=parent_output_id,
             main_prompt=None,
             upstream=upstream,
-            options={},
+            options={'source': source},
         )

@@ -169,6 +169,23 @@ Download:
 
 ---
 
+## Subtitles · speech-to-text
+
+| Workflow | Files | Folder |
+|---|---|---|
+| **Local Whisper large-v3** | A full Hugging Face snapshot of `openai/whisper-large-v3` (directory with `config.json`, weights, and the processor/tokenizer files) | See below |
+
+The node never downloads weights. It resolves the snapshot directory in this order:
+
+1. The node's `model_dir` widget, when it is not empty.
+2. The `COMFYTV_WHISPER_MODEL` environment variable.
+3. A snapshot directory under ComfyUI `models/whisper` or `models/stt` (a name containing `large-v3` wins).
+4. The documented fallback `/home/nodecloud/whisper-v3/models/whisper-large-v3`, when that directory exists.
+
+Upstream weights: <https://huggingface.co/openai/whisper-large-v3>. Copy or snapshot them onto disk first; `local_files_only=True` is always set.
+
+---
+
 ## Third-party custom node dependencies
 
 A few workflows rely on a third-party ComfyUI custom node:
@@ -177,7 +194,7 @@ A few workflows rely on a third-party ComfyUI custom node:
 - **Fooocus SDXL Inpaint / Outpaint** → uses the same `comfyui-inpaint-nodes` plugin for its `INPAINT_*` nodes.
 - **Audio Stem Split** (vocals / drums / bass / …) is **built in** — no third-party node or model download needed.
 
-All other workflows use only ComfyUI core nodes.
+**Local Whisper large-v3** uses the `ComfyTV.WhisperTranscribe` node shipped in this pack (not a third-party node pack). All other workflows use only ComfyUI core nodes.
 
 ---
 
