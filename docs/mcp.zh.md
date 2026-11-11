@@ -105,6 +105,7 @@ url = "http://127.0.0.1:8188/comfytv/mcp"
 | `scene_get/edit/capture/record` | 驱动 Scene 3D:角色、灯光、相机、动画 clip、相机路径与多镜导演时间轴(add_shot/patch_shot/set_path) |
 | `director_get/director_edit` | 读写导演台 clip 时间线 |
 | `storyboard` | 读取、替换或校验分镜阶段的完整镜头文档（`shots.json` 字段和自定义键）。`get_stage` 对很长的 `storyboard_data` 只给预览。`validate` 的整集总时长按每镜 `duration_s` 相加，`cut_to` 只和该镜时长比较。镜头少到即使每镜 15 秒也达不到 `target_duration_s` 时（单镜或很短的片段），不再拿整集目标来比 |
+| `script_writer` | 项目目录 `script/` 下的剧本会话：版本、选段改写，以及带 sha256 的清单导入。不写 `library.yaml`。不含 `to_shots` |
 
 ## 关键套路
 
