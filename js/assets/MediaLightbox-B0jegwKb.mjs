@@ -1,4 +1,4 @@
-import { bn as defineComponent, bQ as onMounted, bP as onBeforeUnmount, bT as openBlock, be as createBlock, bd as createBaseVNode, bh as createElementBlock, bf as createCommentVNode, M as Fragment, cM as withModifiers, aH as Teleport, bb as computed } from "./main-CyiP-ncN.mjs";
+import { bn as defineComponent, bQ as onMounted, bP as onBeforeUnmount, bT as openBlock, be as createBlock, bd as createBaseVNode, bh as createElementBlock, bf as createCommentVNode, M as Fragment, cM as withModifiers, aH as Teleport, bb as computed } from "./main-C4zjU8af.mjs";
 const _hoisted_1 = ["src"];
 const _hoisted_2 = ["src"];
 const _hoisted_3 = ["src", "alt"];
@@ -96,4 +96,4 @@ const _sfc_main = /* @__PURE__ */ defineComponent({
 export {
   _sfc_main as default
 };
-//# sourceMappingURL=MediaLightbox-Bo3tkSjS.mjs.map
+//# sourceMappingURL=MediaLightbox-B0jegwKb.mjs.map
