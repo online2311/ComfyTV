@@ -22,4 +22,4 @@
 - `local-z-image-turbo` — Z-Image Turbo,每镜一张(`batch_size` 固定为 1)。
 - `flux-schnell` — Flux Schnell fp8,每镜一张。
 
-`image/` 里的工作流仍可以在 config 里写 `kinds: ["image", "shot-images"]` 同时出现在这个下拉框。每一镜拿到的是 stage 上那一组共享参考图和 stage 种子,镜头自己不带参考图或种子。
+`image/` 里的工作流仍可以在 config 里写 `kinds: ["image", "shot-images"]` 同时出现在这个下拉框。默认每一镜用 stage 上那一组共享参考图（最多 8 张）和 stage 种子。如果这一镜的 JSON 带了 `reference_images`、`refs`、`image_url`，或 `reference_img` 里是图片 URL，就只用这一镜自己的参考图。这一镜带了数字 `seed` 时，也只用这一镜的种子。两者都没写的镜头仍走共享值，旧分镜不用改。

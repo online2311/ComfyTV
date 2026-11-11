@@ -25,7 +25,62 @@ export interface Shot {
   sfx: string
   dialogue: string
   motion_prompt: string
+  reference_images: string[]
+  seed: number | null
   [k: string]: unknown
+}
+
+const MAX_SHOT_REFS = 8
+
+function asRefUrl(value: unknown): string | null {
+  if (value && typeof value === 'object') {
+    const row = value as Record<string, unknown>
+    return asRefUrl(row.image_url) || asRefUrl(row.url)
+      || asRefUrl(row.payload_url) || asRefUrl(row.src)
+  }
+  if (typeof value !== 'string') return null
+  const text = value.trim()
+  if (!text) return null
+  const lower = text.toLowerCase()
+  if (
+    lower.startsWith('http://') || lower.startsWith('https://')
+    || lower.startsWith('/view') || lower.startsWith('data:image/')
+    || lower.includes('filename=')
+  ) return text
+  return null
+}
+
+function urlsFrom(raw: unknown): string[] {
+  if (typeof raw === 'string') {
+    const one = asRefUrl(raw)
+    return one ? [one] : []
+  }
+  if (!Array.isArray(raw)) return []
+  const out: string[] = []
+  for (const item of raw) {
+    const url = asRefUrl(item)
+    if (url && !out.includes(url)) out.push(url)
+    if (out.length >= MAX_SHOT_REFS) break
+  }
+  return out
+}
+
+export function referenceImagesOf(raw: Record<string, unknown>): string[] {
+  const listed = urlsFrom(raw.reference_images)
+  if (listed.length) return listed
+  const refs = urlsFrom(raw.refs)
+  if (refs.length) return refs
+  const one = asRefUrl(raw.image_url) || asRefUrl(raw.reference_img)
+  return one ? [one] : []
+}
+
+const WHOLE_SEED = /^[+-]?\d+$/
+
+export function seedOf(raw: unknown): number | null {
+  if (typeof raw === 'number') return Number.isSafeInteger(raw) ? raw : null
+  if (typeof raw !== 'string' || !WHOLE_SEED.test(raw.trim())) return null
+  const n = Number(raw.trim())
+  return Number.isSafeInteger(n) ? n : null
 }
 
 function newId() {
@@ -38,6 +93,7 @@ function blankShot(no: number): Shot {
     prompt: '', image_prompt: '', scene_purpose: '', character: '',
     character_desc: '', shot_size: '', action: '', emotion: '',
     scene_tags: '', lighting: '', sfx: '', dialogue: '', motion_prompt: '',
+    reference_images: [], seed: null,
   }
 }
 
@@ -49,14 +105,16 @@ export function useStoryboardShots(node: LGraphNode, state: StageState) {
   const regeneratingId = ref<string | null>(null)
   const fileInputEl = ref<HTMLInputElement | null>(null)
   let pendingUploadShotId: string | null = null
+  let pendingAppendRef = false
   let lastWritten = ''
+  let ignoreExternalOutput = false
+  let pendingRunResult = false
 
   function serialize(): string {
     return JSON.stringify({
       shots: shots.value.map((s, i) => ({
         shot_no: String(i + 1),
         duration: s.duration,
-        image_url: s.image_url,
         prompt: s.prompt,
         image_prompt: s.image_prompt,
         scene_purpose: s.scene_purpose,
@@ -70,6 +128,9 @@ export function useStoryboardShots(node: LGraphNode, state: StageState) {
         sfx: s.sfx,
         dialogue: s.dialogue,
         motion_prompt: s.motion_prompt,
+        reference_images: s.reference_images,
+        image_url: s.reference_images[0] ?? s.image_url ?? null,
+        seed: s.seed,
       })),
     })
   }
@@ -89,11 +150,14 @@ export function useStoryboardShots(node: LGraphNode, state: StageState) {
       shots.value = p.shots.map((s: any, i: number) => {
         const dur = Math.max(1, parseInt(String(s.duration ?? 3), 10) || 3)
         const imgPrompt = String(s.image_prompt ?? s.prompt ?? '')
+        const reference_images = referenceImagesOf(s)
         return {
           id: newId(),
           shot_no: String(s.shot_no ?? i + 1),
           duration: dur,
-          image_url: s.image_url ?? null,
+          image_url: reference_images[0] ?? null,
+          reference_images,
+          seed: seedOf(s.seed),
           prompt: imgPrompt,
           image_prompt: imgPrompt,
           scene_purpose: String(s.scene_purpose ?? ''),
@@ -150,9 +214,35 @@ export function useStoryboardShots(node: LGraphNode, state: StageState) {
     const s = shots.value.find(x => x.id === id); if (!s) return
     s.duration = Math.max(1, Math.min(60, Math.round(v))); commit()
   }
+  function syncPrimary(s: Shot) {
+    s.image_url = s.reference_images[0] ?? null
+  }
   function setImage(id: string, url: string | null) {
     const s = shots.value.find(x => x.id === id); if (!s) return
-    s.image_url = url; commit()
+    const tail = s.reference_images.slice(1)
+    s.reference_images = url
+      ? [url, ...tail.filter(item => item !== url)].slice(0, MAX_SHOT_REFS)
+      : tail
+    syncPrimary(s)
+    commit()
+  }
+  function addRef(id: string, url: string) {
+    const s = shots.value.find(x => x.id === id); if (!s) return
+    if (!url || s.reference_images.includes(url) || s.reference_images.length >= MAX_SHOT_REFS) return
+    s.reference_images = [...s.reference_images, url]
+    syncPrimary(s)
+    commit()
+  }
+  function removeRef(id: string, index: number) {
+    const s = shots.value.find(x => x.id === id); if (!s) return
+    s.reference_images = s.reference_images.filter((_, i) => i !== index)
+    syncPrimary(s)
+    commit()
+  }
+  function setSeed(id: string, raw: string) {
+    const s = shots.value.find(x => x.id === id); if (!s) return
+    s.seed = seedOf(raw.trim() === '' ? null : raw)
+    commit()
   }
 
   async function regenerateShot(shotId: string, targetNo: number) {
@@ -189,6 +279,8 @@ export function useStoryboardShots(node: LGraphNode, state: StageState) {
         ...incoming,
         id: current.id,
         image_url: current.image_url,
+        reference_images: current.reference_images,
+        seed: current.seed,
         shot_no: String(targetNo),
         duration: parseInt(String(incoming.duration ?? current.duration), 10) || current.duration,
         prompt: String(incoming.image_prompt ?? incoming.prompt ?? current.prompt ?? ''),
@@ -211,6 +303,12 @@ export function useStoryboardShots(node: LGraphNode, state: StageState) {
 
   function pickFile(shotId: string) {
     pendingUploadShotId = shotId
+    pendingAppendRef = false
+    fileInputEl.value?.click()
+  }
+  function pickExtra(shotId: string) {
+    pendingUploadShotId = shotId
+    pendingAppendRef = true
     fileInputEl.value?.click()
   }
   async function onFilePicked(e: Event) {
@@ -218,13 +316,16 @@ export function useStoryboardShots(node: LGraphNode, state: StageState) {
     const file = input.files?.[0]
     input.value = ''
     const shotId = pendingUploadShotId
+    const append = pendingAppendRef
     pendingUploadShotId = null
+    pendingAppendRef = false
     if (!file || !shotId) return
 
     uploadingId.value = shotId
     try {
       const url = await uploadBlob(file, { subfolder: 'comfytv/storyboard', filename: file.name })
-      setImage(shotId, url)
+      if (append) addRef(shotId, url)
+      else setImage(shotId, url)
     } catch (err) {
       console.error('[ComfyTV/storyboard] ref upload failed', err)
     } finally {
@@ -233,16 +334,29 @@ export function useStoryboardShots(node: LGraphNode, state: StageState) {
   }
 
   restore()
+  ignoreExternalOutput = lastWritten !== ''
   if (node) {
     const origOnConfigure = node.onConfigure
     node.onConfigure = function (info: any) {
       origOnConfigure?.call(this, info)
       restore()
+      ignoreExternalOutput = lastWritten !== ''
     }
   }
 
+  watch(() => state.running, (running, was) => {
+    if (was && !running) pendingRunResult = true
+  })
+
   watch(() => state.output, (out) => {
     if (!out || out === lastWritten) return
+    if (pendingRunResult) {
+      pendingRunResult = false
+      ignoreExternalOutput = false
+    } else if (ignoreExternalOutput && lastWritten) {
+      store.setOutputSlot(state, 0, lastWritten)
+      return
+    }
     if (loadFromJson(String(out))) {
       lastWritten = String(out)
       writeWidget(node, 'storyboard_data', out)
@@ -252,8 +366,8 @@ export function useStoryboardShots(node: LGraphNode, state: StageState) {
   return {
     shots, uploadingId, regeneratingId, fileInputEl,
     addShot, removeShot, move,
-    setField, setDuration, setImage,
+    setField, setDuration, setImage, addRef, removeRef, setSeed,
     regenerateShot,
-    pickFile, onFilePicked,
+    pickFile, pickExtra, onFilePicked,
   }
 }

@@ -5,7 +5,7 @@ import { nextTick, reactive } from 'vue'
 import { app } from '@/lib/comfyApp'
 import type { StageState } from '@/stores/stageStore'
 
-import { useStoryboardShots } from './useStoryboardShots'
+import { seedOf, useStoryboardShots } from './useStoryboardShots'
 
 const jsonResp = (data: any, status = 200) =>
   new Response(JSON.stringify(data), {
@@ -115,6 +115,35 @@ describe('useStoryboardShots', () => {
     expect(shots.value[0].image_prompt).toBe('from-state')
   })
 
+  it('keeps a saved board when an older execution snapshot arrives', async () => {
+    const saved = {
+      shots: [{ shot_no: '1', image_prompt: 'kept', seed: 3,
+                reference_images: ['/view?filename=kept.png&type=input'] }],
+    }
+    const node = makeNode([makeWidget('storyboard_data', JSON.stringify(saved))])
+    const state = makeState()
+    const { shots } = useStoryboardShots(node, state)
+    state.output = JSON.stringify({ shots: [{ shot_no: '1', image_prompt: 'from db' }] })
+    await nextTick()
+    expect(shots.value[0].image_prompt).toBe('kept')
+    expect(shots.value[0].seed).toBe(3)
+    expect(state.output).toContain('kept.png')
+  })
+
+  it('adopts the storyboard produced by a finished run', async () => {
+    const node = makeNode([makeWidget('storyboard_data', JSON.stringify({
+      shots: [{ shot_no: '1', image_prompt: 'old' }],
+    }))])
+    const state = makeState()
+    const { shots } = useStoryboardShots(node, state)
+    state.running = true
+    await nextTick()
+    state.running = false
+    state.output = JSON.stringify({ shots: [{ shot_no: '1', image_prompt: 'fresh' }] })
+    await nextTick()
+    expect(shots.value[0].image_prompt).toBe('fresh')
+  })
+
   it('watch on state.output re-loads when an upstream payload arrives', async () => {
     const node = makeNode([makeWidget('storyboard_data', '')])
     const state = makeState()
@@ -136,8 +165,54 @@ describe('useStoryboardShots', () => {
     addShot()
     setImage(shots.value[0].id, '/view?x=1')
     expect(shots.value[0].image_url).toBe('/view?x=1')
+    expect(shots.value[0].reference_images).toEqual(['/view?x=1'])
     const parsed = JSON.parse(w.value)
     expect(parsed.shots[0].image_url).toBe('/view?x=1')
+    expect(parsed.shots[0].reference_images).toEqual(['/view?x=1'])
+    expect(parsed.shots[0].seed).toBeNull()
+  })
+
+  it('does not turn a partial seed into an override the backend would ignore', () => {
+    for (const seed of ['12.5', '12oops', [12], true, 12.5, '']) {
+      const saved = {
+        shots: [{ shot_no: '1', image_prompt: 'x', seed }],
+      }
+      const w = makeWidget('storyboard_data', JSON.stringify(saved))
+      const { shots, setField } = useStoryboardShots(makeNode([w]), makeState())
+      expect(shots.value[0].seed).toBeNull()
+      setField(shots.value[0].id, 'scene_purpose', 'edited')
+      expect(JSON.parse(w.value).shots[0].seed).toBeNull()
+    }
+    expect(seedOf('42')).toBe(42)
+    expect(seedOf(0)).toBe(0)
+    expect(seedOf(' -7 ')).toBe(-7)
+  })
+
+  it('round-trips per-shot refs and seed, and ignores a non-url reference', () => {
+    const seed = {
+      shots: [{
+        shot_no: '1',
+        image_prompt: 'door',
+        reference_images: ['/view?filename=a.png&type=input', 'not a url'],
+        seed: 42,
+        reference_img: '特写',
+      }],
+    }
+    const w = makeWidget('storyboard_data', JSON.stringify(seed))
+    const node = makeNode([w])
+    const { shots, addRef, setSeed, removeRef } = useStoryboardShots(node, makeState())
+    expect(shots.value[0].reference_images).toEqual(['/view?filename=a.png&type=input'])
+    expect(shots.value[0].seed).toBe(42)
+    addRef(shots.value[0].id, 'https://example.com/b.png')
+    setSeed(shots.value[0].id, '')
+    const parsed = JSON.parse(w.value)
+    expect(parsed.shots[0].reference_images).toEqual([
+      '/view?filename=a.png&type=input',
+      'https://example.com/b.png',
+    ])
+    expect(parsed.shots[0].seed).toBeNull()
+    removeRef(shots.value[0].id, 0)
+    expect(shots.value[0].image_url).toBe('https://example.com/b.png')
   })
 
   it('regenerateShot merges the backend response into the shot at the target index', async () => {

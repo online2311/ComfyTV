@@ -1791,6 +1791,12 @@
     "noRef": "no reference",
     "uploadRef": "Upload reference image",
     "clearRef": "Clear reference",
+    "addRef": "Add reference",
+    "removeRef": "Remove this reference",
+    "refsCount": "{n}/8 refs",
+    "seed": "Seed",
+    "seedAuto": "stage",
+    "seedHint": "Leave empty to use the stage seed",
     "promptPlaceholder": "Describe this shot…",
     "cols": {
       "scene_purpose": "Purpose",
