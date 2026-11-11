@@ -493,6 +493,26 @@
         "label": "Drop media files as asset loaders",
         "desc": "Images, videos and audio dropped onto empty canvas are imported into the asset library and placed as ComfyTV asset loader nodes, instead of ComfyUI loading them (a PNG no longer opens the workflow saved in it). Drops onto a node and other files are left to ComfyUI."
       },
+      "remote-connect-timeout-s": {
+        "label": "Remote connect timeout (seconds)",
+        "desc": "How long a call to another ComfyUI machine waits to connect. Default 10."
+      },
+      "remote-read-timeout-s": {
+        "label": "Remote read timeout (seconds)",
+        "desc": "How long one read from another ComfyUI machine may stall. 0 keeps the previous behavior: no per-read limit, while the overall job timeout still applies. Default 0."
+      },
+      "remote-poll-interval-s": {
+        "label": "Remote poll interval (seconds)",
+        "desc": "How often ComfyTV checks a remote job while waiting for it to finish. Default 2."
+      },
+      "remote-job-timeout-s": {
+        "label": "Remote job timeout (seconds)",
+        "desc": "Overall time limit for one stage sent to another ComfyUI machine, including upload, queue, and download. Default 3600."
+      },
+      "scheduler-max-retries": {
+        "label": "Scheduler submit attempts",
+        "desc": "How many times the scheduler may submit one shot stage when the chosen host cannot be reached. A lost response that already landed is not submitted again. Default 3."
+      },
       "enable-db-backup": {
         "label": "Automatic backup on startup",
         "desc": "Back up the ComfyTV data directory (database + workflows) every time the server starts, before any migration runs."

@@ -96,7 +96,7 @@ async def execute_headless(action: str, payload: dict) -> dict:
     if action == "graph_run":
         return await queue.enqueue_graph(payload)
     if action == "cancel_stage":
-        return queue.cancel_queued_stage(payload)
+        return await queue.cancel_queued_stage(payload)
     if action == "storyboard_get":
         return graph.storyboard_get(payload)
     if action == "storyboard_set":

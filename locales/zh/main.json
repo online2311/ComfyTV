@@ -493,6 +493,26 @@
         "label": "拖入媒体文件生成资产加载节点",
         "desc": "图片、视频、音频拖到画布空白处时，导入资产库并生成 ComfyTV 资产加载节点，而不是交给 ComfyUI 加载（PNG 里保存的工作流不会再被打开）。拖到节点上的和其他类型的文件仍由 ComfyUI 处理。"
       },
+      "remote-connect-timeout-s": {
+        "label": "远程连接超时（秒）",
+        "desc": "连到另一台 ComfyUI 时，等待连接建立的时间。默认 10。"
+      },
+      "remote-read-timeout-s": {
+        "label": "远程读取超时（秒）",
+        "desc": "从另一台 ComfyUI 单次读取允许停住的时间。0 保持原来的行为：不设单次读取上限，整次任务仍受任务超时限制。默认 0。"
+      },
+      "remote-poll-interval-s": {
+        "label": "远程轮询间隔（秒）",
+        "desc": "等待远程任务完成时，隔多久查一次。默认 2。"
+      },
+      "remote-job-timeout-s": {
+        "label": "远程任务超时（秒）",
+        "desc": "发到另一台 ComfyUI 的一次 stage 的总时限，含上传、排队和下载。默认 3600。"
+      },
+      "scheduler-max-retries": {
+        "label": "调度器提交次数",
+        "desc": "一台机器连不上时，同一个 shot stage 最多提交几次。响应丢了但任务已经在对方队列里时，不会再提交一次。默认 3。"
+      },
       "enable-db-backup": {
         "label": "启动时自动备份",
         "desc": "每次服务器启动时(在任何迁移执行之前)备份 ComfyTV 数据目录(数据库 + 工作流)。"

@@ -350,6 +350,61 @@ class ExecutorJoinToken(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 
+class ScheduleUnit(Base):
+    """One shot x stage of headless work for the multi-host scheduler.
+
+    ``attempt_id`` is fixed before a prompt is sent. A retry that still sees
+    that id on the executor's queue or history binds to it and does not send
+    a second prompt. ``post_started`` is set in the same write as that id,
+    before the POST.
+    """
+
+    __tablename__ = "comfytv_schedule_units"
+
+    id:                Mapped[str] = mapped_column(String, primary_key=True)
+    seq:               Mapped[int] = mapped_column(Integer, index=True)
+    project_id:        Mapped[str] = mapped_column(String, index=True, default="default")
+    shot_id:           Mapped[str] = mapped_column(String, index=True)
+    stage:             Mapped[str] = mapped_column(String)
+    gpu_class:         Mapped[str] = mapped_column(String, default="")
+    prompt_json:       Mapped[str] = mapped_column(Text, default="{}")
+    partial_json:      Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    status:            Mapped[str] = mapped_column(String, index=True, default="queued")
+    executor_id:       Mapped[Optional[str]] = mapped_column(String, nullable=True, index=True)
+    avoid_executor_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    prompt_id:         Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    attempt:           Mapped[int] = mapped_column(Integer, default=0)
+    attempt_id:        Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    client_id:         Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    post_started:      Mapped[bool] = mapped_column(Boolean, default=False)
+    discard_outputs:   Mapped[bool] = mapped_column(Boolean, default=False)
+    error_text:        Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    waiting_reason:    Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    outputs_json:      Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    output_id:         Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    headless_job_id:   Mapped[Optional[str]] = mapped_column(String, nullable=True, unique=True)
+    submitted_at:      Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at:        Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at:        Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
+
+
+class ScheduleAffinity(Base):
+    """The gpu class and preferred executor locked for one shot.
+
+    The class does not change after the first successful placement. Later
+    stages of the shot prefer ``executor_id`` and may use another executor
+    of this same class. They do not move to a different class.
+    """
+
+    __tablename__ = "comfytv_schedule_affinity"
+
+    project_id:  Mapped[str] = mapped_column(String, primary_key=True)
+    shot_id:     Mapped[str] = mapped_column(String, primary_key=True)
+    gpu_class:   Mapped[str] = mapped_column(String, default="")
+    executor_id: Mapped[str] = mapped_column(String, default="")
+    updated_at:  Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
+
+
 class BotChat(Base):
     __tablename__ = "comfytv_bot_chats"
 

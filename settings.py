@@ -19,6 +19,13 @@ SETTINGS_SPEC: dict[str, dict[str, Any]] = {
     "db-backup-path": {"type": "string", "default": ""},
     "enable-mcp": {"type": "boolean", "default": False},
     "headless-auto-resume": {"type": "boolean", "default": False},
+    # Shared with the remote-cancel timeouts (same keys and defaults) so a
+    # merged cancel path and this scheduler read one set of numbers.
+    "remote-connect-timeout-s": {"type": "int", "default": 10, "min": 1},
+    "remote-read-timeout-s": {"type": "int", "default": 0, "min": 0},
+    "remote-poll-interval-s": {"type": "int", "default": 2, "min": 1},
+    "remote-job-timeout-s": {"type": "int", "default": 3600, "min": 1},
+    "scheduler-max-retries": {"type": "int", "default": 3, "min": 1, "max": 20},
     "enable-bot": {"type": "boolean", "default": False},
     "bot-model-claude-code": {"type": "string", "default": ""},
     "bot-model-codex": {"type": "string", "default": ""},

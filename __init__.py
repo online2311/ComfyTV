@@ -25,6 +25,7 @@ else:
     from . import api as _api
     from . import storage as _storage
     from .api.executor_health import ensure_started as _ensure_executor_health
+    from .api.scheduler import ensure_started as _ensure_scheduler
     from .nodes.stages import ComfyTVExtension as _ComfyTVExtension
 
     _storage.ensure_default_project()
@@ -34,6 +35,7 @@ else:
 
     async def comfy_entrypoint():
         _ensure_executor_health()
+        _ensure_scheduler()
         return _ComfyTVExtension()
 
 

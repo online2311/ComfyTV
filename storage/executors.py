@@ -1,7 +1,7 @@
 """Persisted executor registry and one-time join tokens.
 
-The next scheduler should call ``list_executors`` and send a stage only to a
-row whose ``accepts_work`` is true and whose ``gpu_class`` matches the stage.
+The scheduler reads ``list_executors`` and sends a shot x stage only to a
+row whose ``accepts_work`` is true and whose ``gpu_class`` matches.
 ``idle_since`` is the start of the current empty-queue stretch; a later
 RunPod lifecycle can reclaim an ephemeral executor that has been idle for
 10–15 minutes. This module does not submit prompts and does not call
@@ -279,6 +279,17 @@ def _ordered(session):
     return session.execute(
         select(Executor).order_by(Executor.created_at, Executor.name)
     ).scalars().all()
+
+
+def foreign_executors_registered() -> bool:
+    """True when any executor besides the seeded local default is stored.
+
+    An empty registry and a registry that holds only that default row are
+    the single-host case. The headless worker then keeps its in-process path.
+    """
+    with db.get_session() as s:
+        flags = s.execute(select(Executor.is_default)).all()
+    return any(not bool(flag) for (flag,) in flags)
 
 
 def list_executors(*, ensure_default: bool = False) -> list[dict]:
