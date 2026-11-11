@@ -14,7 +14,11 @@ def _relative_input_path(root: str, path: str) -> str | None:
     """Path relative to input, or None when it escapes the input directory."""
     if not _inside_input(root, path):
         return None
-    rel = os.path.relpath(path, root).replace("\\", "/")
+    rel = os.path.relpath(path, root)
+    # A backslash is a legal filename character on POSIX. Only the platform
+    # separator is rewritten, so scene\take.mp4 stays one file.
+    if os.sep != "/":
+        rel = rel.replace(os.sep, "/")
     parts = rel.split("/")
     if not parts or any(part in ("", ".", "..") for part in parts):
         return None

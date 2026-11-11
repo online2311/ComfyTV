@@ -265,6 +265,22 @@ class TestLoaderExecute:
         video = next(inp for inp in schema.kw["inputs"] if inp.args and inp.args[0] == "video")
         assert video.kw["options"] == ["alias.mp4", "comfytv/series/gumu-sx/xxx.mp4"]
 
+    def test_list_input_files_keeps_backslash_in_posix_filename(self, monkeypatch, tmp_path):
+        from ComfyTV.nodes.stages import loaders
+        import folder_paths
+        series = tmp_path / "comfytv" / "series" / "gumu-sx"
+        series.mkdir(parents=True)
+        (tmp_path / "scene\\take.mp4").write_bytes(b"v")
+        (series / "scene\\take.mp4").write_bytes(b"v")
+        monkeypatch.setattr(folder_paths, "get_input_directory", lambda: str(tmp_path))
+        monkeypatch.setattr(folder_paths, "filter_files_content_types",
+                            lambda files, kinds: files, raising=False)
+        files = loaders._list_input_files(["video"])
+        assert files == [
+            "comfytv/series/gumu-sx/scene\\take.mp4",
+            "scene\\take.mp4",
+        ]
+
 
 # ─── Stage execute() smoke tests — runner-less stages ──────────────────────
 
