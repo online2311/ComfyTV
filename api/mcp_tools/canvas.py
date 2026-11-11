@@ -100,9 +100,11 @@ def _history_error_message(status: dict) -> str:
 async def _graph_run(args: dict) -> dict:
     project_id = args.get("project_id")
     pid = project_id if isinstance(project_id, str) else None
+    has_graph = args.get("prompt") is not None or args.get("workflow") is not None
+    if args.get("job_id") and not has_graph:
+        return await headless_queue.queue_status(args)
     if not _shared.page_is_live(pid):
-        has_graph = args.get("prompt") is not None or args.get("workflow") is not None
-        if (args.get("job_id") or args.get("prompt_id")) and not has_graph:
+        if args.get("prompt_id") and not has_graph:
             return await headless_queue.queue_status(args)
         declined = await _maybe_ask_run_approval("Run the current graph?")
         if declined is not None:

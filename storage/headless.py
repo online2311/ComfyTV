@@ -1,9 +1,9 @@
 import json
 import uuid
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Any, Optional
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 
 from .. import db
 from ..db import HeadlessGraph, HeadlessJob
@@ -157,6 +157,28 @@ def headless_job_by_prompt(prompt_id: str) -> Optional[dict]:
         return _job_to_dict(row) if row else None
 
 
+def claim_headless_job(job_id: str, *, expect: str, become: str,
+                       prompt_id: Any = _UNSET,
+                       error_text: Any = _UNSET) -> Optional[dict]:
+    """Move a job from ``expect`` to ``become`` in one transaction.
+
+    Returns None when the row is missing or no longer in ``expect``, so a
+    cancel and a submit cannot both win.
+    """
+    with db.get_session() as s:
+        row = s.get(HeadlessJob, job_id)
+        if row is None or row.status != expect:
+            return None
+        row.status = become
+        if prompt_id is not _UNSET:
+            row.prompt_id = prompt_id or None
+        if error_text is not _UNSET:
+            row.error_text = error_text
+        row.updated_at = _now()
+        s.commit()
+        return _job_to_dict(row)
+
+
 def next_queued_headless_job() -> Optional[dict]:
     with db.get_session() as s:
         row = s.execute(
@@ -186,17 +208,19 @@ def list_headless_jobs(
 def latest_headless_job_for_stage(project_id: str, ref: str) -> Optional[dict]:
     ref = str(ref)
     with db.get_session() as s:
-        rows = s.execute(
+        conds = [
+            HeadlessJob.stage_ref == ref,
+            HeadlessJob.stage_uid == ref,
+        ]
+        if len(ref) >= 8:
+            conds.append(HeadlessJob.stage_uid.startswith(ref))
+            conds.append(HeadlessJob.stage_ref.startswith(ref))
+        row = s.execute(
             select(HeadlessJob)
             .where(HeadlessJob.project_id == project_id)
             .where(HeadlessJob.kind == "stage")
+            .where(or_(*conds))
             .order_by(HeadlessJob.seq.desc())
-            .limit(40)
-        ).scalars().all()
-        for row in rows:
-            if row.stage_ref == ref or row.stage_uid == ref:
-                return _job_to_dict(row)
-            uid = row.stage_uid or ""
-            if len(ref) >= 8 and uid.startswith(ref):
-                return _job_to_dict(row)
-        return None
+            .limit(1)
+        ).scalar_one_or_none()
+        return _job_to_dict(row) if row else None

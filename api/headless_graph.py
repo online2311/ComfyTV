@@ -115,7 +115,7 @@ def find_node(doc: dict, ref: str) -> dict | None:
     exact_uid = None
     prefix = None
     for node in doc["nodes"]:
-        uid = str((node.get("properties") or {}).get("comfytv_uid") or "")
+        uid = _uid_of(node)
         if uid and uid == ref:
             exact_uid = node
             break
@@ -192,6 +192,161 @@ def _default_outputs(stage_class: str) -> list[dict]:
     return [{"name": n, "type": t, "links": []} for n, t in pairs]
 
 
+_UID_PROP = "comfytv_stage_uid"
+_UID_PROPS = ("comfytv_stage_uid", "comfytv_uid")
+
+
+def _uid_of(node: dict) -> str:
+    props = node.get("properties") or {}
+    for key in _UID_PROPS:
+        value = props.get(key)
+        if isinstance(value, str) and value:
+            return value
+    return ""
+
+
+def _assign_uid(props: dict, uid: str | None = None) -> str:
+    value = uid or uuid.uuid4().hex
+    props[_UID_PROP] = value
+    props.pop("comfytv_uid", None)
+    return value
+
+
+def _schema_object(class_name: str):
+    """The node's define_schema() result, from the registry or a ComfyTV stage."""
+    try:
+        import nodes as comfy_nodes
+        cls = (getattr(comfy_nodes, "NODE_CLASS_MAPPINGS", None) or {}).get(class_name)
+    except Exception:
+        cls = None
+    if cls is None and class_name.startswith("ComfyTV."):
+        from ..nodes.stages import stage_classes
+        short = class_name.removeprefix("ComfyTV.")
+        cls = next((item for item in stage_classes() if item.__name__ == short), None)
+    if cls is None or not hasattr(cls, "define_schema"):
+        return None
+    try:
+        return cls.define_schema()
+    except Exception as exc:
+        _log.warning("[ComfyTV/headless] schema for %s failed: %s", class_name, type(exc).__name__)
+        return None
+
+
+def _schema_list(schema, key: str):
+    values = getattr(schema, key, None)
+    if values is None and hasattr(schema, "kw"):
+        values = (schema.kw or {}).get(key)
+    return list(values or [])
+
+
+def _io_name(item) -> str:
+    name = getattr(item, "id", None)
+    if isinstance(name, str) and name:
+        return name
+    args = getattr(item, "args", None) or ()
+    if args and isinstance(args[0], str):
+        return args[0]
+    return ""
+
+
+def _io_type(item) -> str:
+    getter = getattr(item, "get_io_type", None)
+    if getter is not None:
+        try:
+            return str(getter())
+        except Exception:
+            pass
+    args = getattr(item, "args", None) or ()
+    if args and isinstance(args[0], str) and args[0].startswith("COMFYTV_"):
+        return args[0]
+    return "*"
+
+
+def _field_kw(item) -> dict:
+    kw = getattr(item, "kw", None)
+    return kw if isinstance(kw, dict) else {}
+
+
+def _template_of(item):
+    template = getattr(item, "template", None)
+    if template is not None:
+        return template
+    return _field_kw(item).get("template")
+
+
+def _template_prefix(template) -> str:
+    prefix = getattr(template, "prefix", None)
+    if isinstance(prefix, str) and prefix:
+        return prefix
+    value = _field_kw(template).get("prefix")
+    return value if isinstance(value, str) else ""
+
+
+def _template_input(template):
+    inner = getattr(template, "input", None)
+    if inner is not None:
+        return inner
+    args = getattr(template, "args", None) or ()
+    return args[0] if args else None
+
+
+def _is_widget(item) -> bool:
+    if _template_of(item) is not None:
+        return False
+    if getattr(item, "force_input", None) or _field_kw(item).get("force_input"):
+        return False
+    if getattr(item, "socketless", None) or _field_kw(item).get("socketless"):
+        return True
+    if hasattr(item, "default") and not getattr(item, "args", None):
+        return True
+    return "default" in _field_kw(item)
+
+
+def _widget_default(item):
+    if hasattr(item, "default") and not getattr(item, "args", None):
+        return item.default
+    return _field_kw(item).get("default")
+
+
+def node_blueprint(class_name: str) -> dict | None:
+    """Widgets (with defaults) and sockets taken from the node's schema."""
+    schema = _schema_object(class_name)
+    if schema is None:
+        return None
+    widgets: dict = {}
+    inputs: list[dict] = []
+    for item in _schema_list(schema, "inputs"):
+        name = _io_name(item)
+        if not name:
+            continue
+        template = _template_of(item)
+        if template is not None:
+            prefix = _template_prefix(template)
+            inner = _template_input(template)
+            inputs.append({
+                "name": f"{name}.{prefix}0" if prefix else f"{name}.0",
+                "type": _io_type(inner) if inner is not None else "*",
+                "link": None,
+            })
+            continue
+        if _is_widget(item):
+            value = _widget_default(item)
+            try:
+                json.dumps(value)
+            except (TypeError, ValueError):
+                continue
+            widgets[name] = value
+            continue
+        inputs.append({"name": name, "type": _io_type(item), "link": None})
+    outputs = []
+    for item in _schema_list(schema, "outputs"):
+        name = _io_name(item) or "output"
+        outputs.append({"name": name, "type": _io_type(item), "links": []})
+    if not widgets and not inputs and not outputs:
+        return None
+    return {"widgets": widgets, "inputs": inputs, "outputs": outputs}
+
+
 def _stage_node(stage_class: str, node_id: int, payload: dict, project_id: str) -> dict:
     widgets = {
         "force_run_token": 1,
@@ -206,10 +361,24 @@ def _stage_node(stage_class: str, node_id: int, payload: dict, project_id: str) 
     extra = payload.get("widgets")
     if isinstance(extra, dict):
         widgets.update(extra)
+    blueprint = node_blueprint(stage_class)
+    inputs: list[dict] = []
+    outputs = _default_outputs(stage_class)
+    if blueprint:
+        for name, value in blueprint["widgets"].items():
+            widgets.setdefault(name, value)
+        inputs = blueprint["inputs"]
+        if blueprint["outputs"]:
+            outputs = blueprint["outputs"]
     pos = payload.get("pos")
     if not (isinstance(pos, (list, tuple)) and len(pos) == 2):
         pos = [40, 40 + 160 * (node_id - 1)]
     title = payload.get("title")
+    props = {
+        "comfytv_server": "",
+        "asset_refs": list(payload.get("asset_refs") or []),
+    }
+    _assign_uid(props)
     return {
         "id": node_id,
         "type": stage_class,
@@ -218,14 +387,10 @@ def _stage_node(stage_class: str, node_id: int, payload: dict, project_id: str) 
         "title": str(title) if title is not None else stage_class,
         "mode": 0,
         "flags": {},
-        "properties": {
-            "comfytv_uid": uuid.uuid4().hex,
-            "comfytv_server": "",
-            "asset_refs": list(payload.get("asset_refs") or []),
-        },
+        "properties": props,
         "widgets": widgets,
-        "inputs": [],
-        "outputs": _default_outputs(stage_class),
+        "inputs": inputs,
+        "outputs": outputs,
     }
 
 
@@ -238,7 +403,7 @@ def add_stage(payload: dict) -> dict:
     save_document(project_id, doc)
     return {
         "graph_node_id": str(node["id"]),
-        "uid": node["properties"]["comfytv_uid"],
+        "uid": _uid_of(node),
         "headless": True,
     }
 
@@ -289,7 +454,7 @@ def set_stage(payload: dict) -> dict:
     save_document(project_id, doc)
     return {
         "graph_node_id": str(node["id"]),
-        "uid": (node.get("properties") or {}).get("comfytv_uid"),
+        "uid": _uid_of(node),
         "updated": updated,
         "headless": True,
     }
@@ -385,7 +550,7 @@ def remove_stage(payload: dict) -> dict:
     return {
         "removed": True,
         "graph_node_id": str(removed_id),
-        "uid": (node.get("properties") or {}).get("comfytv_uid"),
+        "uid": _uid_of(node),
         "headless": True,
     }
 
@@ -429,7 +594,7 @@ def _slim(doc: dict, node: dict) -> dict:
         "inputs": inputs,
         "outputs": outputs,
         "pos": node.get("pos"),
-        "uid": props.get("comfytv_uid"),
+        "uid": _uid_of(node),
         "asset_refs": list(props.get("asset_refs") or []),
         **({"is_stage": True} if type_name.startswith("ComfyTV.") else {}),
     }
@@ -480,9 +645,18 @@ def _apply_op(doc: dict, op: dict) -> dict:
             "inputs": [],
             "outputs": [{"name": "output", "type": "*", "links": []}],
         }
+        blueprint = node_blueprint(type_name)
+        if blueprint:
+            for key, value in blueprint["widgets"].items():
+                node["widgets"].setdefault(key, value)
+            if blueprint["inputs"]:
+                node["inputs"] = blueprint["inputs"]
+            if blueprint["outputs"]:
+                node["outputs"] = blueprint["outputs"]
         if type_name.startswith("ComfyTV."):
-            node["properties"]["comfytv_uid"] = uuid.uuid4().hex
-            node["outputs"] = _default_outputs(type_name)
+            _assign_uid(node["properties"])
+            if not blueprint or not blueprint["outputs"]:
+                node["outputs"] = _default_outputs(type_name)
         doc["nodes"].append(node)
         return {"op": name, "node_id": str(node_id), "type": type_name}
     if name == "remove_node":
@@ -551,8 +725,8 @@ def _apply_op(doc: dict, op: dict) -> dict:
         for out in copy_node.get("outputs") or []:
             out["links"] = []
         props = copy_node.setdefault("properties", {})
-        if props.get("comfytv_uid"):
-            props["comfytv_uid"] = uuid.uuid4().hex
+        if _uid_of(copy_node):
+            _assign_uid(props)
         doc["nodes"].append(copy_node)
         return {
             "op": name,
@@ -698,7 +872,8 @@ def arrange_canvas(payload: dict) -> dict:
 
 
 def _inject_assets(inputs: dict, refs) -> None:
-    counts = {"image": 0, "video": 0, "audio": 0}
+    """Flat autogrow keys (``images.image0``) that do not overwrite wired inputs."""
+    next_index = {"image": 0, "video": 0, "audio": 0}
     for ref in refs or []:
         if not isinstance(ref, dict) or "asset_id" not in ref:
             continue
@@ -710,15 +885,17 @@ def _inject_assets(inputs: dict, refs) -> None:
         if not asset:
             continue
         kind = ref.get("type") or asset.get("media_type") or "image"
-        if kind not in counts:
+        if kind not in next_index:
             continue
-        counts[kind] += 1
         group = _ASSET_GROUP[kind]
-        bucket = inputs.get(group)
-        if not isinstance(bucket, dict):
-            bucket = {}
-        bucket[f"{_ASSET_ITEM[kind]}_{counts[kind]}"] = asset.get("payload_url") or ""
-        inputs[group] = bucket
+        item = _ASSET_ITEM[kind]
+        index = next_index[kind]
+        key = f"{group}.{item}{index}"
+        while key in inputs:
+            index += 1
+            key = f"{group}.{item}{index}"
+        next_index[kind] = index + 1
+        inputs[key] = asset.get("payload_url") or ""
 
 
 def _is_link(value, node_id: str, slot: int | None = None) -> bool:
@@ -731,17 +908,39 @@ def _is_link(value, node_id: str, slot: int | None = None) -> bool:
     return slot is None or int(value[1]) == slot
 
 
+def _sync_widget_values(node: dict) -> None:
+    """Overlay named widget edits onto positional widgets_values, by schema order."""
+    named = dict(node.get("widgets") or {})
+    values = node.get("widgets_values")
+    blue = node_blueprint(str(node.get("type") or ""))
+    order = list((blue or {}).get("widgets") or {})
+    if order and isinstance(values, list):
+        merged = dict((blue or {}).get("widgets") or {})
+        for i, name in enumerate(order):
+            if i < len(values):
+                merged[name] = values[i]
+        merged.update(named)
+        node["widgets"] = merged
+        node["widgets_values"] = [merged.get(name) for name in order]
+    elif named:
+        node["widgets"] = named
+
+
 def graph_to_prompt(doc: dict) -> dict:
     """API prompt for the headless document.
 
     Named widgets become inputs. Links become ``[node_id, slot]``. Asset
-    references are injected as autogrow groups (``images.image_1`` and so on).
-    A UI workflow that only has ``widgets_values`` is converted with ComfyUI's
-    node schemas when those schemas are loaded.
+    references use flat autogrow keys (``images.image0``) and do not replace
+    a key that a wire already occupies. A UI workflow that only has
+    ``widgets_values`` is converted with ComfyUI's node schemas when those
+    schemas are loaded.
     """
-    doc = normalize_document(doc)
+    doc = normalize_document(copy.deepcopy(doc))
+    for node in doc["nodes"]:
+        _sync_widget_values(node)
     needs_schema = any(
-        n.get("widgets_values") and not (n.get("widgets") or {})
+        isinstance(n.get("widgets_values"), list) and n.get("widgets_values")
+        and not (n.get("widgets") or {})
         for n in doc["nodes"]
     )
     if needs_schema:
@@ -759,7 +958,6 @@ def graph_to_prompt(doc: dict) -> dict:
         if int(node.get("mode") or 0) == 2:
             continue
         inputs = dict(node.get("widgets") or {})
-        _inject_assets(inputs, (node.get("properties") or {}).get("asset_refs"))
         for inp in node.get("inputs") or []:
             link = link_by_id.get(inp.get("link"))
             if link is None:
@@ -771,6 +969,7 @@ def graph_to_prompt(doc: dict) -> dict:
             if src is not None and int(src.get("mode") or 0) == 2:
                 continue
             inputs[str(inp.get("name") or "input")] = [src_id, int(link[2])]
+        _inject_assets(inputs, (node.get("properties") or {}).get("asset_refs"))
         api[str(node["id"])] = {
             "class_type": str(node.get("type") or ""),
             "inputs": inputs,

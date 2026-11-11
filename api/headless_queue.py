@@ -27,6 +27,7 @@ _log = logging.getLogger(__name__)
 
 _ABSENT_POLLS = 3
 _POLL_S = 0.4
+HEADLESS_CLIENT_ID = "comfytv-headless"
 
 _PROGRESS: dict[str, dict] = {}
 _COMPLETED: dict[str, dict] = {}
@@ -67,6 +68,26 @@ def _still_linked(prompt: dict, node_id: str) -> bool:
     return False
 
 
+def _slot_values(info: dict) -> dict[int, object]:
+    raw = info.get("slots")
+    out: dict[int, object] = {}
+    if isinstance(raw, dict):
+        for key, value in raw.items():
+            try:
+                out[int(key)] = value
+            except (TypeError, ValueError):
+                continue
+    if out:
+        return out
+    if "value" not in info:
+        return {}
+    try:
+        slot = int(info.get("slot") or 0)
+    except (TypeError, ValueError):
+        slot = 0
+    return {slot: info["value"]}
+
+
 def apply_completed(prompt: dict, completed: dict | None, partial: list | None):
     """Drop finished nodes whose outputs were saved and rewire downstream inputs.
 
@@ -77,18 +98,18 @@ def apply_completed(prompt: dict, completed: dict | None, partial: list | None):
     prompt = copy.deepcopy(prompt or {})
     completed = completed or {}
     for nid, info in list(completed.items()):
-        if not isinstance(info, dict) or "value" not in info:
+        if not isinstance(info, dict):
             continue
-        try:
-            slot = int(info.get("slot") or 0)
-        except (TypeError, ValueError):
-            slot = 0
-        value = info["value"]
+        slot_map = _slot_values(info)
+        if not slot_map:
+            continue
         for node in prompt.values():
             inputs = node.get("inputs") or {}
             for key, current in list(inputs.items()):
-                if _is_link(current, str(nid), slot):
-                    inputs[key] = value
+                for slot, value in slot_map.items():
+                    if _is_link(current, str(nid), slot):
+                        inputs[key] = value
+                        break
         if str(nid) in prompt and not _still_linked(prompt, str(nid)):
             prompt.pop(str(nid), None)
     if partial is not None:
@@ -96,25 +117,46 @@ def apply_completed(prompt: dict, completed: dict | None, partial: list | None):
     return prompt, partial
 
 
+def _collect_urls(value, seen: set[str] | None = None) -> list[str]:
+    """Pull /view and http URLs out of history, including ComfyTV stage payloads."""
+    if seen is None:
+        seen = set()
+    found: list[str] = []
+
+    def add(url: str) -> None:
+        if url and url not in seen:
+            seen.add(url)
+            found.append(url)
+
+    if isinstance(value, str):
+        text = value.strip()
+        if text.startswith("/view?") or text.startswith("http://") or text.startswith("https://"):
+            add(text)
+        elif text[:1] in "{[":
+            try:
+                found.extend(_collect_urls(json.loads(text), seen))
+            except (TypeError, ValueError):
+                pass
+    elif isinstance(value, dict):
+        if value.get("filename"):
+            add("/view?" + urlencode({
+                "filename": value["filename"],
+                "subfolder": value.get("subfolder") or "",
+                "type": value.get("type") or "output",
+            }))
+        for child in value.values():
+            if isinstance(child, (dict, list, str)):
+                found.extend(_collect_urls(child, seen))
+    elif isinstance(value, list):
+        for item in value:
+            found.extend(_collect_urls(item, seen))
+    return found
+
+
 def view_urls(entry: dict | None) -> list[str]:
-    urls: list[str] = []
     if not isinstance(entry, dict):
-        return urls
-    for node_out in (entry.get("outputs") or {}).values():
-        if not isinstance(node_out, dict):
-            continue
-        for files in node_out.values():
-            if not isinstance(files, list):
-                continue
-            for item in files:
-                if not isinstance(item, dict) or not item.get("filename"):
-                    continue
-                urls.append("/view?" + urlencode({
-                    "filename": item["filename"],
-                    "subfolder": item.get("subfolder") or "",
-                    "type": item.get("type") or "output",
-                }))
-    return urls
+        return []
+    return _collect_urls(entry.get("outputs"))
 
 
 def history_error(entry: dict) -> str:
@@ -133,28 +175,49 @@ def history_error(entry: dict) -> str:
     return "execution failed"
 
 
-def _summarize_output(output) -> dict | None:
-    if not isinstance(output, dict):
+def _as_payload(value):
+    if isinstance(value, str):
+        return value
+    if value is None:
         return None
-    for key in ("images", "gifs", "videos", "audio", "video"):
-        files = output.get(key)
-        if isinstance(files, list) and files and isinstance(files[0], dict):
-            item = files[0]
-            if item.get("filename"):
-                return {
-                    "value": "/view?" + urlencode({
-                        "filename": item["filename"],
-                        "subfolder": item.get("subfolder") or "",
-                        "type": item.get("type") or "output",
-                    }),
-                    "slot": 0,
-                }
+    try:
+        return json.dumps(value, ensure_ascii=False)
+    except (TypeError, ValueError):
+        return str(value)
+
+
+def _summarize_output(output) -> dict | None:
+    """Checkpoint one node's outputs, including ComfyTV ``output``/``picked`` lists."""
+    if not isinstance(output, dict):
+        if isinstance(output, str) and output:
+            return {"value": output, "slot": 0, "slots": {"0": output}}
+        return None
+    slots: dict[str, str] = {}
+    urls = _collect_urls({
+        key: output.get(key)
+        for key in ("images", "gifs", "videos", "audio", "video")
+        if key in output
+    })
+    if urls:
+        slots["0"] = urls[0]
+    listed = output.get("output")
+    if isinstance(listed, list) and listed:
+        payload = _as_payload(listed[0])
+        if payload:
+            slots["0"] = payload
+    picked = output.get("picked")
+    if isinstance(picked, list) and picked:
+        payload = _as_payload(picked[0])
+        if payload:
+            slots["1"] = payload
     text = output.get("text")
-    if isinstance(text, list) and text:
-        return {"value": text[0], "slot": 0}
-    if isinstance(text, str):
-        return {"value": text, "slot": 0}
-    return {"slot": 0}
+    if "0" not in slots and isinstance(text, list) and text:
+        slots["0"] = _as_payload(text[0]) or ""
+    elif "0" not in slots and isinstance(text, str):
+        slots["0"] = text
+    if not slots:
+        return {"slot": 0}
+    return {"value": slots.get("0"), "slot": 0, "slots": slots}
 
 
 def _observe(event, data) -> None:
@@ -270,7 +333,10 @@ class ComfyQueueClient:
         if self.busy():
             raise QueueBusy("ComfyUI queue filled while the prompt was checked")
         self._number += 1
-        extra = {"create_time": int(time.time() * 1000)}
+        extra = {
+            "client_id": HEADLESS_CLIENT_ID,
+            "create_time": int(time.time() * 1000),
+        }
         item = (self._number, prompt_id, prompt, extra, outputs or [], {})
         self._queue().put(item)
         _log.info(
@@ -357,7 +423,8 @@ class HeadlessQueue:
             await self._watch()
             await self._submit_one()
 
-    async def recover(self, *, resubmit: bool | None = None) -> list[str]:
+    async def recover(self, *, resubmit: bool | None = None,
+                      only_id: str | None = None) -> list[str]:
         """Match running jobs to ComfyUI before any resubmit.
 
         ``resubmit`` None uses the headless-auto-resume setting (default off).
@@ -368,7 +435,7 @@ class HeadlessQueue:
         if resubmit is None:
             resubmit = auto_resume_enabled()
         async with self._lock:
-            return await self._recover(resubmit=resubmit)
+            return await self._recover(resubmit=resubmit, only_id=only_id)
 
     def _prompt_state(self, prompt_id: str) -> str:
         """running, pending, history, absent, or unknown.
@@ -448,11 +515,21 @@ class HeadlessQueue:
         )
         return "interrupted"
 
-    async def _recover(self, *, resubmit: bool) -> list[str]:
+    async def _recover(self, *, resubmit: bool, only_id: str | None = None) -> list[str]:
         resumed: list[str] = []
-        rows = storage.list_headless_jobs(status="running", limit=200)
-        if resubmit:
-            rows = rows + storage.list_headless_jobs(status="interrupted", limit=200)
+        if only_id:
+            one = storage.get_headless_job(only_id)
+            rows = [
+                one for one in ([one] if one else [])
+                if one["status"] in ("running", "submitting", "interrupted")
+            ]
+        else:
+            rows = (
+                storage.list_headless_jobs(status="running", limit=200)
+                + storage.list_headless_jobs(status="submitting", limit=200)
+            )
+            if resubmit:
+                rows = rows + storage.list_headless_jobs(status="interrupted", limit=200)
         seen: set[str] = set()
         for row in rows:
             if row["id"] in seen:
@@ -569,17 +646,28 @@ class HeadlessQueue:
         if not prompt or (partial is not None and len(partial) == 0):
             self._nothing_left(row, completed)
             return
+        claimed = storage.claim_headless_job(
+            row["id"], expect="queued", become="submitting",
+        )
+        if claimed is None:
+            return
         try:
             prompt_id = await self.client.submit(prompt, partial)
         except QueueBusy:
+            storage.claim_headless_job(
+                row["id"], expect="submitting", become="queued",
+            )
             return
         except Exception as e:
-            storage.update_headless_job(
-                row["id"], status="error", error_text=str(e)[:4000],
+            storage.claim_headless_job(
+                row["id"], expect="submitting", become="error",
+                error_text=str(e)[:4000],
             )
             _log.info("[ComfyTV/headless] job %s rejected: %s", row["id"], type(e).__name__)
             return
-        storage.update_headless_job(row["id"], status="running", prompt_id=prompt_id)
+        storage.claim_headless_job(
+            row["id"], expect="submitting", become="running", prompt_id=prompt_id,
+        )
 
     async def wait_for_stage(self, project_id: str, node_ref: str, timeout_s: float) -> dict | None:
         row = storage.latest_headless_job_for_stage(project_id, node_ref)
@@ -735,7 +823,7 @@ async def enqueue_stage(payload: dict) -> dict:
             f"stage {ref!r} is muted, so the headless runner has nothing to queue"
         )
     partial = [str(node["id"])]
-    uid = (node.get("properties") or {}).get("comfytv_uid")
+    uid = graph._uid_of(node)
     row = storage.create_headless_job(
         project_id=project_id,
         kind="stage",
@@ -767,14 +855,22 @@ def cancel_queued_stage(payload: dict) -> dict:
             "run still needs the open ComfyTV page."
         )
     if row["status"] == "queued":
-        storage.update_headless_job(row["id"], status="cancelled", error_text="cancelled before submit")
+        claimed = storage.claim_headless_job(
+            row["id"], expect="queued", become="cancelled",
+            error_text="cancelled before submit",
+        )
+        if claimed is None:
+            raise ValueError(
+                "this job is already being submitted to ComfyUI. The headless "
+                "queue does not interrupt a prompt that has been claimed."
+            )
         return {
             "cancelled": True,
             "job_id": row["id"],
             "status": "cancelled",
             "headless": True,
         }
-    if row["status"] == "running":
+    if row["status"] in ("submitting", "running"):
         raise ValueError(
             "this job is already in ComfyUI's queue. The headless queue does "
             "not interrupt a running prompt; it will finish on its own."
@@ -789,8 +885,20 @@ async def queue_status(args: dict) -> dict:
     if row is None and prompt_id:
         row = storage.headless_job_by_prompt(prompt_id)
     if row is None and prompt_id:
+        queue = get_queue()
+        state = "absent"
         try:
-            entry = get_queue().client.history_for(prompt_id)
+            state = queue._prompt_state(prompt_id)
+        except Exception:
+            state = "unknown"
+        if state in ("running", "pending"):
+            return {
+                "prompt_id": prompt_id,
+                "status": "running",
+                "headless": True,
+            }
+        try:
+            entry = queue.client.history_for(prompt_id)
         except Exception:
             entry = None
         if entry:
@@ -858,7 +966,12 @@ async def resume_queue(args: dict) -> dict:
                     queue._reconcile_job(row, resubmit=False)
             else:
                 queue._requeue(row)
-        resumed = await queue.recover(resubmit=True)
+            fresh = storage.get_headless_job(row["id"]) or row
+            return {
+                "resumed": [row["id"]] if fresh["status"] == "queued" else [],
+                "job": public_job(fresh),
+            }
+        resumed = await queue.recover(resubmit=True, only_id=job_id)
         queue.ensure_started()
         fresh = storage.get_headless_job(row["id"]) or row
         return {"resumed": resumed, "job": public_job(fresh)}

@@ -252,7 +252,7 @@ class TestHeadlessRun:
         await _run_stage({"node": added["graph_node_id"]})
         await headless["queue"].tick()
         inputs = headless["comfy"].submitted[0]["prompt"][added["graph_node_id"]]["inputs"]
-        assert inputs["images"]["image_1"] == "/view?filename=ref.png&type=input"
+        assert inputs["images.image0"] == "/view?filename=ref.png&type=input"
 
     async def test_cancel_drops_a_queued_job_and_does_not_interrupt(self, headless):
         from ComfyTV.api.mcp_tools import _cancel_stage, _run_stage, _add_stage
@@ -510,6 +510,149 @@ class TestStoredDataTools:
         assert listed["series"]["id"] == "demo"
 
 
+class TestReviewFixes:
+    async def test_stage_prompt_includes_schema_defaults_and_autogrow_slot(self, headless):
+        from ComfyTV.api.mcp_tools import _add_stage, _connect_stages, _run_stage
+
+        upstream = await _add_stage({"node_class": "ImageStage", "prompt": "ref"})
+        stage = await _add_stage({"node_class": "ImageStage", "prompt": "cat"})
+        from ComfyTV.api import headless_graph as graph
+        target = graph.find_node(graph.load_document("default"), stage["uid"])
+        assert any(slot["name"] == "images.image0" for slot in target["inputs"])
+        linked = await _connect_stages({
+            "from_node": upstream["graph_node_id"],
+            "to_node": stage["graph_node_id"],
+            "to_slot": "images.image0",
+        })
+        assert linked["input"] == "images.image0"
+        await _run_stage({"node": stage["uid"]})
+        await headless["queue"].tick()
+        inputs = headless["comfy"].submitted[0]["prompt"][stage["graph_node_id"]]["inputs"]
+        assert inputs["main_prompt"] == "cat"
+        assert inputs["resolution"] == "1K"
+        assert inputs["batch_size"] == 1
+        assert "workflow" in inputs
+        assert inputs["images.image0"] == [upstream["graph_node_id"], 0]
+        node = graph.find_node(graph.load_document("default"), stage["uid"])
+        assert node["properties"]["comfytv_stage_uid"] == stage["uid"]
+
+    async def test_imported_workflow_uid_and_widget_edit(self, headless):
+        from ComfyTV.api.headless_graph import adopt_workflow
+        from ComfyTV.api.mcp_tools import _graph_edit, _run_stage
+
+        workflow = {
+            "nodes": [{
+                "id": 3,
+                "type": "ComfyTV.ImageStage",
+                "properties": {"comfytv_stage_uid": "uid-from-save"},
+                "widgets_values": ["keep-token"],
+                "inputs": [],
+                "outputs": [{"name": "images", "type": "COMFYTV_IMAGES", "links": []}],
+            }],
+            "links": [],
+        }
+        adopt_workflow("default", workflow)
+        await _graph_edit({"ops": [
+            {"op": "set_widget", "node": "3", "name": "main_prompt", "value": "new prompt"},
+        ]})
+        await _run_stage({"node": "uid-from-save"})
+        await headless["queue"].tick()
+        inputs = headless["comfy"].submitted[0]["prompt"]["3"]["inputs"]
+        assert inputs["main_prompt"] == "new prompt"
+        assert inputs["resolution"] == "1K"
+        assert inputs["force_run_token"] == "keep-token" or isinstance(inputs["force_run_token"], int)
+
+    async def test_stage_history_payload_is_an_output(self, headless):
+        from ComfyTV.api.headless_queue import queue_status
+        from ComfyTV.api.mcp_tools import _graph_run
+
+        queued = await _graph_run({"prompt": PROMPT})
+        await headless["queue"].tick()
+        prompt_id = headless["comfy"].running[0]
+        headless["comfy"].finish(prompt_id, {
+            "outputs": {"1": {"output": ["/view?filename=stage.png&type=output"],
+                              "picked": ["/view?filename=picked.png&type=output"]}},
+            "status": {"status_str": "success", "completed": True, "messages": []},
+        })
+        done = await queue_status({"job_id": queued["job_id"]})
+        assert "/view?filename=stage.png&type=output" in done["job"]["outputs"]
+        assert "/view?filename=picked.png&type=output" in done["job"]["outputs"]
+
+    async def test_job_id_status_does_not_queue_when_a_page_opens(self, headless, monkeypatch):
+        from ComfyTV.api import mcp_tools
+        from ComfyTV.api.canvas_state import store_canvas_state
+        from ComfyTV.api.mcp_tools import _graph_run
+
+        queued = await _graph_run({"prompt": PROMPT})
+        store_canvas_state("default", [], client_id="tab")
+        calls = []
+
+        async def submit(action, payload, timeout=15.0):
+            calls.append(action)
+            return {"queued": True, "prompt_id": "page"}
+
+        monkeypatch.setattr(mcp_tools._shared, "submit_command", submit)
+        status = await _graph_run({"job_id": queued["job_id"]})
+        assert calls == []
+        assert status["job"]["job_id"] == queued["job_id"]
+        assert status["job"]["status"] in ("queued", "running")
+
+    async def test_page_prompt_still_running_is_not_missing(self, headless):
+        from ComfyTV.api.headless_queue import queue_status
+
+        headless["comfy"].pending.append("page-prompt")
+        status = await queue_status({"prompt_id": "page-prompt"})
+        assert status["status"] == "running"
+        assert headless["comfy"].submitted == []
+
+    async def test_resume_one_job_leaves_the_other_interrupted(self, headless):
+        from ComfyTV import storage
+        from ComfyTV.api.headless_queue import resume_queue
+
+        first = storage.create_headless_job(project_id="default", kind="graph", prompt=PROMPT)
+        second = storage.create_headless_job(project_id="default", kind="graph", prompt={
+            "9": {"class_type": "ComfyTV.ImageStage", "inputs": {"main_prompt": "other"}},
+        })
+        storage.update_headless_job(first["id"], status="running", prompt_id="gone-a")
+        storage.update_headless_job(second["id"], status="running", prompt_id="gone-b")
+        await headless["queue"].recover()
+        await resume_queue({"job_id": first["id"]})
+        assert storage.get_headless_job(first["id"])["status"] == "queued"
+        assert storage.get_headless_job(second["id"])["status"] == "interrupted"
+
+    async def test_cancel_loses_to_a_claimed_submit(self, headless):
+        from ComfyTV import storage
+        from ComfyTV.api.mcp_tools import _add_stage, _cancel_stage, _run_stage
+
+        added = await _add_stage({"node_class": "ImageStage", "prompt": "x"})
+        queued = await _run_stage({"node": added["graph_node_id"]})
+        claimed = storage.claim_headless_job(
+            queued["job_id"], expect="queued", become="submitting",
+        )
+        assert claimed["status"] == "submitting"
+        with pytest.raises(ValueError, match="does not interrupt"):
+            await _cancel_stage({"node": added["graph_node_id"]})
+        storage.claim_headless_job(
+            queued["job_id"], expect="submitting", become="running", prompt_id="kept",
+        )
+        assert storage.get_headless_job(queued["job_id"])["status"] == "running"
+        assert storage.get_headless_job(queued["job_id"])["prompt_id"] == "kept"
+
+    async def test_stage_lookup_is_not_hidden_by_newer_jobs(self, headless):
+        from ComfyTV import storage
+        from ComfyTV.api.mcp_tools import _add_stage, _run_stage
+
+        first = await _add_stage({"node_class": "ImageStage", "prompt": "old"})
+        queued = await _run_stage({"node": first["graph_node_id"]})
+        for i in range(45):
+            storage.create_headless_job(
+                project_id="default", kind="stage", prompt={"1": {}},
+                stage_ref=str(1000 + i), stage_uid=f"other-stage-{i:02d}",
+            )
+        found = storage.latest_headless_job_for_stage("default", first["uid"])
+        assert found["id"] == queued["job_id"]
+
+
 class TestHeadlessGraph:
     async def test_edit_roundtrip_and_subgraph_needs_a_page(self, headless):
         from ComfyTV.api.mcp_tools import _graph_edit, _graph_get, _graph_run
@@ -590,6 +733,7 @@ class TestComfyClient:
         assert queue.items[0][1] == prompt_id
         assert len(queue.items[0]) == 6
         assert queue.items[0][5] == {}
+        assert queue.items[0][3]["client_id"] == "comfytv-headless"
         assert client.busy() is True
 
         queue.running.append((0, "external", {}, {}, [], {}))
