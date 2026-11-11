@@ -32,6 +32,18 @@
               @change="(e) => setDuration(shot.id, Number((e.target as HTMLInputElement).value))"
             /><span>s</span>
           </label>
+          <label class="ctv:flex ctv:items-center ctv:gap-0.5 ctv:text-2xs ctv:text-muted-foreground"
+                 :title="$t('storyboard.seedHint')">
+            <span>{{ $t('storyboard.seed') }}</span>
+            <input
+              type="number" step="1"
+              :value="shot.seed ?? ''"
+              :placeholder="$t('storyboard.seedAuto')"
+              class="ctv:w-[72px] ctv:py-0.5 ctv:px-1 ctv:rounded-sm ctv:text-[11px] ctv:font-mono
+                     ctv:bg-secondary-background ctv:text-base-foreground ctv:border ctv:border-border-subtle"
+              @change="(e) => setSeed(shot.id, (e.target as HTMLInputElement).value)"
+            />
+          </label>
           <span v-if="shot.shot_size"
                 class="ctv:py-px ctv:px-1.5 ctv:rounded-sm ctv:text-2xs ctv:bg-secondary-background ctv:text-base-foreground">{{ shot.shot_size }}</span>
           <span v-if="shot.character && shot.character !== '无'"
@@ -104,6 +116,28 @@
             :placeholder="$t('storyboard.promptPlaceholder')"
             @input="(e) => setField(shot.id, 'image_prompt', (e.target as HTMLTextAreaElement).value, /*mirror=*/'prompt')"
           />
+        </div>
+
+        <div class="ctv:flex ctv:items-center ctv:gap-1 ctv:flex-wrap">
+          <span class="ctv:text-2xs ctv:opacity-60">{{ $t('storyboard.refsCount', { n: shot.reference_images.length }) }}</span>
+          <button
+            type="button"
+            class="ctv:py-0.5 ctv:px-1.5 ctv:text-2xs ctv:rounded ctv:cursor-pointer
+                   ctv:bg-secondary-background ctv:border ctv:border-border-subtle ctv:text-base-foreground
+                   ctv:disabled:opacity-40 ctv:disabled:cursor-default"
+            :disabled="shot.reference_images.length >= 8 || uploadingId === shot.id"
+            @click="pickExtra(shot.id)"
+          >+ {{ $t('storyboard.addRef') }}</button>
+          <button
+            v-for="(url, ri) in shot.reference_images"
+            :key="`${shot.id}-${ri}`"
+            type="button"
+            class="ctv:relative ctv:w-8 ctv:h-8 ctv:p-0 ctv:rounded ctv:overflow-hidden ctv:border ctv:border-border-subtle ctv:cursor-pointer"
+            :title="$t('storyboard.removeRef')"
+            @click="removeRef(shot.id, ri)"
+          >
+            <img :src="url" alt="" class="ctv:size-full ctv:object-cover" draggable="false" />
+          </button>
         </div>
 
         <dl class="ctv:grid ctv:grid-cols-[max-content_1fr] ctv:gap-x-2.5 ctv:gap-y-[3px] ctv:m-0 ctv:text-2xs ctv:items-start">
@@ -201,9 +235,9 @@ const props = defineProps<{
 const {
   shots, uploadingId, regeneratingId, fileInputEl,
   addShot, removeShot, move,
-  setField, setDuration, setImage,
+  setField, setDuration, setImage, removeRef, setSeed,
   regenerateShot,
-  pickFile, onFilePicked,
+  pickFile, pickExtra, onFilePicked,
 } = useStoryboardShots(props.node, props.state)
 
 const moveBtn = [

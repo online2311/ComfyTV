@@ -1791,6 +1791,12 @@
     "noRef": "无参考图",
     "uploadRef": "上传参考图",
     "clearRef": "清除参考图",
+    "addRef": "添加参考图",
+    "removeRef": "移除这张参考图",
+    "refsCount": "参考图 {n}/8",
+    "seed": "种子",
+    "seedAuto": "跟随",
+    "seedHint": "留空则使用阶段上的种子",
     "promptPlaceholder": "描述这个镜头…",
     "cols": {
       "scene_purpose": "画面描述",

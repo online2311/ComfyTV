@@ -1,6 +1,8 @@
 import json
 import re
 
+from .shot_inputs import image_ref_url, image_ref_urls, shot_seed
+
 
 _STORYBOARD_FIELDS: list[tuple[str, str]] = [
     ("镜号",         "shot_no"),
@@ -225,19 +227,13 @@ def _duration_label(raw, index: int) -> str:
     return duration_raw
 
 
-def _image_url_or_none(raw) -> str | None:
-    if isinstance(raw, str) and raw.strip():
-        return raw.strip()
-    return None
-
-
 def _canonical_shot(raw: dict, index: int) -> dict:
     prompt = (
         raw.get('image_prompt') or raw.get('prompt') or raw.get('scene_purpose') or ''
     )
     prompt = str(prompt).strip()
     image_prompt = str(raw.get('image_prompt') or prompt)
-    return {
+    shot = {
         "shot_no":        str(raw.get('shot_no') or index + 1),
         "duration":       _duration_label(raw.get('duration'), index),
         "scene_purpose":  raw.get('scene_purpose') or '',
@@ -255,8 +251,15 @@ def _canonical_shot(raw: dict, index: int) -> dict:
         "prompt":         prompt,
         "image_prompt":   image_prompt,
         "motion_prompt":  raw.get('motion_prompt') or '',
-        "image_url":      _image_url_or_none(raw.get('image_url')),
+        "image_url":      image_ref_url(raw.get('image_url')),
     }
+    refs = image_ref_urls(raw.get('reference_images')) or image_ref_urls(raw.get('refs'))
+    if refs:
+        shot["reference_images"] = refs
+    seed = shot_seed(raw)
+    if seed is not None:
+        shot["seed"] = seed
+    return shot
 
 
 def _json_shots(raw_text: str) -> list[dict] | None:

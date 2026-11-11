@@ -180,6 +180,49 @@ async def test_interrupt_stops_the_remaining_shots(shot_stage, monkeypatch):
     assert len(calls) == 1
 
 
+async def test_per_shot_refs_and_seed_override_the_shared_values(shot_stage):
+    g, calls = shot_stage
+    shared = ["/view?filename=shared.png&type=input"]
+    own = [
+        "/view?filename=face.png&type=input",
+        "not-a-url",
+        {"src": "https://example.com/room.png"},
+    ]
+    await g.ShotImagesStage.execute(
+        workflow="Flux",
+        storyboard=_storyboard(
+            {"shot_no": "1", "prompt": "own", "reference_images": own, "seed": 11},
+            {"shot_no": "2", "prompt": "url", "image_url": "/view?filename=only.png&type=input"},
+            {"shot_no": "3", "prompt": "text", "reference_img": "特写"},
+            {"shot_no": "4", "prompt": "shared", "seed": ""},
+        ),
+        images=shared,
+        custom_params='{"items":[{"key":"seed","value":7}]}',
+    )
+    assert calls[0]["upstream"]["images"] == [
+        "/view?filename=face.png&type=input",
+        "https://example.com/room.png",
+    ]
+    assert calls[0]["options"]["seed"] == 11
+    assert calls[1]["upstream"]["images"] == ["/view?filename=only.png&type=input"]
+    assert "seed" not in calls[1]["options"]
+    assert calls[2]["upstream"]["images"] == shared
+    assert calls[3]["upstream"]["images"] == shared
+    assert "seed" not in calls[3]["options"]
+    assert calls[3]["custom_params"] == calls[0]["custom_params"]
+
+
+async def test_refs_objects_are_capped_at_eight(shot_stage):
+    g, calls = shot_stage
+    refs = [{"image_url": f"/view?filename={i}.png&type=input"} for i in range(10)]
+    await g.ShotImagesStage.execute(
+        workflow="Flux",
+        storyboard=_storyboard({"shot_no": "1", "prompt": "many", "refs": refs}),
+    )
+    assert len(calls[0]["upstream"]["images"]) == 8
+    assert calls[0]["upstream"]["images"][0].endswith("0.png&type=input")
+
+
 async def test_missing_workflow_is_a_runner_error(monkeypatch, reset_db):
     from ComfyTV.nodes.stages import generators as g
 

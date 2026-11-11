@@ -187,6 +187,25 @@ class TestShapeStoryboard:
         assert shot["prompt"] == "close on the door"
         assert shot["image_url"] == "/view?filename=ref.png&type=input"
 
+    def test_json_keeps_per_shot_refs_and_seed(self):
+        raw = json.dumps({"shots": [{
+            "shot_no": "1",
+            "prompt": "door",
+            "seed": "99",
+            "refs": [
+                {"src": "CHR_text_not_a_url"},
+                {"src": "/view?filename=face.png&type=input"},
+            ],
+            "reference_img": "特写",
+        }]})
+        shot = json.loads(c._shape_storyboard_from_llm(raw))["shots"][0]
+        assert shot["seed"] == 99
+        assert shot["reference_images"] == ["/view?filename=face.png&type=input"]
+        assert shot["reference_img"] == "特写"
+        assert "seed" not in json.loads(c._shape_storyboard_from_llm(
+            "镜号: 1\n时长: 4\n画面描述: x\n"
+        ))["shots"][0]
+
     def test_sixteen_field_text_wins_over_embedded_json(self):
         raw = (
             '{"shots": [{"shot_no": "9", "prompt": "from json"}]}\n'

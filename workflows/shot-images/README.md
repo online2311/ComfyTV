@@ -22,4 +22,4 @@ To add your own workflow see [docs/custom-workflows.md](../../docs/custom-workfl
 - `local-z-image-turbo` — Z-Image Turbo, one image per shot (`batch_size` fixed at 1).
 - `flux-schnell` — Flux Schnell fp8, one image per shot.
 
-Workflows under `image/` can still opt into this dropdown with `kinds: ["image", "shot-images"]`. Every shot receives the stage's shared reference images and the stage seed; a shot does not carry its own.
+Workflows under `image/` can still opt into this dropdown with `kinds: ["image", "shot-images"]`. A shot uses the stage's shared reference images (max 8) and the stage seed. If that shot's JSON has `reference_images`, `refs`, `image_url`, or a URL in `reference_img`, those images replace the shared set for that shot only. A numeric `seed` on the shot replaces the stage seed for that shot only. Shots that omit both keep the shared values, so older storyboards are unchanged.

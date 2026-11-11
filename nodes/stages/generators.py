@@ -1,6 +1,7 @@
 import logging
 
 from ._common import *  # noqa: F401, F403
+from .common.shot_inputs import shot_reference_images, shot_seed
 
 _log = logging.getLogger(__name__)
 
@@ -553,17 +554,24 @@ class ShotImagesStage(io.ComfyNode):
             if not prompt:
                 skipped_empty += 1
             else:
+                options = {
+                    'resolution':   resolution,
+                    'aspect_ratio': aspect_ratio,
+                    'batch_size':   1,
+                }
+                seed = shot_seed(shot)
+                if seed is not None:
+                    options['seed'] = seed
                 try:
                     shot_payload = await invoke_runner(
                         kind='shot-images',
                         label=workflow,
                         main_prompt=prompt,
-                        upstream={'texts': [], 'images': shared_refs},
-                        options={
-                            'resolution':   resolution,
-                            'aspect_ratio': aspect_ratio,
-                            'batch_size':   1,
+                        upstream={
+                            'texts': [],
+                            'images': shot_reference_images(shot, shared_refs),
                         },
+                        options=options,
                         custom_params=custom_params,
                     )
                 except StageNotImplemented as e:

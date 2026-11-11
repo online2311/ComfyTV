@@ -136,8 +136,38 @@ describe('useStoryboardShots', () => {
     addShot()
     setImage(shots.value[0].id, '/view?x=1')
     expect(shots.value[0].image_url).toBe('/view?x=1')
+    expect(shots.value[0].reference_images).toEqual(['/view?x=1'])
     const parsed = JSON.parse(w.value)
     expect(parsed.shots[0].image_url).toBe('/view?x=1')
+    expect(parsed.shots[0].reference_images).toEqual(['/view?x=1'])
+    expect(parsed.shots[0].seed).toBeNull()
+  })
+
+  it('round-trips per-shot refs and seed, and ignores a non-url reference', () => {
+    const seed = {
+      shots: [{
+        shot_no: '1',
+        image_prompt: 'door',
+        reference_images: ['/view?filename=a.png&type=input', 'not a url'],
+        seed: 42,
+        reference_img: '特写',
+      }],
+    }
+    const w = makeWidget('storyboard_data', JSON.stringify(seed))
+    const node = makeNode([w])
+    const { shots, addRef, setSeed, removeRef } = useStoryboardShots(node, makeState())
+    expect(shots.value[0].reference_images).toEqual(['/view?filename=a.png&type=input'])
+    expect(shots.value[0].seed).toBe(42)
+    addRef(shots.value[0].id, 'https://example.com/b.png')
+    setSeed(shots.value[0].id, '')
+    const parsed = JSON.parse(w.value)
+    expect(parsed.shots[0].reference_images).toEqual([
+      '/view?filename=a.png&type=input',
+      'https://example.com/b.png',
+    ])
+    expect(parsed.shots[0].seed).toBeNull()
+    removeRef(shots.value[0].id, 0)
+    expect(shots.value[0].image_url).toBe('https://example.com/b.png')
   })
 
   it('regenerateShot merges the backend response into the shot at the target index', async () => {
