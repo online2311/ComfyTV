@@ -293,7 +293,7 @@ async def _fetch_server_queue(session: aiohttp.ClientSession, server: dict) -> d
 def _active_jobs_by_server() -> dict[int, int]:
     tally: dict[int, int] = {}
     try:
-        for status in ("queued", "running"):
+        for status in ("queued", "running", "cancel-requested"):
             for job in storage.list_remote_jobs(status=status):
                 sid = job.get("server_id")
                 if sid is not None and job["id"] in ACTIVE_JOBS:
@@ -437,13 +437,25 @@ async def _run_job(job_id: str, handle: RemoteJobHandle, stage_cls, kwargs: dict
         )
         _broadcast_job(job_id, node_id, project_id, "cancelled", error=str(e))
     except Exception as e:
-        _log.exception("[ComfyTV/servers] remote job %s failed", job_id)
-        storage.update_remote_job(
-            job_id, status="error",
-            remote_prompt_id=handle.remote_prompt_id,
-            error_text=str(e),
-        )
-        _broadcast_job(job_id, node_id, project_id, "error", error=str(e))
+        if handle.discard_outputs:
+            _log.info(
+                "[ComfyTV/servers] remote job %s finished after cancel; outputs ignored: %s",
+                job_id, e,
+            )
+            storage.update_remote_job(
+                job_id, status="cancelled",
+                remote_prompt_id=handle.remote_prompt_id,
+                error_text=str(e),
+            )
+            _broadcast_job(job_id, node_id, project_id, "cancelled", error=str(e))
+        else:
+            _log.exception("[ComfyTV/servers] remote job %s failed", job_id)
+            storage.update_remote_job(
+                job_id, status="error",
+                remote_prompt_id=handle.remote_prompt_id,
+                error_text=str(e),
+            )
+            _broadcast_job(job_id, node_id, project_id, "error", error=str(e))
     finally:
         CURRENT_JOB.reset(token)
         ACTIVE_JOBS.pop(job_id, None)
@@ -524,7 +536,7 @@ async def remote_run(request: web.Request) -> web.Response:
 async def list_remote_jobs(request: web.Request) -> web.Response:
     status = request.query.get("status")
     jobs = storage.list_remote_jobs(status=status or None)
-    if status in ("queued", "running"):
+    if status in ("queued", "running", "cancel-requested"):
         jobs = [j for j in jobs if j["id"] in ACTIVE_JOBS]
     return web.json_response({"jobs": jobs})
 
@@ -547,7 +559,7 @@ async def cancel_remote_job(request: web.Request) -> web.Response:
 
 def _reap_stale_jobs() -> None:
     try:
-        for status in ("queued", "running"):
+        for status in ("queued", "running", "cancel-requested"):
             for job in storage.list_remote_jobs(status=status):
                 storage.update_remote_job(
                     job["id"], status="error",

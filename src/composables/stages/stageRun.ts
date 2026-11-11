@@ -171,6 +171,8 @@ export function createStageRun(opts: {
   const onCancelRequest = async () => {
     if (!state.running) return
     if (runningJobId) {
+      // Remote executor. The server deletes a pending prompt only; a running
+      // one is left to finish and its outputs are discarded.
       try {
         await cancelRemoteJob(runningJobId)
       } catch (e) {

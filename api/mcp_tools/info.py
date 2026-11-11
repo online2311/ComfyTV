@@ -79,7 +79,9 @@ async def _jobs(args: dict) -> dict:
             raise ValueError(f"remote job {job_id!r} not found")
         return {"job": job}
     status = args.get("status")
-    if status and status not in ("queued", "running", "done", "error", "cancelled"):
+    if status and status not in (
+        "queued", "running", "done", "error", "cancelled", "cancel-requested",
+    ):
         raise ValueError(f"unknown status {status!r}")
     return {"jobs": storage.list_remote_jobs(status or None)}
 
@@ -177,15 +179,18 @@ TOOLS: dict[str, dict] = {
     "jobs": {
         "description": (
             "Remote-execution jobs (stages routed to another ComfyUI server). "
-            "Filter by status (queued/running/done/error/cancelled) or fetch one by "
-            "job_id. error_text holds the failure reason. Local execution errors "
+            "Filter by status (queued/running/cancel-requested/done/error/cancelled) "
+            "or fetch one by job_id. cancel-requested means the remote prompt was "
+            "already running, so it was left to finish and its outputs will be "
+            "discarded. error_text holds the failure reason. Local execution errors "
             "are NOT here — use exec_errors for those."
         ),
         "inputSchema": {
             "type": "object",
             "properties": {
                 "status": {"type": "string",
-                           "enum": ["queued", "running", "done", "error", "cancelled"]},
+                           "enum": ["queued", "running", "cancel-requested", "done",
+                                    "error", "cancelled"]},
                 "job_id": {"type": "string"},
             },
             "additionalProperties": False,

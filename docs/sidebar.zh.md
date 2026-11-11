@@ -119,6 +119,7 @@ ComfyTV 在 ComfyUI 左侧边栏注册一个 **ComfyTV** 页签，里面又分**
 - **Test connection** 显示在线/离线和队列状态（运行中/排队中、其中多少是 ComfyTV 发的）。
 - **能力探测**报告远端的 ComfyTV 版本——或警告那边根本没装 ComfyTV——并列出缺失的节点。预检会硬拦注定失败的运行（没装 ComfyTV、缺节点），资源缺失则只警告。
 - 服务器可随时禁用或删除；指向它的 stage 自动回退到本机运行。
+- 取消发到远程服务器的 stage 时，不会在那台机器上调用 interrupt 或 free。prompt 还在排队时，只从远程队列删掉这一条。远程已经开跑时，任务标成 cancel-requested，让它跑完，产出丢掉。取消当前打开页面上的 stage，仍会中断该页面自己的 ComfyUI（`queueControl.cancelPrompt`，以及画布命令 `Comfy.Interrupt`）。远程调用的连接、读取、轮询间隔和整次任务超时都在设置里（默认 10 秒、0 表示不限制单次读取、2 秒、3600 秒）。
 
 ---
 

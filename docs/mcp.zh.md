@@ -60,7 +60,7 @@ url = "http://127.0.0.1:8188/comfytv/mcp"
 | `queue_status` | 查一个无头任务的状态、进度和 `/view` 产出,不阻塞 |
 | `list_queue` | 列出无头队列(不是远程机器的 `jobs`) |
 | `resume_queue` | 先查 `/queue` 和 `/history/{prompt_id}`，只有 ComfyUI 完全没有这条 prompt 的记录时才重新提交。启动时默认不自动续跑（`headless-auto-resume` 默认关） |
-| `cancel_stage` | 有页面时停止该次运行。无页面时只丢掉还没提交的任务;已经在 ComfyUI 队列里的不中断 |
+| `cancel_stage` | 有页面时，只中断该页面自己这台 ComfyUI 上的 prompt。发到远程执行机时，仅当 prompt 还在排队才从那台机器的队列删掉；已经在跑则标成 cancel-requested，让它跑完并丢掉产出。无页面时只丢掉还没提交的任务；已经在本机队列里的不中断 |
 | `remove_stage` | 删节点 |
 | `arrange_canvas` | 整理画布布局(行/列/网格) |
 
@@ -72,7 +72,7 @@ url = "http://127.0.0.1:8188/comfytv/mcp"
 | `graph_edit` | 批量编辑原生图:加/删/克隆节点、设 widget、连线、分组、折叠、bypass、打包/解包子图 — 整批一个撤销步 |
 | `graph_run` | 排队原生图。有页面时最多等 `wait_s`。无页面时传 `prompt`(API 格式)或 `workflow`(UI 格式),立刻返回 `job_id` |
 | `workflow_create` | 用 API 格式的图为某个 stage kind 新建一个工作流文件 |
-| `canvas_command` | 白名单原生命令:撤销/重做、保存、适配视图、中断、刷新节点定义 |
+| `canvas_command` | 白名单原生命令:撤销/重做、保存、适配视图、中断（仅当前打开页面自己的 ComfyUI）、刷新节点定义 |
 | `canvas_focus` | 选中节点并把用户视口平滑移过去 — 展示你改了什么 |
 
 **看见与评判**

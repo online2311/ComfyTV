@@ -119,6 +119,7 @@ Register other ComfyUI instances on your network (name / host / port) and stages
 - **Test connection** shows online/offline plus queue status (running / pending, and how many jobs are from ComfyTV).
 - A **capability probe** reports the remote's ComfyTV version — or warns that ComfyTV isn't installed there — and lists any nodes it's missing. Preflight blocks a run that can't work (no ComfyTV, missing node) and warns on missing resources.
 - Disable or delete a server anytime; stages pointed at it fall back to running locally.
+- Cancelling a stage that was sent to a remote server never calls interrupt or free on that host. If its prompt is still pending, only that prompt is removed from the remote queue. If the remote has already started it, the job is marked cancel-requested, runs to completion, and its outputs are discarded. Cancelling a stage on the open page still interrupts that page's own ComfyUI (`queueControl.cancelPrompt`, and the canvas command `Comfy.Interrupt`). Connect, read, poll interval, and overall job timeouts for remote calls are settings (defaults 10s, 0 meaning no per-read limit, 2s, and 3600s).
 
 ---
 

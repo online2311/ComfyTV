@@ -45,6 +45,10 @@ SETTINGS_SPEC: dict[str, dict[str, Any]] = {
     "eagle-send-folder": {"type": "string", "default": "ComfyTV"},
     "eagle-auto-send": {"type": "boolean", "default": False},
     "blender-bridge-url": {"type": "string", "default": "http://127.0.0.1:7684", "experimental": True},
+    "remote-connect-timeout-s": {"type": "int", "default": 10, "min": 1},
+    "remote-read-timeout-s": {"type": "int", "default": 0, "min": 0},
+    "remote-poll-interval-s": {"type": "int", "default": 2, "min": 1},
+    "remote-job-timeout-s": {"type": "int", "default": 3600, "min": 1},
 }
 
 

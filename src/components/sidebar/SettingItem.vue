@@ -51,7 +51,7 @@
           v-else-if="row.type === 'int'"
           class="ctv:w-20"
           :model-value="Number(value ?? row.default)"
-          :min="1"
+          :min="Number(row.default) === 0 ? 0 : 1"
           :precision="0"
           @update:model-value="(v: number | null) => emit('update', v ?? row.default)"
         />

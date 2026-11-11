@@ -423,14 +423,18 @@ TOOLS: dict[str, dict] = {
     },
     "cancel_stage": {
         "description": (
-            "Stop a stage's in-flight run (local runs interrupt the ComfyUI "
-            "queue; remote runs cancel the remote job) — use when a render "
-            "is clearly wrong or stuck instead of waiting it out. node is a "
-            "stage uid or graph node id; errors if the stage is not "
-            "running. When a page is open, this still interrupts that page's "
-            "run. With no page, a headless job that has not been submitted "
-            "yet is dropped; a job already in ComfyUI's queue is left running "
-            "(this path does not call interrupt)."
+            "Stop a stage's in-flight run. node is a stage uid or graph node "
+            "id; errors if the stage is not running. When a page is open, a "
+            "run on that page's own ComfyUI still interrupts that local "
+            "prompt (queueControl.cancelPrompt, and the canvas command "
+            "Comfy.Interrupt). A run sent to a remote executor is different: "
+            "if that prompt is still pending, only that prompt_id is removed "
+            "from the remote queue; if it is already running, ComfyTV does "
+            "not call interrupt or free on the remote host. The job is marked "
+            "cancel-requested, left to finish, and its outputs are discarded. "
+            "With no page, a headless job that has not been submitted yet is "
+            "dropped; a job already in the local ComfyUI queue is left running "
+            "(the headless path does not call interrupt)."
         ),
         "inputSchema": {
             "type": "object",

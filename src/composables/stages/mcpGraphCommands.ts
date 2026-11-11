@@ -461,6 +461,7 @@ export async function handleCanvasCommand(app: any, cmd: any): Promise<CommandRe
     await commandApi.execute(id)
     return { executed: id }
   }
+  // The open page only. This interrupts the ComfyUI serving this tab, never a remote executor.
   if (id === 'Comfy.Interrupt' && typeof app?.api?.interrupt === 'function') {
     await app.api.interrupt()
     return { executed: id, via: 'api.interrupt' }
