@@ -162,6 +162,18 @@ class SequenceStage(io.ComfyNode):
                                 socketless=True, extra_dict={"hidden": True},
                                 tooltip='JSON [{slot, in_s, out_s, transition, trans_dur}] '
                                         'in playback order — driven by the segment list UI'),
+                io.Combo.Input(
+                    "video_encoder",
+                    options=["auto", "nvenc", "cpu"],
+                    default="auto",
+                    optional=True,
+                    socketless=True,
+                    extra_dict={"hidden": True},
+                    tooltip="Passed through to hard cuts. auto tries h264_nvenc once "
+                            "and falls back to libx264. nvenc fails if the GPU encoder "
+                            "cannot open. cpu forces libx264. When this stays auto, "
+                            "COMFYTV_VIDEO_ENCODER applies.",
+                ),
                 io.Autogrow.Input(
                     "videos",
                     template=_video_template(VIDEO_ASSEMBLY_SLOT_MAX),
@@ -175,7 +187,7 @@ class SequenceStage(io.ComfyNode):
 
     @classmethod
     def execute(cls, force_run_token=0, project_id="", parent_output_id=0,
-                segments="", videos=None):
+                segments="", videos=None, video_encoder="auto"):
         def _norm(k):
             return str(k).split('.')[-1]
 
@@ -198,6 +210,13 @@ class SequenceStage(io.ComfyNode):
             raise RuntimeError(
                 "Sequence needs at least one connected video segment."
             )
-        payload = render_sequence(segs, progress=_progress_cb(cls))
+        report: dict = {}
+        payload = render_sequence(
+            segs, progress=_progress_cb(cls), video_encoder=video_encoder, report=report,
+        )
+        encoder = report.get("video_encoder")
+        extra_ui = {"video_encoder": [encoder]} if encoder else None
+        params = {"video_encoder": encoder} if encoder else None
         return _stage_emit_auto(cls, project_id=project_id, payload_str=payload,
-                                parent_output_id=parent_output_id)
+                                parent_output_id=parent_output_id,
+                                params=params, extra_ui=extra_ui)
