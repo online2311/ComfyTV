@@ -95,6 +95,7 @@ accordingly.
 | `workflow_get` / `workflow_edit` | Read a workflow's input bindings and node inventory; bind/unbind stage values to workflow inputs, validated against the real graph |
 | `stage_params` | Define custom stage parameters, then bind them as `option:<key>` |
 | `asset_edit` | Save outputs into the asset library, rename, categorize |
+| `series_library` | Read and update a series folder's `library.yaml` (stable `ID@vN#view` codes, lock, new version, resolve, JSON manifest import) |
 
 **Rich editors**
 

@@ -1,0 +1,193 @@
+# 系列资产库索引（唯一真相）。只追加；已锁定版本永不修改。格式见 docs/LIBRARY_FORMAT.md
+schema_version: 1
+series:
+  id: gumu-sx
+  code: SER_gumu_sx
+  title_zh: 古墓双修
+  view_url_subfolder: comfytv/series/gumu-sx
+comfytv:
+  category_prefix: SER·gumu-sx·
+assets:
+- id: CHR_xiaolongnv
+  version: 1
+  kind: character
+  status: locked
+  name_zh: 小龙女
+  desc_en: A woman about 25 years old, clearly adult, long straight jet-black hair worn loose to the waist.
+  lock_en: adult woman about 25, oval face, long straight jet-black hair worn loose to the waist
+  state_lock_en: white cross collar neatly closed at the base of the neck
+  voice_desc_en: Adult female, about 25; cool, clear, slightly breathy timbre.
+  speaker_key: xiaolongnv
+  tags:
+  - gumu-sx
+  files:
+    front:
+      path: CHR_xiaolongnv/v1/front.png
+      media_type: image
+      usage:
+      - identity_video
+      - image_ref
+      - review
+    headshot:
+      path: CHR_xiaolongnv/v1/headshot.png
+      media_type: image
+      usage:
+      - identity_video
+      - image_ref
+      - review
+    expr_cold:
+      path: CHR_xiaolongnv/v1/expr_cold.png
+      media_type: image
+      usage:
+      - image_ref
+      - review
+    pose_sit:
+      path: CHR_xiaolongnv/v1/pose_sit.png
+      media_type: image
+      usage:
+      - image_ref
+      - review
+    hand_rest:
+      path: CHR_xiaolongnv/v1/hand_rest.png
+      media_type: image
+      usage:
+      - image_ref
+      - review
+    doc_desc:
+      path: CHR_xiaolongnv/v1/desc.md
+      media_type: text
+      usage:
+      - text
+  approved_by: 张景
+  approved_at: '2026-11-10T09:30:00+08:00'
+  approval_ref: project.json decisions.looks_v3
+  locked_at: '2026-11-11T16:53:04+08:00'
+- id: OUT_xiaolongnv_baiyi
+  version: 1
+  kind: outfit
+  status: locked
+  name_zh: 小龙女·白衣
+  parent: CHR_xiaolongnv@v1
+  desc_en: She wears a snow-white Southern Song layered silk robe.
+  lock_en: snow-white cross-collar inner robe, plain white sash, no embroidery
+  files:
+    front:
+      alias_of: CHR_xiaolongnv@v1#front
+    headshot:
+      alias_of: CHR_xiaolongnv@v1#headshot
+  approved_by: 张景
+  approved_at: '2026-11-10T09:30:00+08:00'
+  locked_at: '2026-11-11T16:53:04+08:00'
+- id: LOOK_xiaolongnv_baiyi_opened
+  version: 1
+  kind: look
+  status: locked
+  name_zh: 小龙女·白衣·衣襟松开
+  parent: CHR_xiaolongnv@v1
+  outfit_of: OUT_xiaolongnv_baiyi@v1
+  lock_en: cross collar loosened to the collarbones, chest still covered
+  files:
+    front:
+      path: LOOK_xiaolongnv_baiyi_opened/v1/front.png
+      media_type: image
+      usage:
+      - identity_video
+      - image_ref
+  approved_by: 张景
+  approved_at: '2026-11-10T09:30:00+08:00'
+  locked_at: '2026-11-11T16:53:04+08:00'
+- id: LOC_gumu_shishi
+  version: 1
+  kind: location
+  status: locked
+  name_zh: 终南古墓·寒玉床石室
+  desc_en: An underground granite tomb chamber at night, pale jade bed, bronze candle stand.
+  lighting_states:
+  - night_candle
+  - dark_candle_out
+  files:
+    empty:
+      path: LOC_gumu_shishi/v1/empty.png
+      media_type: image
+      usage:
+      - location_video
+      - image_ref
+      - review
+    doc_desc:
+      path: LOC_gumu_shishi/v1/desc.md
+      media_type: text
+      usage:
+      - text
+    doc_blocking:
+      path: LOC_gumu_shishi/v1/blocking.yaml
+      media_type: text
+      usage:
+      - text
+  approved_by: 张景
+  approved_at: '2026-11-11T17:50:00+08:00'
+  locked_at: '2026-11-11T16:53:04+08:00'
+- id: PRP_zhutai
+  version: 1
+  kind: prop
+  status: locked
+  name_zh: 床边青铜落地烛台
+  desc_en: A tall plain bronze floor candle stand about 120 cm high, one thick ivory candle.
+  scale: furniture
+  files:
+    lit:
+      path: PRP_zhutai/v1/lit.png
+      media_type: image
+      usage:
+      - prop_video
+      - image_ref
+      - review
+    out:
+      path: PRP_zhutai/v1/out.png
+      media_type: image
+      usage:
+      - prop_video
+      - image_ref
+      - review
+  approved_by: 张景
+  approved_at: '2026-11-11T17:50:00+08:00'
+  locked_at: '2026-11-11T16:53:04+08:00'
+- id: STY_01
+  version: 1
+  kind: style
+  status: locked
+  name_zh: 寒石暖烛
+  files:
+    style:
+      path: STY_01/v1/style.png
+      media_type: image
+      usage:
+      - style_image
+      - review
+    doc_style:
+      path: STY_01/v1/style.md
+      media_type: text
+      usage:
+      - text
+  approved_by: 张景
+  approved_at: '2026-11-11T17:50:00+08:00'
+  locked_at: '2026-11-11T16:53:04+08:00'
+- id: VOX_xiaolongnv
+  version: 1
+  kind: voice
+  status: locked
+  name_zh: 小龙女音色
+  files:
+    voice_ref:
+      path: VOX_xiaolongnv/v1/voice_ref.wav
+      media_type: audio
+      usage:
+      - voice_clone
+    voice_ref_txt:
+      path: VOX_xiaolongnv/v1/voice_ref.txt
+      media_type: text
+      usage:
+      - text
+  approved_by: 张景
+  approved_at: '2026-11-11T17:50:00+08:00'
+  locked_at: '2026-11-11T16:53:04+08:00'
+updated_at: '2026-11-11T17:54:37+08:00'

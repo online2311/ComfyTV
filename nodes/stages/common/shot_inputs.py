@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from ....storage.series_library import image_urls_for_shot
+
 MAX_SHOT_REFS = 8
 
 
@@ -50,7 +52,12 @@ def image_ref_urls(raw: Any) -> list[str]:
 
 
 def shot_reference_images(shot: Any, shared: list | None) -> list:
-    """Per-shot refs when the shot has any image URL, otherwise the shared list."""
+    """Per-shot refs when the shot has any image URL, otherwise the shared list.
+
+    When the shot has no image URL, asset codes such as ``CHR_xiaolongnv@v1#front``
+    (or character / location / prop ids in the shot) resolve through the bound
+    series library.yaml. The shot dict itself is left unchanged.
+    """
     if isinstance(shot, dict):
         for key in ("reference_images", "refs"):
             urls = image_ref_urls(shot.get(key))
@@ -60,6 +67,9 @@ def shot_reference_images(shot: Any, shared: list | None) -> list:
             url = image_ref_url(shot.get(key))
             if url:
                 return [url]
+        resolved = image_urls_for_shot(shot)
+        if resolved:
+            return resolved[:MAX_SHOT_REFS]
     return list(shared or [])
 
 
