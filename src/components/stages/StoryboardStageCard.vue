@@ -2,6 +2,19 @@
   <div class="ctv:flex ctv:flex-col ctv:gap-1.5 ctv:size-full">
     <div class="ctv:flex ctv:items-center ctv:gap-2">
       <span class="ctv:text-[11px] ctv:font-semibold ctv:text-muted-foreground">{{ $t('storyboard.shots') }} · {{ shots.length }}</span>
+      <label class="ctv:flex ctv:items-center ctv:gap-1 ctv:text-[11px] ctv:text-muted-foreground" :title="$t('storyboard.sourceHint')">
+        <span>{{ $t('storyboard.source') }}</span>
+        <select
+          class="ctv:py-0.5 ctv:px-1 ctv:text-[11px] ctv:rounded ctv:cursor-pointer
+                 ctv:bg-secondary-background ctv:border ctv:border-border-subtle ctv:text-base-foreground"
+          :value="source"
+          @change="setSource(($event.target as HTMLSelectElement).value)"
+        >
+          <option value="auto">{{ $t('storyboard.sourceAuto') }}</option>
+          <option value="data">{{ $t('storyboard.sourceData') }}</option>
+          <option value="llm">{{ $t('storyboard.sourceLlm') }}</option>
+        </select>
+      </label>
       <button
         type="button"
         class="ctv:ml-auto ctv:py-0.5 ctv:px-2.5 ctv:text-[11px] ctv:rounded ctv:cursor-pointer
@@ -323,6 +336,8 @@
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue'
+
 import StageCard from '@/components/stages/StageCard.vue'
 import ViewFullButton from '@/components/ViewFullButton.vue'
 import { MAX_SHOT_REFS, useStoryboardShots, type Shot } from '@/composables/stages/useStoryboardShots'
@@ -339,6 +354,7 @@ import {
 } from '@/composables/stages/shotDocument'
 import type { LGraphNode } from '@/lib/comfyApp'
 import type { StageState } from '@/stores/stageStore'
+import { bindWidgetCallback, onNodeConfigure, readWidgetStr, writeWidget } from '@/utils/widget'
 
 const META_FIELDS: ReadonlyArray<{ key: keyof Shot; label: string; multiline?: boolean }> = [
   { key: 'character',  label: 'storyboard.cols.character' },
@@ -402,6 +418,29 @@ const {
   regenerateShot,
   pickFile, pickExtra, onFilePicked,
 } = useStoryboardShots(props.node, props.state)
+
+const SOURCE_VALUES = ['auto', 'data', 'llm'] as const
+
+function storyboardSource(value: unknown): typeof SOURCE_VALUES[number] {
+  const text = String(value ?? 'auto')
+  return (SOURCE_VALUES as readonly string[]).includes(text) ? text as typeof SOURCE_VALUES[number] : 'auto'
+}
+
+const source = ref(storyboardSource(readWidgetStr(props.node, 'source', 'auto')))
+
+function setSource(value: string) {
+  const next = storyboardSource(value)
+  source.value = next
+  writeWidget(props.node, 'source', next)
+}
+
+bindWidgetCallback(props.node, 'source', (value) => {
+  const next = storyboardSource(value)
+  if (next !== source.value) source.value = next
+})
+onNodeConfigure(props.node, () => {
+  source.value = storyboardSource(readWidgetStr(props.node, 'source', source.value))
+})
 
 const moveBtn = [
   'ctv:w-4 ctv:h-[13px] ctv:leading-none ctv:text-[8px] ctv:p-0 ctv:rounded-sm ctv:cursor-pointer',

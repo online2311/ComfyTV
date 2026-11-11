@@ -3,7 +3,10 @@ import re
 
 from .shot_document import (
     copy_unknown_fields,
+    dump_shots_document,
     is_production_document,
+    load_shots_document,
+    parse_asset_ref,
 )
 from .shot_inputs import image_ref_url, image_ref_urls, shot_seed
 
@@ -28,6 +31,13 @@ _STORYBOARD_FIELDS: list[tuple[str, str]] = [
 ]
 _STORYBOARD_CN_TO_EN = dict(_STORYBOARD_FIELDS)
 _FIELD_COLON = r"[:\uFF1A]"
+_AT_REF_RE = re.compile(r"@(\S+)")
+_ASSET_CODE_RE = re.compile(
+    r"(?:CHR|OUT|LOOK|LOC|PRP|VOX|STY|BIB)_[A-Za-z0-9_]+"
+    r"(?:@v\d+)?(?:#[A-Za-z0-9_]+)?"
+)
+_SEED_RE = re.compile(r"\bseed\s*[=:\uFF1A]\s*([+-]?\d+)\b", re.IGNORECASE)
+_REF_TRAILING = ".,;，。)"
 
 
 def _storyboard_llm_prompt(
@@ -330,3 +340,238 @@ def _shape_storyboard_from_llm(raw_text: str, seed_parts: tuple = ()) -> str | N
     if not out:
         return None
     return json.dumps({"shots": out}, ensure_ascii=False)
+
+
+def storyboard_is_supplied(raw) -> bool:
+    """True when the caller passed a document rather than a blank widget."""
+    if isinstance(raw, str):
+        return bool(raw.strip())
+    return isinstance(raw, dict)
+
+
+def normalize_supplied_storyboard(raw) -> str:
+    """Parse an injected document and keep every field.
+
+    A production ``shots.json`` is returned unchanged. A legacy board is
+    passed through the 16-column shaper, then its reference lists are put
+    back so a series-library code sitting beside a URL is not dropped.
+    """
+    doc = load_shots_document(raw)
+    if is_production_document(doc):
+        return dump_shots_document(doc)
+    rows = [shot for shot in doc.get("shots") or [] if isinstance(shot, dict)]
+    normalized = []
+    for index, row in enumerate(rows):
+        shot = _canonical_shot(row, index)
+        if "reference_images" in row:
+            shot["reference_images"] = row["reference_images"]
+        if "refs" in row:
+            shot["refs"] = row["refs"]
+        normalized.append(shot)
+    doc = dict(doc)
+    doc["shots"] = normalized
+    return json.dumps(doc, ensure_ascii=False)
+
+
+_NAME_SEPARATORS = (":", "\uFF1A")
+# Shots with no person use these markers. They are not character identities.
+_NO_CHARACTER = frozenset({
+    "无", "none", "n/a", "(无指定角色)", "无指定角色", "- (无指定角色)",
+})
+
+
+def _split_card_name(body: str) -> tuple[str, str]:
+    """Split on the earliest ``:`` or full-width ``：``, not the first ASCII colon."""
+    indexes = [body.find(sep) for sep in _NAME_SEPARATORS]
+    found = [index for index in indexes if index >= 0]
+    if not found:
+        return body.strip(), ""
+    cut = min(found)
+    return body[:cut].strip(), body[cut + 1:]
+
+
+def _push_ref(refs: list, token: str) -> None:
+    text = token.strip().rstrip(_REF_TRAILING)
+    if not text or text in refs:
+        return
+    if image_ref_url(text) or _ASSET_CODE_RE.fullmatch(text):
+        refs.append(text)
+
+
+def _cards_from_json(data) -> list[dict]:
+    rows = None
+    if isinstance(data, list):
+        rows = data
+    elif isinstance(data, dict):
+        nested = data.get("characters", data.get("cards"))
+        if isinstance(nested, list):
+            rows = nested
+        elif any(key in data for key in ("name", "id", "character", "reference_images", "seed")):
+            rows = [data]
+    if not isinstance(rows, list):
+        return []
+    cards = []
+    for item in rows:
+        if not isinstance(item, dict):
+            continue
+        name = str(item.get("name") or item.get("character") or item.get("id") or "").strip()
+        refs: list = []
+        for key in ("reference_images", "refs", "images"):
+            raw = item.get(key)
+            if isinstance(raw, list) and raw:
+                refs = list(raw)
+                break
+            if isinstance(raw, str) and raw.strip():
+                refs = [raw.strip()]
+                break
+        if not refs:
+            one = image_ref_url(item.get("image_url") or item.get("image"))
+            if one:
+                refs = [one]
+        seed = shot_seed(item)
+        if refs or seed is not None:
+            cards.append({"name": name, "reference_images": refs, "seed": seed})
+    return cards
+
+
+def character_cards(characters: str) -> list[dict]:
+    """Seed and reference fields carried on the characters input.
+
+    A JSON list (or ``{"characters": [...]}``) is read as cards. Otherwise
+    each line may name a character and carry ``@<image>``, an asset code
+    such as ``CHR_name@v1#front``, and ``seed=N``.
+    """
+    text = (characters or "").strip()
+    if not text:
+        return []
+    if text[0] in "[{":
+        try:
+            data = json.loads(text)
+        except (ValueError, TypeError):
+            data = None
+        cards = _cards_from_json(data)
+        if cards:
+            return cards
+    cards = []
+    for line in text.splitlines():
+        body = line.strip().lstrip("-*").strip()
+        if not body:
+            continue
+        name, rest = _split_card_name(body)
+        refs: list[str] = []
+        for match in _AT_REF_RE.finditer(rest):
+            _push_ref(refs, match.group(1))
+        for match in _ASSET_CODE_RE.finditer(rest):
+            _push_ref(refs, match.group(0))
+        seed_match = _SEED_RE.search(body)
+        seed = int(seed_match.group(1)) if seed_match else None
+        if refs or seed is not None:
+            cards.append({"name": name, "reference_images": refs, "seed": seed})
+    return cards
+
+
+def _is_no_character(text: str) -> bool:
+    return text.strip().lower() in {item.lower() for item in _NO_CHARACTER}
+
+
+def _identity_tokens(raw: str) -> set[str]:
+    text = str(raw or "").strip()
+    if not text or _is_no_character(text):
+        return set()
+    tokens = {text}
+    bare = str(parse_asset_ref(text).get("id") or "").strip()
+    if bare and bare != text and not _is_no_character(bare):
+        tokens.add(bare)
+    return tokens
+
+
+def _shot_identities(shot: dict) -> set[str]:
+    """Character ids on the shot. Description text is not an identity."""
+    found: set[str] = set()
+    character = shot.get("character")
+    if isinstance(character, str):
+        found |= _identity_tokens(character)
+    characters = shot.get("characters")
+    if isinstance(characters, list):
+        for entry in characters:
+            if isinstance(entry, str):
+                found |= _identity_tokens(entry)
+            elif isinstance(entry, dict):
+                for key in ("id", "name"):
+                    value = entry.get(key)
+                    if isinstance(value, str):
+                        found |= _identity_tokens(value)
+    return found
+
+
+def _matching_cards(shot: dict, cards: list[dict]) -> list[dict]:
+    identities = _shot_identities(shot)
+    if not identities:
+        return []
+    matched = []
+    for card in cards:
+        name = str(card.get("name") or "").strip()
+        if not name or _is_no_character(name):
+            continue
+        if _identity_tokens(name) & identities:
+            matched.append(card)
+    return matched
+
+
+def _shot_has_own_image(shot: dict) -> bool:
+    if shot.get("reference_images") or shot.get("refs"):
+        return True
+    return bool(image_ref_url(shot.get("image_url")) or image_ref_url(shot.get("reference_img")))
+
+
+def _extend_refs(dst: list, items: list) -> None:
+    seen = {json.dumps(item, sort_keys=True, ensure_ascii=False) if isinstance(item, (dict, list)) else str(item) for item in dst}
+    for item in items:
+        key = json.dumps(item, sort_keys=True, ensure_ascii=False) if isinstance(item, (dict, list)) else str(item)
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        dst.append(item)
+
+
+def apply_character_slots(payload: str | None, characters: str) -> str | None:
+    """Copy seed and reference fields from character cards onto shots that lack them.
+
+    A card matches a shot only when their character ids are the same string or
+    the same asset code. ``无`` does not match a longer name. Every matching
+    card contributes references. The seed is the first matching card, in
+    characters-input order, that has one.
+    """
+    cards = character_cards(characters)
+    if not payload or not cards:
+        return payload
+    try:
+        doc = json.loads(payload)
+    except (ValueError, TypeError):
+        return payload
+    shots = doc.get("shots") if isinstance(doc, dict) else None
+    if not isinstance(shots, list):
+        return payload
+    changed = False
+    for shot in shots:
+        if not isinstance(shot, dict):
+            continue
+        matched = _matching_cards(shot, cards)
+        if not matched:
+            continue
+        if not _shot_has_own_image(shot):
+            refs: list = []
+            for card in matched:
+                _extend_refs(refs, list(card.get("reference_images") or []))
+            if refs:
+                shot["reference_images"] = refs
+                changed = True
+        if shot_seed(shot) is None:
+            for card in matched:
+                if card.get("seed") is not None:
+                    shot["seed"] = card["seed"]
+                    changed = True
+                    break
+    if not changed:
+        return payload
+    return json.dumps(doc, ensure_ascii=False)

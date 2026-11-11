@@ -164,6 +164,207 @@ class TestSrtAndTimestamps:
         )
         assert out == [{"start": 0.0, "end": 2.0, "text": "你好世界"}]
 
+    def test_byte_level_chinese_tokens_merge_into_characters(self):
+        # System test: 专 / 练 / 玉 / 杨 / 课 were emitted as U+FFFD words.
+        from ComfyTV.runners.whisper_asr import segments_from_generate_output
+
+        chars = "专练玉杨课"
+        token_bytes: dict[int, bytes] = {}
+        ids: list[int] = []
+        nid = 1
+        for ch in chars:
+            for byte in ch.encode("utf-8"):
+                token_bytes[nid] = bytes([byte])
+                ids.append(nid)
+                nid += 1
+        token_bytes[nid] = "心".encode("utf-8")
+        all_ids = ids + [nid]
+        times = [i * 0.1 for i in range(len(all_ids))]
+        segs = segments_from_generate_output(
+            {"segments": [[{
+                "start": 0.0,
+                "end": 2.0,
+                "tokens": all_ids,
+                "token_timestamps": times,
+                "text": chars + "心",
+            }]]},
+            _Utf8ByteTok(token_bytes),
+            timestamps="word",
+            duration_s=2.0,
+        )
+        words = segs[0]["words"]
+        assert segs[0]["text"] == chars + "心"
+        assert [w["text"] for w in words] == list(chars + "心")
+        assert all("\ufffd" not in w["text"] for w in words)
+        # 专 is bytes at 0.0, 0.1, 0.2. Its end is the next token at 0.3.
+        assert words[0]["start"] == 0.0
+        assert words[0]["end"] == 0.3
+        # 心 is one whole token at 1.5; nothing follows, so it ends at the segment.
+        assert words[-1]["start"] == 1.5
+        assert words[-1]["end"] == 2.0
+
+    def test_uneven_byte_tokens_merge_until_the_character_decodes(self):
+        from ComfyTV.runners.whisper_asr import segments_from_generate_output
+
+        raw = "专".encode("utf-8")
+        token_bytes = {1: raw[:2], 2: raw[2:], 3: "心".encode("utf-8")}
+        segs = segments_from_generate_output(
+            {"segments": [[{
+                "start": 0.0,
+                "end": 1.0,
+                "tokens": [1, 2, 3],
+                "token_timestamps": [0.0, 0.2, 0.5],
+                "text": "专心",
+            }]]},
+            _Utf8ByteTok(token_bytes),
+            timestamps="word",
+            duration_s=1.0,
+        )
+        words = segs[0]["words"]
+        assert [w["text"] for w in words] == ["专", "心"]
+        assert words[0]["start"] == 0.0
+        assert words[0]["end"] == 0.5
+        assert words[1]["start"] == 0.5
+        assert words[1]["end"] == 1.0
+
+    def test_incomplete_byte_tail_is_not_a_replacement_word(self):
+        from ComfyTV.runners.whisper_asr import segments_from_generate_output
+
+        raw = "专".encode("utf-8")
+        token_bytes = {1: raw[:1], 2: raw[1:2]}
+        segs = segments_from_generate_output(
+            {"segments": [[{
+                "start": 0.0,
+                "end": 0.4,
+                "tokens": [1, 2],
+                "token_timestamps": [0.0, 0.2],
+                "text": "专",
+            }]]},
+            _Utf8ByteTok(token_bytes),
+            timestamps="word",
+            duration_s=0.4,
+        )
+        words = segs[0].get("words") or []
+        assert words == []
+        assert all("\ufffd" not in w["text"] for w in words)
+
+    def test_tokens_crossing_character_boundaries_keep_complete_characters(self):
+        # One token can end a character and start the next: b'\xe4\xb8' + b'\x93\xe7'
+        # decodes to 专 plus an unfinished byte. The finished character stays.
+        from ComfyTV.runners.whisper_asr import segments_from_generate_output
+
+        token_bytes = {1: b"\xe4\xb8", 2: b"\x93\xe7"}
+        segs = segments_from_generate_output(
+            {"segments": [[{
+                "start": 0.0,
+                "end": 1.0,
+                "tokens": [1, 2],
+                "token_timestamps": [0.0, 0.4],
+                "text": "专",
+            }]]},
+            _Utf8ByteTok(token_bytes),
+            timestamps="word",
+            duration_s=1.0,
+        )
+        words = segs[0].get("words") or []
+        assert [w["text"] for w in words] == ["专"]
+        assert words[0]["start"] == 0.0
+        assert words[0]["end"] == 1.0
+
+        # The leftover byte of 练 is finished by the following token.
+        token_bytes[3] = b"\xbb\x83"
+        segs = segments_from_generate_output(
+            {"segments": [[{
+                "start": 0.0,
+                "end": 1.0,
+                "tokens": [1, 2, 3],
+                "token_timestamps": [0.0, 0.4, 0.7],
+                "text": "专练",
+            }]]},
+            _Utf8ByteTok(token_bytes),
+            timestamps="word",
+            duration_s=1.0,
+        )
+        words = segs[0]["words"]
+        assert [w["text"] for w in words] == ["专", "练"]
+        assert words[0]["start"] == 0.0
+        assert words[0]["end"] == 0.7
+        assert words[1]["start"] == 0.7
+        assert words[1]["end"] == 1.0
+
+    def test_word_end_is_clamped_inside_the_segment(self):
+        # System test: segment end 6.10 s, last word end 6.20 s.
+        from ComfyTV.runners.whisper_asr import segments_from_generate_output
+
+        class _Tok:
+            def decode(self, ids, skip_special_tokens=True, decode_with_timestamps=False):
+                mapping = {1: "的", 2: "。"}
+                return "".join(mapping.get(int(i), "") for i in list(ids))
+
+        segs = segments_from_generate_output(
+            {"segments": [[{
+                "start": 0.0,
+                "end": 6.10,
+                "tokens": [1, 2],
+                "token_timestamps": [6.00, 6.20],
+                "text": "的。",
+            }]]},
+            _Tok(),
+            timestamps="word",
+            duration_s=6.2,
+        )
+        words = segs[0]["words"]
+        assert segs[0]["end"] == 6.1
+        assert [w["text"] for w in words] == ["的", "。"]
+        for word in words:
+            assert segs[0]["start"] <= word["start"] <= word["end"] <= segs[0]["end"]
+        assert words[-1]["end"] == 6.1
+
+    def test_zh_punctuation_becomes_fullwidth_without_touching_srt_times(self):
+        from ComfyTV.runners.whisper_asr import finish_transcript
+
+        sample = "过儿专心些,心神不定是炼不成玉女心经的。"
+        srt, text, raw = finish_transcript(
+            [{
+                "start": 0.0,
+                "end": 6.10,
+                "text": sample,
+                "words": [
+                    {"start": 1.0, "end": 1.2, "text": "些,"},
+                    {"start": 5.9, "end": 6.1, "text": "。"},
+                ],
+            }],
+            timestamps="word",
+            duration_s=6.10,
+            normalize_punctuation=True,
+        )
+        assert text == "过儿专心些，心神不定是炼不成玉女心经的。"
+        assert "些，心神" in srt
+        assert "00:00:06,100" in srt
+        assert "00:00:00,000" in srt
+        data = json.loads(raw)
+        assert data[0]["text"] == "过儿专心些，心神不定是炼不成玉女心经的。"
+        assert data[0]["words"][0]["text"] == "些，"
+        assert data[0]["end"] == 6.1
+
+        kept, kept_text, _kept_raw = finish_transcript(
+            [{"start": 0.0, "end": 1.0, "text": "Hello, world. 3.5!"}],
+            timestamps="segment",
+            duration_s=1.0,
+            normalize_punctuation=False,
+        )
+        assert kept_text == "Hello, world. 3.5!"
+        assert "Hello, world." in kept
+
+        forced, forced_text, _forced_raw = finish_transcript(
+            [{"start": 0.0, "end": 1.0, "text": "真的?好!注意:停止;好(注)第3.5集..."}],
+            timestamps="segment",
+            duration_s=1.0,
+            normalize_punctuation=True,
+        )
+        assert forced_text == "真的？好！注意：停止；好（注）第3.5集……"
+        assert "00:00:01,000" in forced
+
 
 class TestAudioFormat:
     def test_resample_keeps_a_constant_and_the_new_length(self):
@@ -279,6 +480,17 @@ class TestAudioFormat:
 
         with pytest.raises(RuntimeError, match="not found"):
             resolve_media_path(str(tmp_path / "missing.wav"))
+
+
+class _Utf8ByteTok:
+    """Tokenizer stand-in: each id is raw UTF-8 bytes, like Whisper byte-level BPE."""
+
+    def __init__(self, token_bytes: dict[int, bytes]):
+        self.token_bytes = token_bytes
+
+    def decode(self, ids, skip_special_tokens=True, decode_with_timestamps=False):
+        blob = b"".join(self.token_bytes[int(i)] for i in list(ids))
+        return blob.decode("utf-8", errors="replace")
 
 
 def types_module_sf(read):
@@ -503,3 +715,80 @@ class TestNodeExecute:
 
         with pytest.raises(RuntimeError, match="AUDIO"):
             node.WhisperTranscribe.execute(media="", audio=None)
+
+    def test_solo_run_returns_ui_and_writes_srt(self, tmp_path, monkeypatch):
+        import folder_paths
+        from ComfyTV.nodes import whisper_transcribe as node
+
+        monkeypatch.setattr(folder_paths, "get_output_directory", lambda: str(tmp_path))
+        wav = tmp_path / "s2pro_00001.flac"
+        _write_pcm_wav(wav, 16000, 0.2)
+        srt = "1\n00:00:00,000 --> 00:00:00,200\n你好\n"
+        segments = "[{\"text\":\"你好\"}]"
+
+        def _fake(samples, **kwargs):
+            return (srt, "你好", segments)
+
+        monkeypatch.setattr(node, "run_whisper", _fake)
+        result = node.WhisperTranscribe.execute(
+            media=str(wav), language="zh", timestamps="segment",
+        )
+        assert result.ui["text"] == [srt]
+        assert result.ui["segments"] == [segments]
+        written = Path(result.ui["srt_file"][0])
+        assert written.parent == (tmp_path / "comfytv").resolve()
+        assert written.name == "s2pro_00001.srt"
+        assert written.read_text(encoding="utf-8") == srt
+        assert result.values[0] == srt
+
+        view = node.WhisperTranscribe.execute(
+            audio={"waveform": np.ones((1, 1, 1600), dtype=np.float32), "sample_rate": 16000},
+            media="/view?filename=s2pro_00001.flac&subfolder=comfytv&type=output",
+            language="zh",
+        )
+        assert Path(view.ui["srt_file"][0]).name == "s2pro_00001.srt"
+
+        audio_only = node.WhisperTranscribe.execute(
+            audio={"waveform": np.ones((1, 1, 1600), dtype=np.float32), "sample_rate": 16000},
+            media="",
+            language="en",
+        )
+        assert Path(audio_only.ui["srt_file"][0]).name == "whisper.srt"
+
+    def test_normalize_punct_defaults_on_for_zh(self, tmp_path, monkeypatch):
+        from ComfyTV.nodes import whisper_transcribe as node
+
+        schema = node.WhisperTranscribe.define_schema()
+        punct = next(
+            item for item in schema.kw["inputs"]
+            if item.args and item.args[0] == "normalize_punct"
+        )
+        assert punct.kw["default"] == "auto"
+        assert list(punct.kw["options"]) == ["auto", "on", "off"]
+
+        import folder_paths
+
+        monkeypatch.setattr(folder_paths, "get_output_directory", lambda: str(tmp_path))
+        wav = tmp_path / "in.wav"
+        _write_pcm_wav(wav, 16000, 0.1)
+        seen = {}
+
+        def _fake(samples, **kwargs):
+            seen.update(kwargs)
+            return ("", "", "[]")
+
+        monkeypatch.setattr(node, "run_whisper", _fake)
+        node.WhisperTranscribe.execute(media=str(wav), language="zh")
+        assert seen["normalize_punctuation"] is True
+        node.WhisperTranscribe.execute(media=str(wav), language="zh", task="translate")
+        assert seen["normalize_punctuation"] is False
+        node.WhisperTranscribe.execute(
+            media=str(wav), language="zh", task="translate", normalize_punct="on",
+        )
+        assert seen["normalize_punctuation"] is True
+        node.WhisperTranscribe.execute(media=str(wav), language="en")
+        assert seen["normalize_punctuation"] is False
+        node.WhisperTranscribe.execute(media=str(wav), language="zh", normalize_punct="off")
+        assert seen["normalize_punctuation"] is False
+        node.WhisperTranscribe.execute(media=str(wav), language="en", normalize_punct="on")
+        assert seen["normalize_punctuation"] is True

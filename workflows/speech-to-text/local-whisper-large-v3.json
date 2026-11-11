@@ -45,7 +45,8 @@
         "transcribe",
         "segment",
         false,
-        ""
+        "",
+        "auto"
       ],
       "title": "Whisper Transcribe"
     }

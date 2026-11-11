@@ -1819,6 +1819,11 @@
       "motion_prompt": "Motion prompt"
     },
     "regenerateFailed": "Regenerate shot failed",
+    "source": "Source",
+    "sourceAuto": "Auto",
+    "sourceData": "Use data",
+    "sourceLlm": "Rewrite with LLM",
+    "sourceHint": "Auto keeps storyboard_data and skips the LLM. Rewrite with LLM generates again from the premise.",
     "importJson": "Import shots.json",
     "importFailed": "Could not import that JSON — it needs a shots array",
     "fields": "Shot fields",
