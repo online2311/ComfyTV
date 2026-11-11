@@ -40,6 +40,16 @@ def _patch_run(monkeypatch, run):
     monkeypatch.setattr(ffmpeg_encode.subprocess, "run", run)
 
 
+def _testsrc_size(cmd):
+    for arg in cmd:
+        if not str(arg).startswith("testsrc="):
+            continue
+        size = str(arg).split("size=", 1)[1].split(":", 1)[0]
+        width, height = size.split("x", 1)
+        return int(width), int(height)
+    raise AssertionError(f"nvenc probe did not encode a testsrc frame: {cmd}")
+
+
 def test_auto_uses_nvenc_after_a_real_encode(monkeypatch):
     calls = []
 
@@ -51,12 +61,44 @@ def test_auto_uses_nvenc_after_a_real_encode(monkeypatch):
 
     _patch_run(monkeypatch, run)
     assert select_video_encoder("/opt/ffmpeg-nv", "auto") == "h264_nvenc"
+    # The probe result is cached for this ffmpeg binary. A second concat
+    # must not start another encoder trial.
     assert select_video_encoder("/opt/ffmpeg-nv", "auto") == "h264_nvenc"
     assert len(calls) == 2
     assert "-encoders" in calls[0]
     assert "h264_nvenc" in calls[1]
     assert "lavfi" in calls[1]
     assert calls[1].count("-i") == 1
+    width, height = _testsrc_size(calls[1])
+    # 64x64 is below NVENC's minimum on current drivers. The trial frame
+    # has to be even and at least 256 on each side.
+    assert width % 2 == 0 and height % 2 == 0
+    assert width >= 256 and height >= 256
+
+
+_DIMENSION_ERROR = (
+    "InitializeEncoder failed: invalid param (8): "
+    "Frame Dimension less than the minimum supported value"
+)
+
+
+def test_nvenc_probe_failure_logs_frame_size_and_ffmpeg_reason(monkeypatch, caplog):
+    calls = []
+
+    def run(cmd, **kwargs):
+        calls.append(list(cmd))
+        if "-encoders" in cmd:
+            return _Result(0, _LISTED, "")
+        return _Result(1, "", _DIMENSION_ERROR)
+
+    _patch_run(monkeypatch, run)
+    with caplog.at_level(logging.WARNING):
+        chosen = select_video_encoder("/opt/ffmpeg-dim", "auto")
+    assert chosen == "libx264"
+    assert "Frame Dimension less than the minimum supported value" in caplog.text
+    assert "256x256" in caplog.text
+    assert select_video_encoder("/opt/ffmpeg-dim", "auto") == "libx264"
+    assert len(calls) == 2
 
 
 def test_auto_falls_back_and_logs_the_driver_error(monkeypatch, caplog):

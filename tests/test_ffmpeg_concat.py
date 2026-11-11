@@ -4,6 +4,7 @@ The autouse fixture removes ffmpeg and ffprobe from PATH. That is the Spark
 production case: ComfyUI's venv Python does not see a system ffmpeg, and the
 imageio-ffmpeg wheel ships ffmpeg without ffprobe.
 """
+import hashlib
 import os
 import subprocess
 from pathlib import Path
@@ -286,6 +287,85 @@ def test_concat_64_segments_mixed_audio_and_geometry():
     assert abs(video_s - audio_s) < 0.05
     # 48 clips * 0.25s + 16 clips * 0.20s, quantized onto 12 fps.
     assert 14.0 <= video_s <= 16.5
+
+
+def test_stream_copy_aac_duration_stays_within_one_frame():
+    """Matching AAC clips are joined with a video stream copy. Encoder
+    priming must not leave the audio more than one frame (~0.05s) away
+    from the picture."""
+    from ComfyTV.runners import media
+
+    src = _src_dir("concat-aac-align")
+    fps = 24
+    paths = []
+    for i in range(8):
+        path = src / f"s{i:02d}.mp4"
+        subprocess.check_call([
+            _ffmpeg(), "-y", "-hide_banner", "-loglevel", "error",
+            "-f", "lavfi", "-t", "0.5", "-i", f"color=c=red:s=64x48:r={fps}",
+            "-f", "lavfi", "-t", "0.56", "-i", "sine=frequency=440:sample_rate=44100",
+            "-c:v", "libx264", "-pix_fmt", "yuv420p", "-bf", "0",
+            "-c:a", "aac", "-b:a", "160k", "-ar", "44100", "-ac", "2",
+            "-map", "0:v:0", "-map", "1:a:0",
+            str(path),
+        ])
+        paths.append(path)
+
+    report = {}
+    out = media.concat_videos(_urls(paths), report=report)
+    assert report["video_encoder"] == "copy"
+    video_s, audio_s = _stream_durations(out)
+    assert audio_s is not None
+    assert video_s >= 8 * 0.5 - 0.05
+    assert abs(video_s - audio_s) <= 0.05
+
+
+def test_aligned_aac_stays_a_pure_stream_copy(monkeypatch):
+    """Audio already within one frame of the picture is left as the stream
+    copy. ``video_encoder == copy`` is also true after an audio re-encode,
+    so this checks that the fit subprocess never runs."""
+    from ComfyTV.runners import media
+
+    src = _src_dir("concat-aac-pure-copy")
+    paths = []
+    for i in range(4):
+        path = src / f"s{i:02d}.mp4"
+        _write_clip(path, w=64, h=48, fps=24, seconds=0.5, with_audio=True)
+        paths.append(path)
+
+    commands = []
+    real_run = subprocess.run
+
+    def spy(cmd, *args, **kwargs):
+        if isinstance(cmd, (list, tuple)):
+            commands.append(list(cmd))
+        return real_run(cmd, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", spy)
+    report = {}
+    out = media.concat_videos(_urls(paths), report=report)
+    assert report["video_encoder"] == "copy"
+    video_s, audio_s = _stream_durations(out)
+    assert audio_s is not None
+    assert abs(video_s - audio_s) <= 0.05
+
+    ffmpeg_cmds = [c for c in commands if c and Path(c[0]).name.startswith("ffmpeg")]
+    assert len(ffmpeg_cmds) == 1
+    joined = ffmpeg_cmds[0]
+    assert "concat" in joined and "copy" in joined
+    assert "-af" not in joined
+    assert not any("apad" in arg or "atrim" in arg for arg in joined)
+
+    copied = media.localize(out)
+    reference = src / "reference-copy.mp4"
+    listing = src / "reference-concat.txt"
+    listing.write_text("".join(f"file '{p.resolve().as_posix()}'\n" for p in paths), encoding="utf-8")
+    real_run([
+        _ffmpeg(), "-y", "-hide_banner", "-loglevel", "error",
+        "-f", "concat", "-safe", "0", "-i", str(listing),
+        "-c", "copy", "-movflags", "+faststart", str(reference),
+    ], check=True)
+    assert hashlib.sha256(copied.read_bytes()).digest() == hashlib.sha256(reference.read_bytes()).digest()
 
 
 def test_all_silent_sources_stay_silent():

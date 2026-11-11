@@ -1,8 +1,10 @@
 """Choose h264_nvenc or libx264 for a concat re-encode.
 
-``auto`` lists encoders, then encodes a few lavfi frames. That result is
-cached for the ffmpeg binary for the life of the process. ``cpu`` never
-probes. ``nvenc`` raises with ffmpeg's own stderr instead of falling back.
+``auto`` lists encoders, then encodes one 256x256 lavfi frame. Frames smaller
+than that are rejected by current NVENC drivers. The result is cached for the
+ffmpeg binary for the life of the process, so later concats do not probe
+again. ``cpu`` never probes. ``nvenc`` raises with ffmpeg's own stderr instead
+of falling back.
 """
 from __future__ import annotations
 
@@ -17,6 +19,9 @@ _MODES = ("auto", "nvenc", "cpu")
 _LOCK = threading.Lock()
 _CACHE: dict[str, tuple[bool, str]] = {}
 _PROBE_TIMEOUT_S = 20
+# 64x64 fails on current NVENC with "Frame Dimension less than the minimum".
+_PROBE_WIDTH = 256
+_PROBE_HEIGHT = 256
 
 
 def clear_encoder_cache() -> None:
@@ -98,6 +103,15 @@ def _encoder_listed(text: str, name: str) -> bool:
     return False
 
 
+def _probe_failure(detail: str) -> tuple[bool, str]:
+    text = detail.strip() if detail else ""
+    if not text:
+        text = "h264_nvenc encode failed"
+    return False, (
+        f"probe frame {_PROBE_WIDTH}x{_PROBE_HEIGHT}: {text[-1800:]}"
+    )
+
+
 def _probe_nvenc_uncached(ffmpeg: str) -> tuple[bool, str]:
     try:
         listed = subprocess.run(
@@ -116,7 +130,8 @@ def _probe_nvenc_uncached(ffmpeg: str) -> tuple[bool, str]:
         trial = subprocess.run(
             [
                 ffmpeg, "-y", "-hide_banner", "-loglevel", "error",
-                "-f", "lavfi", "-i", "testsrc=size=64x64:rate=24:duration=0.04",
+                "-f", "lavfi", "-i",
+                f"testsrc=size={_PROBE_WIDTH}x{_PROBE_HEIGHT}:rate=24:duration=0.04",
                 *video_encoder_args("h264_nvenc"),
                 "-an", "-f", "null", "-",
             ],
@@ -126,8 +141,7 @@ def _probe_nvenc_uncached(ffmpeg: str) -> tuple[bool, str]:
             timeout=_PROBE_TIMEOUT_S,
         )
     except subprocess.TimeoutExpired:
-        return False, "h264_nvenc probe timed out"
+        return _probe_failure("h264_nvenc probe timed out")
     if trial.returncode != 0:
-        reason = (trial.stderr or trial.stdout or "h264_nvenc encode failed").strip()
-        return False, (reason or "h264_nvenc encode failed")[-2000:]
+        return _probe_failure(trial.stderr or trial.stdout or "")
     return True, ""
