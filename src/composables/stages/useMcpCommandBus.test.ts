@@ -577,6 +577,35 @@ describe('installMcpCommandBus', () => {
     expect(result.error).toContain('not running')
   })
 
+  it('storyboard_set stores the document and storyboard_get returns it', async () => {
+    const node = makeNode({
+      comfyClass: 'ComfyTV.StoryboardStage',
+      widgets: [{ name: 'storyboard_data', value: '', callback: vi.fn() }],
+    })
+    const { host, deps } = makeHost([node])
+    uninstall = installMcpCommandBus(host, deps)
+    const document = {
+      episode: 'E01',
+      shots: [{
+        shot_id: 'E01S01_01',
+        dialogue: [{ speaker: 'CHR_xiaolongnv', text: '你好' }],
+        refs: [{ role: 'character', src: 'CHR_xiaolongnv@v1#front' }],
+        custom_note: 'keep',
+        extras: 0,
+      }],
+    }
+    await dispatch(host, { id: 'c1', action: 'storyboard_set', node: 'u1', document })
+    expect(node.widgets[0].value).toBe(JSON.stringify(document))
+    await dispatch(host, { id: 'c2', action: 'storyboard_get', node: 'u1' })
+    const results = postedResults()
+    expect(results[0].ok).toBe(true)
+    expect(results[1].result.document).toEqual(document)
+    expect(results[1].result.shots).toBe(1)
+
+    await dispatch(host, { id: 'c3', action: 'storyboard_set', node: 'u1', document: { nope: true } })
+    expect(postedResults()[2].ok).toBe(false)
+  })
+
   it('get_stage returns widgets, edges, refs and warnings', async () => {
     const src = makeNode()
     const node = makeNode({

@@ -167,6 +167,7 @@ class TestProtocol:
             "director_get", "director_edit", "view_image", "fx_preview",
             "arrange_canvas",
             "scene_get", "scene_edit", "scene_capture", "scene_record", "layer_get", "layer_edit", "layer_capture",
+            "storyboard",
             "skill",
         }
         for t in tools.values():

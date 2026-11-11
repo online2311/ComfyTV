@@ -8,6 +8,8 @@
 
 节点内嵌**分镜编辑器**：Run 后可在 UI 里改每一镜的 prompt、时长、对白，再交给下游 **Shot Images Stage** 为每个镜头生成一张图。
 
+同一份 JSON 也可以原样装下短剧管线的 `shots.json`。在卡片上点 **导入 shots.json**，或用 MCP `storyboard` 的 `action: "set"`。信封字段（`series`、`episode`、`title_zh`、`fps`、`target_duration_s`、`new_assets`，以及任何其它顶层键）和每个镜头上的键都会保留。标准镜头字段包括 `shot_id`、`scene_id`、`order`、`duration_s`、机位（`angle`、`move`、`lens`、`cam_idx`）、`characters`（`CHR_名字@vN` 这类资产代号）、`dialogue`（带 `speaker` 的对象数组）、`refs`（`role` + `src`，首尾帧写 `episode:镜头/文件`）、`first_frame_desc`、`last_frame_desc`、`prompts.krea2`、`prompts.h3_image`。`extras` 是人群数量（整数），不是自定义字段包。不认识的键原样留在镜头上。这里不解析资产代号。旧的 16 字段分镜表仍能打开。
+
 **注意**：Storyboard 输出的是**文本结构**，不是图片。逐镜画面在 **Shot Images Stage** 生成。
 
 ## 适用场景

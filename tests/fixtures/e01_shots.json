@@ -1,0 +1,2370 @@
+{
+  "series": "gumu-sx",
+  "episode": "E01",
+  "title_zh": "玉女心经·花丛同修",
+  "fps": 24,
+  "target_duration_s": 90,
+  "new_assets": [
+    {
+      "proposed_id": "LOC_linzhaoying_shishi",
+      "kind": "location",
+      "brief_zh": "终南古墓第二间石室，室顶刻满人形刻痕与向外散射的细线，无文字；夜，烛光。",
+      "views": [
+        "empty"
+      ],
+      "lighting_states": [
+        "night_candle"
+      ]
+    },
+    {
+      "proposed_id": "LOC_huacong",
+      "kind": "location",
+      "brief_zh": "山后山坳红花丛，一道数丈长浓密花丛如屏风，树荫遮罩；日间树荫与夜间月光花影两种光态。",
+      "views": [
+        "empty"
+      ],
+      "lighting_states": [
+        "day_shade",
+        "night_moon"
+      ]
+    },
+    {
+      "proposed_id": "PRP_huitu",
+      "kind": "prop",
+      "brief_zh": "一只灰兔，体小，会快速钻进花丛。",
+      "views": [],
+      "lighting_states": []
+    },
+    {
+      "proposed_id": "PRP_zhutai_linzhaoying",
+      "kind": "prop",
+      "brief_zh": "林朝英石室专用落地烛台（燃），与寒玉床石室的 PRP_zhutai 不是同一件；张景 2026-11-11 要求单独立项",
+      "views": [
+        "lit"
+      ],
+      "lighting_states": []
+    }
+  ],
+  "shots": [
+    {
+      "shot_id": "E01S01_01",
+      "scene_id": "E01S01",
+      "order": 1,
+      "beats": [
+        "E01S01_b01"
+      ],
+      "duration_s": 6,
+      "cut_to": 5,
+      "mode": "Ref2VA",
+      "shot_size": "MS",
+      "angle": "平视，偏侧",
+      "move": "固定",
+      "lens": "40mm",
+      "cam_idx": null,
+      "purpose": "展示石室环境，引入小龙女看刻痕和杨过挡烛火，制造动态。",
+      "reveal": "杨过上前挡烛台，火苗矮，墙影拉长，暗示紧张。",
+      "characters": [
+        {
+          "id": "CHR_yangguo@v1",
+          "outfit": "OUT_yangguo_heiyi@v1",
+          "look": null,
+          "screen_pos": "left",
+          "facing": "right",
+          "visible": "profile"
+        },
+        {
+          "id": "CHR_xiaolongnv@v1",
+          "outfit": "OUT_xiaolongnv_baiyi@v1",
+          "look": null,
+          "screen_pos": "right",
+          "facing": "up",
+          "visible": "face"
+        }
+      ],
+      "extras": 0,
+      "location": {
+        "id": "NEW:LOC_linzhaoying_shishi",
+        "camera_card": null,
+        "lighting_state": "night_candle"
+      },
+      "props": [
+        {
+          "id": "NEW:PRP_zhutai_linzhaoying",
+          "state": "lit",
+          "holder": null,
+          "hand": null
+        }
+      ],
+      "start_state": "右侧小龙女仰头看室顶，左侧杨过站在画面左边缘，烛台在中间靠左，火苗稳定。",
+      "unique_action": "杨过从左侧一步上前，抬手在烛台旁一挡，火苗被风带矮，墙上人影拉长。",
+      "end_state": "杨过站在烛台旁，手放下，小龙女仍仰头，墙面影子拉长。",
+      "variation_type": "small",
+      "dialogue": [],
+      "continuity": {
+        "prev": null,
+        "next": "E01S01_02",
+        "chain_break_reason": "episode_start",
+        "match": null,
+        "carry": [],
+        "cut_motive": "切到小龙女说话，需要她开口揭示心经要求"
+      },
+      "first_frame_desc": "石室内，烛光下，小龙女在画面右侧仰头看室顶刻痕，杨过站在画面左边缘，烛台在中间靠左，火苗稳定。",
+      "last_frame_desc": null,
+      "motion_desc": "固定机位。杨过从左侧一步上前，抬手在烛台旁一挡，火苗被风带矮，墙上人影拉长；随后手放下，小龙女仍仰头。",
+      "lighting": "主光来自烛台，暖黄烛光，从中间靠左打向两人，形成侧光，影子拉长；环境昏暗，石室冷色壁面与暖色对比。",
+      "audio": {
+        "ambience": "石室内轻微回声，烛火燃烧噼啪声",
+        "sfx": [
+          {
+            "t": 2.0,
+            "desc": "杨过衣料摩擦声，抬手带起的风声，烛火摇曳声"
+          }
+        ],
+        "music_cue": null,
+        "h3_music": "none"
+      },
+      "refs": [
+        {
+          "role": "first_frame",
+          "src": "episode:E01S01_01/first.png"
+        }
+      ],
+      "prompts": {
+        "krea2": "In the candlelit stone chamber {LOC}, {CHR_xiaolongnv} stands on the right side looking up at the carved patterns on the ceiling. On the left edge, {CHR_yangguo} stands in profile, facing right. Between them, a candle on {PRP_zhutai_linzhaoying} burns steadily, casting soft warm light that creates long shadows on the walls. The composition is a medium shot from a slightly angled side view, emphasizing the height of the ceiling and the calm atmosphere.",
+        "h3_image": "In the candlelit stone chamber {LOC}, {CHR_xiaolongnv} stands on the right side looking up at the carved patterns on the ceiling. On the left edge, {CHR_yangguo} stands in profile, facing right. Between them, a candle on {PRP_zhutai_linzhaoying} burns steadily, casting soft warm light that creates long shadows on the walls. The composition is a medium shot from a slightly angled side view, emphasizing the height of the ceiling and the calm atmosphere."
+      },
+      "video_plan": {
+        "summary_en": "In a candlelit stone chamber, Xiaolongnü looks up at carved patterns on the ceiling while Yangguo steps forward and shields the candle flame with his hand, causing shadows to stretch.",
+        "segments": [
+          {
+            "t0": 0,
+            "t1": 6,
+            "camera": "Fixed, 40mm, eye-level, slightly angled side view, medium shot.",
+            "subject": "Yangguo on the left, facing right; Xiaolongnü on the right, looking up.",
+            "action": "Yangguo steps forward from the left, raises his hand to shield the candle flame, causing it to flicker and shadows to lengthen on the wall; then he lowers his hand. Xiaolongnü remains looking up.",
+            "environment": "Stone chamber interior, candle on a stand in the center-left, carved patterns on walls and ceiling, dim lighting.",
+            "lighting": "Candlelight as main source, side lighting, long shadows.",
+            "sound": "Rustle of clothing, whoosh of hand movement, flicker of candle flame.",
+            "lines": [],
+            "avoid": "Avoid excessive motion, avoid overexposing the candle flame, avoid revealing too much expression, avoid imbalance in character proportions.",
+            "in_short": "Yangguo shields the candle, shadows stretch.",
+            "ending": "Yangguo stands beside the candle, hand lowered, Xiaolongnü still looking up, shadows on wall lengthened."
+          }
+        ],
+        "soundscape_en": "Quiet stone chamber with soft candle crackling and faint echo."
+      }
+    },
+    {
+      "shot_id": "E01S01_02",
+      "scene_id": "E01S01",
+      "order": 2,
+      "beats": [
+        "E01S01_b02",
+        "E01S01_b03"
+      ],
+      "duration_s": 7,
+      "cut_to": 5,
+      "mode": "Ref2VA",
+      "shot_size": "MCU",
+      "angle": "平视，微微仰角",
+      "move": "固定",
+      "lens": "50mm",
+      "cam_idx": null,
+      "purpose": "表现小龙女直接说出难题，语气平静。",
+      "reveal": "小龙女说话时目光从室顶转向杨过。",
+      "characters": [
+        {
+          "id": "CHR_xiaolongnv@v1",
+          "outfit": "OUT_xiaolongnv_baiyi@v1",
+          "look": null,
+          "screen_pos": "center",
+          "facing": "left",
+          "visible": "face"
+        }
+      ],
+      "extras": 0,
+      "location": {
+        "id": "NEW:LOC_linzhaoying_shishi",
+        "camera_card": null,
+        "lighting_state": "night_candle"
+      },
+      "props": [],
+      "start_state": "小龙女在画面中央，目光从室顶移向杨过，嘴唇微动。",
+      "unique_action": "她说出台词“这心经要两人同练，还得敞衣散热。”和“寒玉床上不能练。”，语气平静。",
+      "end_state": "说完后目光停在杨过方向，表情平淡。",
+      "variation_type": "small",
+      "dialogue": [
+        {
+          "line_id": "L001",
+          "speaker": "CHR_xiaolongnv",
+          "kind": "onscreen",
+          "text": "这心经要两人同练，还得敞衣散热。",
+          "emotion": "平静",
+          "lips_visible": true,
+          "start_s": 0.5,
+          "s2_tag": "[平静]"
+        },
+        {
+          "line_id": "L002",
+          "speaker": "CHR_xiaolongnv",
+          "kind": "onscreen",
+          "text": "寒玉床上不能练。",
+          "emotion": "平静",
+          "lips_visible": true,
+          "start_s": 4.0,
+          "s2_tag": "[平静]"
+        }
+      ],
+      "continuity": {
+        "prev": "E01S01_01",
+        "next": "E01S01_03",
+        "chain_break_reason": null,
+        "match": null,
+        "carry": [],
+        "cut_motive": "切到杨过反应，他听到敞衣散热后脸红"
+      },
+      "first_frame_desc": "小龙女在画面中央，脸朝左，目光从室顶移向杨过，嘴唇微动。",
+      "last_frame_desc": null,
+      "motion_desc": "固定机位。小龙女目光从室顶转向杨过，开口说出台词，表情平静，无大动作。",
+      "lighting": "主光烛光，从侧下方打来，在她脸上形成柔和阴影，背景石壁昏暗。",
+      "audio": {
+        "ambience": "石室内轻微回声，烛火燃烧噼啪声",
+        "sfx": [
+          {
+            "t": 0.5,
+            "desc": "轻微衣料摩擦声"
+          }
+        ],
+        "music_cue": null,
+        "h3_music": "none"
+      },
+      "refs": [
+        {
+          "role": "first_frame",
+          "src": "episode:E01S01_02/first.png"
+        },
+        {
+          "role": "prev_last_frame",
+          "src": "episode:E01S01_01/last_frame.png"
+        }
+      ],
+      "prompts": {
+        "krea2": "In a close-up shot, {CHR_xiaolongnv} is centered, facing left toward the unseen {CHR_yangguo}. Her gaze shifts from the ceiling downward, lips parted as she begins to speak. Warm candlelight from below illuminates her face with gentle shadows, while the background stone wall with faint carvings remains dim. The camera angle is slightly low, emphasizing her calm, direct expression.",
+        "h3_image": "In a close-up shot, {CHR_xiaolongnv} is centered, facing left toward the unseen {CHR_yangguo}. Her gaze shifts from the ceiling downward, lips parted as she begins to speak. Warm candlelight from below illuminates her face with gentle shadows, while the background stone wall with faint carvings remains dim. The camera angle is slightly low, emphasizing her calm, direct expression."
+      },
+      "video_plan": {
+        "summary_en": "Xiaolongnü turns her gaze from the ceiling to Yangguo and speaks calmly about the requirements of the martial art.",
+        "segments": [
+          {
+            "t0": 0,
+            "t1": 7,
+            "camera": "Fixed, 50mm, eye-level slightly low angle, medium close-up.",
+            "subject": "Xiaolongnü in center, facing left.",
+            "action": "She initially looks up at the ceiling (continuing from previous shot), then turns her gaze left toward Yangguo, speaks L001 and L002 calmly, lips moving slightly.",
+            "environment": "Stone chamber interior, background carvings blurry.",
+            "lighting": "Candlelight from below and side, creating soft shadows on face.",
+            "sound": "Soft breathing, slight rustle of clothing.",
+            "lines": [
+              "L001",
+              "L002"
+            ],
+            "avoid": "Avoid overly emotional expression, avoid overly clear background carvings, avoid camera distortion from low angle.",
+            "in_short": "Xiaolongnü calmly states the requirements.",
+            "ending": "After speaking, her gaze rests in Yangguo's direction, expression calm."
+          }
+        ],
+        "soundscape_en": "Same chamber ambience, soft breathing."
+      }
+    },
+    {
+      "shot_id": "E01S01_03",
+      "scene_id": "E01S01",
+      "order": 3,
+      "beats": [
+        "E01S01_b04",
+        "E01S01_b05"
+      ],
+      "duration_s": 6,
+      "cut_to": 5,
+      "mode": "Ref2VA",
+      "shot_size": "MCU",
+      "angle": "平视",
+      "move": "固定",
+      "lens": "50mm",
+      "cam_idx": null,
+      "purpose": "表现杨过的害羞和为难。",
+      "reveal": "杨过脸红别开眼，然后低声说不行。",
+      "characters": [
+        {
+          "id": "CHR_yangguo@v1",
+          "outfit": "OUT_yangguo_heiyi@v1",
+          "look": null,
+          "screen_pos": "center",
+          "facing": "left",
+          "visible": "face"
+        }
+      ],
+      "extras": 0,
+      "location": {
+        "id": "NEW:LOC_linzhaoying_shishi",
+        "camera_card": null,
+        "lighting_state": "night_candle"
+      },
+      "props": [],
+      "start_state": "杨过站在小龙女对面，目光看着她，脸开始泛红。",
+      "unique_action": "他别开眼，然后低声说“这……不行。”",
+      "end_state": "说完后仍然别着脸，神情不自然。",
+      "variation_type": "small",
+      "dialogue": [
+        {
+          "line_id": "L003",
+          "speaker": "CHR_yangguo",
+          "kind": "onscreen",
+          "text": "这……不行。",
+          "emotion": "为难，压着声",
+          "lips_visible": true,
+          "start_s": 2.0,
+          "s2_tag": "[低声]"
+        }
+      ],
+      "continuity": {
+        "prev": "E01S01_02",
+        "next": "E01S01_04",
+        "chain_break_reason": null,
+        "match": null,
+        "carry": [],
+        "cut_motive": "切到小龙女回应，她不解，直接说分开练"
+      },
+      "first_frame_desc": "杨过在画面中央，脸朝左，目光看着小龙女，脸开始泛红。",
+      "last_frame_desc": null,
+      "motion_desc": "固定机位。杨过先看着小龙女，脸泛红，然后别开眼，低声说出台词。",
+      "lighting": "烛光从侧方来，照亮一侧脸，另一侧略暗，突出脸红。",
+      "audio": {
+        "ambience": "石室内轻微回声，烛火燃烧噼啪声",
+        "sfx": [
+          {
+            "t": 1.0,
+            "desc": "轻微衣料摩擦声"
+          }
+        ],
+        "music_cue": null,
+        "h3_music": "none"
+      },
+      "refs": [
+        {
+          "role": "first_frame",
+          "src": "episode:E01S01_03/first.png"
+        },
+        {
+          "role": "prev_last_frame",
+          "src": "episode:E01S01_02/last_frame.png"
+        }
+      ],
+      "prompts": {
+        "krea2": "Medium close-up of {CHR_yangguo} centered, facing left. He looks at the unseen {CHR_xiaolongnv}, his cheeks flushing. He then averts his eyes, head tilting slightly downward. Candlelight from the side casts a warm glow on one side of his face, leaving the other in shadow. Background is the dark stone interior of {LOC}. His expression is embarrassed and hesitant.",
+        "h3_image": "Medium close-up of {CHR_yangguo} centered, facing left. He looks at the unseen {CHR_xiaolongnv}, his cheeks flushing. He then averts his eyes, head tilting slightly downward. Candlelight from the side casts a warm glow on one side of his face, leaving the other in shadow. Background is the dark stone interior of {LOC}. His expression is embarrassed and hesitant."
+      },
+      "video_plan": {
+        "summary_en": "Yangguo looks at Xiaolongnü, blushes, then averts his eyes and says \"This... won't do.\"",
+        "segments": [
+          {
+            "t0": 0,
+            "t1": 6,
+            "camera": "Fixed, 50mm, eye-level, medium close-up.",
+            "subject": "Yangguo in center, facing left.",
+            "action": "Initially he looks at Xiaolongnü, his face flushes, then he averts his eyes and tilts his head slightly, speaking L003 in a low voice.",
+            "environment": "Stone chamber interior, dark background.",
+            "lighting": "Candlelight from side, one side of face warm, other in shadow.",
+            "sound": "Slightly heavier breathing, rustle of clothing.",
+            "lines": [
+              "L003"
+            ],
+            "avoid": "Avoid overacting, avoid exaggerated blush, keep expression natural.",
+            "in_short": "Yangguo is shy and troubled.",
+            "ending": "After speaking, he still looks away, expression awkward."
+          }
+        ],
+        "soundscape_en": "Chamber ambience, a bit tense breathing."
+      }
+    },
+    {
+      "shot_id": "E01S01_04",
+      "scene_id": "E01S01",
+      "order": 4,
+      "beats": [
+        "E01S01_b06",
+        "E01S01_b07"
+      ],
+      "duration_s": 6,
+      "cut_to": 5,
+      "mode": "Ref2VA",
+      "shot_size": "MS",
+      "angle": "平视或稍俯，能看到手指",
+      "move": "固定或轻微跟随手部",
+      "lens": "50mm",
+      "cam_idx": null,
+      "purpose": "小龙女不以为意，提出分开练，并指向室顶刻痕。",
+      "reveal": "她手指沿刻痕游走，显示她仍在思考心经。",
+      "characters": [
+        {
+          "id": "CHR_xiaolongnv@v1",
+          "outfit": "OUT_xiaolongnv_baiyi@v1",
+          "look": null,
+          "screen_pos": "center",
+          "facing": "left",
+          "visible": "face"
+        }
+      ],
+      "extras": 0,
+      "location": {
+        "id": "NEW:LOC_linzhaoying_shishi",
+        "camera_card": null,
+        "lighting_state": "night_candle"
+      },
+      "props": [],
+      "start_state": "小龙女面向杨过，神色平静，右手抬起准备指向室顶。",
+      "unique_action": "她说“那分开练。”，然后伸手朝室顶虚划，指尖沿人形刻痕和细线游走。",
+      "end_state": "手放下，目光跟随指尖。",
+      "variation_type": "small",
+      "dialogue": [
+        {
+          "line_id": "L004",
+          "speaker": "CHR_xiaolongnv",
+          "kind": "onscreen",
+          "text": "那分开练。",
+          "emotion": "平静",
+          "lips_visible": true,
+          "start_s": 0.5,
+          "s2_tag": "[平静]"
+        }
+      ],
+      "continuity": {
+        "prev": "E01S01_03",
+        "next": "E01S01_05",
+        "chain_break_reason": null,
+        "match": null,
+        "carry": [],
+        "cut_motive": "切到杨过急切反驳，他说明危险性"
+      },
+      "first_frame_desc": "小龙女在画面中央，面向左，神色平静，右手抬起准备指向室顶。",
+      "last_frame_desc": null,
+      "motion_desc": "固定或轻微跟随手部。小龙女说出台词，然后伸手朝室顶虚划，指尖沿刻痕游走，最后手放下。",
+      "lighting": "烛光侧照，手部有光影变化。",
+      "audio": {
+        "ambience": "石室内轻微回声，烛火燃烧噼啪声",
+        "sfx": [
+          {
+            "t": 1.0,
+            "desc": "手臂衣料摩擦声"
+          },
+          {
+            "t": 3.0,
+            "desc": "手指划过空气声"
+          }
+        ],
+        "music_cue": null,
+        "h3_music": "none"
+      },
+      "refs": [
+        {
+          "role": "first_frame",
+          "src": "episode:E01S01_04/first.png"
+        },
+        {
+          "role": "prev_last_frame",
+          "src": "episode:E01S01_03/last_frame.png"
+        }
+      ],
+      "prompts": {
+        "krea2": "Medium shot of {CHR_xiaolongnv} centered, facing left. She raises her right hand, pointing toward the ceiling. Her expression remains calm and composed. Candlelight from below illuminates her hand and face, creating soft shadows. The background shows the rough stone ceiling with faint carved lines. The camera may slightly tilt to follow her hand movement.",
+        "h3_image": "Medium shot of {CHR_xiaolongnv} centered, facing left. She raises her right hand, pointing toward the ceiling. Her expression remains calm and composed. Candlelight from below illuminates her hand and face, creating soft shadows. The background shows the rough stone ceiling with faint carved lines. The camera may slightly tilt to follow her hand movement."
+      },
+      "video_plan": {
+        "summary_en": "Xiaolongnü calmly says \"Then let's train separately\" and points to the carved patterns on the ceiling, tracing them with her finger.",
+        "segments": [
+          {
+            "t0": 0,
+            "t1": 6,
+            "camera": "Eye-level or slightly high angle, 50mm, medium shot, slight follow of hand.",
+            "subject": "Xiaolongnü in center, facing left.",
+            "action": "She first calmly speaks L004, then raises her right hand and points toward the ceiling, tracing the carved patterns and lines with her finger, finally lowering her hand.",
+            "environment": "Stone chamber interior, ceiling with carvings partially visible.",
+            "lighting": "Candlelight from below and side, illuminating hand and face.",
+            "sound": "Rustle of clothing, soft breathing.",
+            "lines": [
+              "L004"
+            ],
+            "avoid": "Avoid disjointed hand motion, avoid overly clear carvings, keep calm expression.",
+            "in_short": "Xiaolongnü suggests training separately.",
+            "ending": "Hand lowered, gaze following fingertip."
+          }
+        ],
+        "soundscape_en": "Chamber ambience, soft rustle of clothing."
+      }
+    },
+    {
+      "shot_id": "E01S01_05",
+      "scene_id": "E01S01",
+      "order": 5,
+      "beats": [
+        "E01S01_b08"
+      ],
+      "duration_s": 7,
+      "cut_to": 6,
+      "mode": "Ref2VA",
+      "shot_size": "MCU",
+      "angle": "平视",
+      "move": "固定",
+      "lens": "50mm",
+      "cam_idx": null,
+      "purpose": "杨过急急解释，展示他的关切和武学知识。",
+      "reveal": "他表情急切，语气加快。",
+      "characters": [
+        {
+          "id": "CHR_yangguo@v1",
+          "outfit": "OUT_yangguo_heiyi@v1",
+          "look": null,
+          "screen_pos": "center",
+          "facing": "right",
+          "visible": "face"
+        }
+      ],
+      "extras": 0,
+      "location": {
+        "id": "NEW:LOC_linzhaoying_shishi",
+        "camera_card": null,
+        "lighting_state": "night_candle"
+      },
+      "props": [],
+      "start_state": "杨过转向小龙女，眉头微皱，身体前倾。",
+      "unique_action": "他说“行功会入岔道，无人护持会走火入魔。”语气急。",
+      "end_state": "说完后看着小龙女，等她反应。",
+      "variation_type": "small",
+      "dialogue": [
+        {
+          "line_id": "L005",
+          "speaker": "CHR_yangguo",
+          "kind": "onscreen",
+          "text": "行功会入岔道，无人护持会走火入魔。",
+          "emotion": "急",
+          "lips_visible": true,
+          "start_s": 0.5,
+          "s2_tag": "[急]"
+        }
+      ],
+      "continuity": {
+        "prev": "E01S01_04",
+        "next": "E01S02_01",
+        "chain_break_reason": null,
+        "match": null,
+        "carry": [],
+        "cut_motive": "切到白天花丛，杨过追兔，场景转换"
+      },
+      "first_frame_desc": "杨过在画面中央，身体前倾，眉头微皱，面向右，背景石室。",
+      "last_frame_desc": null,
+      "motion_desc": "固定机位。杨过说出台词，语气急切，身体保持前倾。",
+      "lighting": "烛光侧照，面部阴影增强急切感。",
+      "audio": {
+        "ambience": "石室内轻微回声，烛火燃烧噼啪声",
+        "sfx": [
+          {
+            "t": 0.5,
+            "desc": "急促呼吸声"
+          },
+          {
+            "t": 2.0,
+            "desc": "衣料摩擦声"
+          }
+        ],
+        "music_cue": null,
+        "h3_music": "none"
+      },
+      "refs": [
+        {
+          "role": "first_frame",
+          "src": "episode:E01S01_05/first.png"
+        },
+        {
+          "role": "prev_last_frame",
+          "src": "episode:E01S01_04/last_frame.png"
+        }
+      ],
+      "prompts": {
+        "krea2": "Medium close-up of {CHR_yangguo} centered, facing right. He leans forward, brows slightly furrowed, speaking urgently. Candlelight from the side emphasizes the intensity in his eyes and the shadows on his face. The background is the dark stone wall of {LOC}. His expression is earnest and concerned.",
+        "h3_image": "Medium close-up of {CHR_yangguo} centered, facing right. He leans forward, brows slightly furrowed, speaking urgently. Candlelight from the side emphasizes the intensity in his eyes and the shadows on his face. The background is the dark stone wall of {LOC}. His expression is earnest and concerned."
+      },
+      "video_plan": {
+        "summary_en": "Yangguo urgently explains that practicing alone risks going astray and becoming demon-possessed.",
+        "segments": [
+          {
+            "t0": 0,
+            "t1": 7,
+            "camera": "Fixed, 50mm, eye-level, medium close-up.",
+            "subject": "Yangguo in center, facing right.",
+            "action": "He maintains a leaning-forward posture and urgently speaks L005, eyes intense.",
+            "environment": "Stone chamber interior, candlelight.",
+            "lighting": "Side lighting, shadows on face increase urgency.",
+            "sound": "Urgent breathing, rustle of clothing.",
+            "lines": [
+              "L005"
+            ],
+            "avoid": "Avoid exaggerated performance, keep character consistent.",
+            "in_short": "Yangguo urgently warns.",
+            "ending": "After speaking, he looks at Xiaolongnü, waiting for her reaction."
+          }
+        ],
+        "soundscape_en": "Chamber ambience, urgent breathing."
+      }
+    },
+    {
+      "shot_id": "E01S02_01",
+      "scene_id": "E01S02",
+      "order": 6,
+      "beats": [
+        "E01S02_b01"
+      ],
+      "duration_s": 6,
+      "cut_to": 4,
+      "mode": "Ref2VA",
+      "shot_size": "WS",
+      "angle": "平视，跟拍",
+      "move": "跟拍杨过奔跑",
+      "lens": "35mm",
+      "cam_idx": null,
+      "purpose": "展示杨过发现花丛的契机，追兔动作。",
+      "reveal": "灰兔钻进花丛，引出花丛。",
+      "characters": [
+        {
+          "id": "CHR_yangguo@v1",
+          "outfit": "OUT_yangguo_heiyi@v1",
+          "look": null,
+          "screen_pos": "left",
+          "facing": "right",
+          "visible": "profile"
+        }
+      ],
+      "extras": 0,
+      "location": {
+        "id": "NEW:LOC_huacong",
+        "camera_card": null,
+        "lighting_state": "day_shade"
+      },
+      "props": [
+        {
+          "id": "NEW:PRP_huitu",
+          "state": null,
+          "holder": null,
+          "hand": null
+        }
+      ],
+      "start_state": "杨过在画面左侧疾奔，一只灰兔在画面右侧前方逃窜。",
+      "unique_action": "灰兔朝红花丛一钻，没进浓密花枝，杨过紧追。",
+      "end_state": "兔子消失，杨过跑到花丛前。",
+      "variation_type": "small",
+      "dialogue": [],
+      "continuity": {
+        "prev": "E01S01_05",
+        "next": "E01S02_02",
+        "chain_break_reason": "scene_change",
+        "match": null,
+        "carry": [],
+        "cut_motive": "杨过看到花丛，高叫有法子"
+      },
+      "first_frame_desc": "杨过在画面左侧疾奔，身体前倾，灰兔在画面右侧前方逃窜，背景是浓密的红花丛，树荫投下斑驳光影。",
+      "last_frame_desc": "灰兔钻入花丛中消失，杨过跑到花丛前停下，微微喘气，眼睛盯着花丛。",
+      "motion_desc": "跟拍杨过奔跑，镜头跟随他移动，灰兔在前方逃窜，最后灰兔钻入花丛，杨过追到花丛前停下。画内：杨过奔跑，灰兔逃窜。",
+      "lighting": "日间树荫下的光线，柔和的散射光，花丛投下阴影，光线斑驳。",
+      "audio": {
+        "ambience": "山林鸟鸣、风声、树叶沙沙声",
+        "sfx": [
+          {
+            "t": 0,
+            "desc": "杨过急促的脚步声"
+          },
+          {
+            "t": 3,
+            "desc": "灰兔钻入花丛的沙沙声"
+          }
+        ],
+        "music_cue": null,
+        "h3_music": "none"
+      },
+      "refs": [
+        {
+          "role": "first_frame",
+          "src": "episode:E01S02_01/first.png"
+        }
+      ],
+      "prompts": {
+        "krea2": "A wide tracking shot of {CHR_yangguo} running from left to right, chasing {PRP_huitu} ahead of him. The background is a dense thicket of red flowers under tree shade, with dappled sunlight filtering through leaves. The camera follows Yangguo's movement, capturing the urgency of the chase.",
+        "h3_image": "A wide shot of a man in black running through a forest clearing, chasing a small gray rabbit. The man is on the left, the rabbit on the right, both moving toward a dense wall of red flowers. Tree branches cast shadows on the ground, sunlight filtering through leaves."
+      },
+      "video_plan": {
+        "summary_en": "Yangguo chases a gray rabbit toward the flower thicket.",
+        "segments": [
+          {
+            "t0": 0,
+            "t1": 6,
+            "camera": "tracking shot following Yangguo",
+            "subject": "Yangguo on left running right, rabbit ahead",
+            "action": "Yangguo sprints after the rabbit; the rabbit darts into the flower thicket; Yangguo reaches the thicket and stops, breathing hard.",
+            "environment": "mountain valley with red flower thicket, tree shade",
+            "lighting": "soft daylight under shade",
+            "sound": "footsteps, rustling of flowers",
+            "lines": [],
+            "avoid": "静态画面，镜头不跟随；兔子过于显眼；动作不连贯",
+            "in_short": "Yangguo chases rabbit into flowers",
+            "ending": "Yangguo stops at flower thicket, rabbit hidden inside"
+          }
+        ],
+        "soundscape_en": "Bird calls and wind in the mountain valley, soft rustling of leaves and flowers."
+      }
+    },
+    {
+      "shot_id": "E01S02_02",
+      "scene_id": "E01S02",
+      "order": 7,
+      "beats": [
+        "E01S02_b02"
+      ],
+      "duration_s": 5,
+      "cut_to": 4,
+      "mode": "Ref2VA",
+      "shot_size": "MS",
+      "angle": "平视",
+      "move": "固定",
+      "lens": "50mm",
+      "cam_idx": null,
+      "purpose": "杨过高叫，传达喜悦。",
+      "reveal": "他脸上兴奋。",
+      "characters": [
+        {
+          "id": "CHR_yangguo@v1",
+          "outfit": "OUT_yangguo_heiyi@v1",
+          "look": null,
+          "screen_pos": "center",
+          "facing": "left",
+          "visible": "face"
+        }
+      ],
+      "extras": 0,
+      "location": {
+        "id": "NEW:LOC_huacong",
+        "camera_card": null,
+        "lighting_state": "day_shade"
+      },
+      "props": [],
+      "start_state": "杨过站在花丛前，看着花丛，突然高叫。",
+      "unique_action": "他高叫“姑姑，有法子啦！”",
+      "end_state": "叫完，笑容满面。",
+      "variation_type": "small",
+      "dialogue": [
+        {
+          "line_id": "L006",
+          "speaker": "CHR_yangguo",
+          "kind": "onscreen",
+          "text": "姑姑，有法子啦！",
+          "emotion": "高叫，抑制不住",
+          "lips_visible": true,
+          "start_s": 0.5,
+          "s2_tag": "[高叫]"
+        }
+      ],
+      "continuity": {
+        "prev": "E01S02_01",
+        "next": "E01S02_03",
+        "chain_break_reason": null,
+        "match": null,
+        "carry": [],
+        "cut_motive": "切到他观察花丛，具体计划"
+      },
+      "first_frame_desc": "杨过站在花丛前，面朝花丛，身体微微前倾，脸上带着惊喜和兴奋。",
+      "last_frame_desc": null,
+      "motion_desc": "固定镜头，杨过站在花丛前，突然高叫，表情兴奋，笑容满面。",
+      "lighting": "日间树荫光线，柔和照射在杨过脸上。",
+      "audio": {
+        "ambience": "山林鸟鸣，远处风声",
+        "sfx": [
+          {
+            "t": 0.5,
+            "desc": "杨过高叫“姑姑，有法子啦！”"
+          }
+        ],
+        "music_cue": null,
+        "h3_music": "none"
+      },
+      "refs": [
+        {
+          "role": "first_frame",
+          "src": "episode:E01S02_02/first.png"
+        },
+        {
+          "role": "prev_last_frame",
+          "src": "episode:E01S02_01/last_frame.png"
+        }
+      ],
+      "prompts": {
+        "krea2": "A medium shot of {CHR_yangguo} standing in front of the flower thicket, facing it with a surprised and excited expression. He is slightly leaning forward, looking at the flowers. The background is the dense red flower thicket under tree shade, with soft daylight.",
+        "h3_image": "A medium shot of a man in black standing before a wall of red flowers, his face lit by dappled sunlight. He has an excited expression, mouth open as if shouting, eyes wide. The flower thicket fills the background, with green leaves and red blossoms."
+      },
+      "video_plan": {
+        "summary_en": "Yangguo exclaims that he has found a solution.",
+        "segments": [
+          {
+            "t0": 0,
+            "t1": 5,
+            "camera": "static",
+            "subject": "Yangguo center, facing flower thicket",
+            "action": "He looks at the thicket, then suddenly shouts with excitement, his face breaking into a wide smile.",
+            "environment": "flower thicket background, tree shade",
+            "lighting": "day shade",
+            "sound": "Yangguo's shout (line L006)",
+            "lines": [
+              "L006"
+            ],
+            "avoid": "嘴型与台词不匹配；表情过于夸张；镜头移动",
+            "in_short": "Yangguo shouts happily",
+            "ending": "he is smiling, still looking at the flowers"
+          }
+        ],
+        "soundscape_en": "Quiet forest ambience, then Yangguo's joyful shout echoes briefly."
+      }
+    },
+    {
+      "shot_id": "E01S02_03",
+      "scene_id": "E01S02",
+      "order": 8,
+      "beats": [
+        "E01S02_b03"
+      ],
+      "duration_s": 6,
+      "cut_to": 5,
+      "mode": "Ref2VA",
+      "shot_size": "MS",
+      "angle": "平视",
+      "move": "固定或轻微推",
+      "lens": "50mm",
+      "cam_idx": null,
+      "purpose": "展示他观察花丛，思考。",
+      "reveal": "他拨枝查看深处。",
+      "characters": [
+        {
+          "id": "CHR_yangguo@v1",
+          "outfit": "OUT_yangguo_heiyi@v1",
+          "look": null,
+          "screen_pos": "center",
+          "facing": "right",
+          "visible": "profile"
+        }
+      ],
+      "extras": 0,
+      "location": {
+        "id": "NEW:LOC_huacong",
+        "camera_card": null,
+        "lighting_state": "day_shade"
+      },
+      "props": [],
+      "start_state": "杨过站在花丛前，伸手拨开花枝。",
+      "unique_action": "他拨开花枝朝深处望了望，退后两步。",
+      "end_state": "他退后，若有所思。",
+      "variation_type": "small",
+      "dialogue": [],
+      "continuity": {
+        "prev": "E01S02_02",
+        "next": "E01S02_04",
+        "chain_break_reason": null,
+        "match": null,
+        "carry": [],
+        "cut_motive": "切到他比划两侧，确认可行性"
+      },
+      "first_frame_desc": "杨过站在花丛前，侧身对着镜头，右手伸向花丛，正拨开花枝。",
+      "last_frame_desc": null,
+      "motion_desc": "固定或轻微推镜，杨过拨开花枝查看深处，然后退后两步，若有所思。",
+      "lighting": "日间树荫光线，花丛内部较暗，杨过面部有柔和光线。",
+      "audio": {
+        "ambience": "山林鸟鸣，风声",
+        "sfx": [
+          {
+            "t": 0,
+            "desc": "拨动花枝的沙沙声"
+          },
+          {
+            "t": 3,
+            "desc": "退后的脚步声"
+          }
+        ],
+        "music_cue": null,
+        "h3_music": "none"
+      },
+      "refs": [
+        {
+          "role": "first_frame",
+          "src": "episode:E01S02_03/first.png"
+        },
+        {
+          "role": "prev_last_frame",
+          "src": "episode:E01S02_02/last_frame.png"
+        }
+      ],
+      "prompts": {
+        "krea2": "A medium shot of {CHR_yangguo} in profile, reaching out with his right hand to part the branches of the flower thicket. He is looking into the thicket, curious. The background is the dense red flowers and green leaves, with tree shade casting patterns of light.",
+        "h3_image": "A medium shot of a man in black standing beside a flower thicket, his hand pushing aside the red blossoms to peer inside. He is in profile, face angled toward the thicket. Sunlight filters through the leaves, creating dappled light on his face and the flowers."
+      },
+      "video_plan": {
+        "summary_en": "Yangguo parts the flower branches to inspect the thicket.",
+        "segments": [
+          {
+            "t0": 0,
+            "t1": 3,
+            "camera": "static or slight push in",
+            "subject": "Yangguo in profile, facing right",
+            "action": "He reaches out and parts the flower branches, leaning forward to look into the thicket.",
+            "environment": "flower thicket",
+            "lighting": "day shade",
+            "sound": "rustling of branches",
+            "lines": [],
+            "avoid": "手部动作不自然；镜头推得太快",
+            "in_short": "Yangguo inspects thicket",
+            "ending": "his hand still holding branches, peering inside"
+          },
+          {
+            "t0": 3,
+            "t1": 6,
+            "camera": "static",
+            "subject": "Yangguo steps back",
+            "action": "He releases the branches, straightens up, and takes two steps back, a thoughtful expression on his face.",
+            "environment": "same",
+            "lighting": "same",
+            "sound": "footsteps on grass",
+            "lines": [],
+            "avoid": "动作僵硬；表情突然变化",
+            "in_short": "Yangguo steps back",
+            "ending": "he stands at a short distance from the thicket, pondering"
+          }
+        ],
+        "soundscape_en": "Soft wind and bird calls, the rustling of flowers and footsteps on grass."
+      }
+    },
+    {
+      "shot_id": "E01S02_04",
+      "scene_id": "E01S02",
+      "order": 9,
+      "beats": [
+        "E01S02_b04"
+      ],
+      "duration_s": 6,
+      "cut_to": 5,
+      "mode": "Ref2VA",
+      "shot_size": "MS",
+      "angle": "平视",
+      "move": "固定",
+      "lens": "35mm",
+      "cam_idx": null,
+      "purpose": "展示他比划花丛两侧和观察环境。",
+      "reveal": "他确认树荫和位置。",
+      "characters": [
+        {
+          "id": "CHR_yangguo@v1",
+          "outfit": "OUT_yangguo_heiyi@v1",
+          "look": null,
+          "screen_pos": "center",
+          "facing": "left",
+          "visible": "face"
+        }
+      ],
+      "extras": 0,
+      "location": {
+        "id": "NEW:LOC_huacong",
+        "camera_card": null,
+        "lighting_state": "day_shade"
+      },
+      "props": [],
+      "start_state": "杨过退后两步，左右转头看花丛两侧。",
+      "unique_action": "他左右比了比花丛两侧，抬头看树荫与天，重重点了下头。",
+      "end_state": "他点头，表情坚定。",
+      "variation_type": "small",
+      "dialogue": [],
+      "continuity": {
+        "prev": "E01S02_03",
+        "next": "E01S02_05",
+        "chain_break_reason": null,
+        "match": null,
+        "carry": [],
+        "cut_motive": "切到他转身跑，似乎要回去，又回头，表现决心"
+      },
+      "first_frame_desc": "杨过站在花丛前，身体稍微侧向左边，正转头观察花丛左侧。",
+      "last_frame_desc": null,
+      "motion_desc": "固定镜头，杨过左右转头看花丛两侧，举手比划，抬头看天，然后重重点头。",
+      "lighting": "日间树荫光线，明亮但柔和。",
+      "audio": {
+        "ambience": "山林鸟鸣，风声",
+        "sfx": [],
+        "music_cue": null,
+        "h3_music": "none"
+      },
+      "refs": [
+        {
+          "role": "first_frame",
+          "src": "episode:E01S02_04/first.png"
+        },
+        {
+          "role": "prev_last_frame",
+          "src": "episode:E01S02_03/last_frame.png"
+        }
+      ],
+      "prompts": {
+        "krea2": "A medium shot of {CHR_yangguo} standing in front of the flower thicket, turning his head to look to the left. He is assessing the area. The background shows the dense red flower thicket and overhanging tree branches with dappled light.",
+        "h3_image": "A medium shot of a man in black in a forest clearing, standing before a wall of red flowers. He is looking to his left, one hand raised as if measuring. Sunlight filters through the canopy, casting patterns on the ground and flowers."
+      },
+      "video_plan": {
+        "summary_en": "Yangguo assesses the feasibility of using both sides of the flower thicket.",
+        "segments": [
+          {
+            "t0": 0,
+            "t1": 6,
+            "camera": "static",
+            "subject": "Yangguo center, turning head from side to side",
+            "action": "He looks left and right at the flower thicket, raises his hands to compare the distances, looks up at the tree shade and sky, then nods firmly.",
+            "environment": "flower thicket and trees",
+            "lighting": "day shade",
+            "sound": "no significant sound besides ambience",
+            "lines": [],
+            "avoid": "手势过于夸张；转头过快；表情不够坚定",
+            "in_short": "Yangguo checks the area",
+            "ending": "he nods determinedly, satisfied"
+          }
+        ],
+        "soundscape_en": "Quiet forest ambience with bird calls and a gentle breeze."
+      }
+    },
+    {
+      "shot_id": "E01S02_05",
+      "scene_id": "E01S02",
+      "order": 10,
+      "beats": [
+        "E01S02_b05"
+      ],
+      "duration_s": 6,
+      "cut_to": 5,
+      "mode": "Ref2VA",
+      "shot_size": "MS",
+      "angle": "平视",
+      "move": "固定",
+      "lens": "35mm",
+      "cam_idx": null,
+      "purpose": "表现他决定并行动。",
+      "reveal": "他转身跑又回头攥拳。",
+      "characters": [
+        {
+          "id": "CHR_yangguo@v1",
+          "outfit": "OUT_yangguo_heiyi@v1",
+          "look": null,
+          "screen_pos": "center",
+          "facing": "left",
+          "visible": "face"
+        }
+      ],
+      "extras": 0,
+      "location": {
+        "id": "NEW:LOC_huacong",
+        "camera_card": null,
+        "lighting_state": "day_shade"
+      },
+      "props": [],
+      "start_state": "杨过在花丛前，转身朝古墓方向跑出几步。",
+      "unique_action": "他又回头立在花丛边，攥紧右拳。",
+      "end_state": "他站在花丛边，拳头紧握，目光坚定。",
+      "variation_type": "small",
+      "dialogue": [],
+      "continuity": {
+        "prev": "E01S02_04",
+        "next": "E01S03_01",
+        "chain_break_reason": null,
+        "match": null,
+        "carry": [],
+        "cut_motive": "切到夜间花丛，两人开始同修，时间跳跃"
+      },
+      "first_frame_desc": "杨过在花丛前，已经转过身背对花丛，身体微微前倾，似乎正要跑开。",
+      "last_frame_desc": null,
+      "motion_desc": "固定镜头，杨过转身跑出几步，然后回头走到花丛边，攥紧右拳。",
+      "lighting": "日间树荫光线。",
+      "audio": {
+        "ambience": "山林鸟鸣，风声",
+        "sfx": [
+          {
+            "t": 0,
+            "desc": "杨过跑出的脚步声"
+          },
+          {
+            "t": 3,
+            "desc": "回头走回的脚步声"
+          }
+        ],
+        "music_cue": null,
+        "h3_music": "none"
+      },
+      "refs": [
+        {
+          "role": "first_frame",
+          "src": "episode:E01S02_05/first.png"
+        },
+        {
+          "role": "prev_last_frame",
+          "src": "episode:E01S02_04/last_frame.png"
+        }
+      ],
+      "prompts": {
+        "krea2": "A medium shot of {CHR_yangguo} turned away from the flower thicket, beginning to run toward the ancient tomb direction. The background shows the flower thicket behind him and the forest path ahead. Sunlight filters through the trees.",
+        "h3_image": "A medium shot of a man in black in a forest clearing, turned away from a wall of red flowers, starting to run. His body leans forward, one foot lifted. Trees surround the clearing, with dappled sunlight on the ground."
+      },
+      "video_plan": {
+        "summary_en": "Yangguo starts to leave but then returns, clenching his fist in determination.",
+        "segments": [
+          {
+            "t0": 0,
+            "t1": 3,
+            "camera": "static",
+            "subject": "Yangguo facing away from flower thicket",
+            "action": "He turns and runs a few steps away from the flower thicket, heading toward the ancient tomb direction.",
+            "environment": "valley with trees and flower thicket",
+            "lighting": "day shade",
+            "sound": "running footsteps",
+            "lines": [],
+            "avoid": "跑动姿势不自然；镜头摇移",
+            "in_short": "Yangguo runs away",
+            "ending": "he is a few steps away, moving"
+          },
+          {
+            "t0": 3,
+            "t1": 6,
+            "camera": "static",
+            "subject": "Yangguo stops and turns back",
+            "action": "He stops, turns around, walks back to the flower thicket, and clenches his right fist, his expression resolute.",
+            "environment": "same",
+            "lighting": "same",
+            "sound": "footsteps stopping and turning",
+            "lines": [],
+            "avoid": "转身僵硬；拳头姿势不清晰",
+            "in_short": "Yangguo returns determined",
+            "ending": "he stands beside flowers, fist clenched, looking resolute"
+          }
+        ],
+        "soundscape_en": "Bird calls and light wind, with soft footsteps on grass."
+      }
+    },
+    {
+      "shot_id": "E01S03_01",
+      "scene_id": "E01S03",
+      "order": 11,
+      "beats": [
+        "E01S03_b01",
+        "E01S03_b02"
+      ],
+      "duration_s": 8,
+      "cut_to": 6,
+      "mode": "Ref2VA",
+      "shot_size": "WS",
+      "angle": "平视，稍高",
+      "move": "固定或缓慢推",
+      "lens": "35mm",
+      "cam_idx": null,
+      "purpose": "建立夜间练功画面，展示两人衣襟松开状态和掌心相抵。",
+      "reveal": "两人在花丛两侧，花丛遮挡，只露头肩，衣裳滑落，然后伸手相抵。",
+      "characters": [
+        {
+          "id": "CHR_yangguo@v1",
+          "outfit": "OUT_yangguo_heiyi@v1",
+          "look": "LOOK_yangguo_heiyi_opened@v1",
+          "screen_pos": "left",
+          "facing": "right",
+          "visible": "profile"
+        },
+        {
+          "id": "CHR_xiaolongnv@v1",
+          "outfit": "OUT_xiaolongnv_baiyi@v1",
+          "look": "LOOK_xiaolongnv_baiyi_opened@v1",
+          "screen_pos": "right",
+          "facing": "left",
+          "visible": "profile"
+        }
+      ],
+      "extras": 0,
+      "location": {
+        "id": "NEW:LOC_huacong",
+        "camera_card": null,
+        "lighting_state": "night_moon"
+      },
+      "props": [],
+      "start_state": "夜色中，红花丛两侧，小龙女在右，杨过在左，均被花丛遮得只露头肩，外袍滑落在身后，交领松到锁骨肩线，腰带系着。",
+      "unique_action": "杨过缓缓伸出左臂穿入花丛；小龙女右臂穿入，两掌在花丛深处相抵。",
+      "end_state": "两人手臂穿入花丛，手掌相抵，静止不动。",
+      "variation_type": "small",
+      "dialogue": [],
+      "continuity": {
+        "prev": "E01S02_05",
+        "next": "E01S03_02",
+        "chain_break_reason": "lighting_change",
+        "match": null,
+        "carry": [],
+        "cut_motive": "切到小龙女说话，开始练功指令"
+      },
+      "first_frame_desc": "夜色中，红花丛高约数丈，如一道屏风横贯画面中央。小龙女在右侧，杨过在左侧，两人均被花丛遮得只露出头肩。外袍滑落在身后，交领松到锁骨肩线，腰带系着。小龙女面朝左，杨过面朝右，目光相对但略低垂。月光从画面右上方斜照，花影投在两人肩头和花丛上。机位稍高，35mm广角，两人分居画面两侧，花丛占中，构图均衡。",
+      "last_frame_desc": "同一机位，两人手臂穿入花丛，小臂被花丛遮挡，手掌在花丛深处相抵，手部不可见。两人姿势与首帧相比，身体微微前倾，手臂前伸，但头肩位置不变。",
+      "motion_desc": "运镜固定或缓慢推，从WS开始，镜头缓慢向花丛中央推进约10%。画内动作：杨过缓缓抬起左臂，小龙女缓缓抬起右臂，同时向花丛中央伸去，手臂逐渐没入花丛，直到两掌在花丛深处相抵，然后静止。",
+      "lighting": "主光为月光，从上方偏右斜照，冷白偏蓝，花丛投下细碎阴影，两人肩头有明亮轮廓，衣料反光柔和，背景深处有幽暗感。",
+      "audio": {
+        "ambience": "夏夜虫鸣，微风拂过花丛的沙沙声",
+        "sfx": [
+          {
+            "t": 3,
+            "desc": "衣袖与花叶摩擦的轻微窸窣"
+          },
+          {
+            "t": 5.5,
+            "desc": "手掌相抵的轻微声"
+          }
+        ],
+        "music_cue": null,
+        "h3_music": "none"
+      },
+      "refs": [
+        {
+          "role": "first_frame",
+          "src": "episode:E01S03_01/first.png"
+        }
+      ],
+      "prompts": {
+        "krea2": "At night, a tall hedge of red flowers extends across the center of the frame as a natural screen. On the right side stands {CHR_xiaolongnv}, facing left, her robes loosened to collarbones and shoulder line, covered below, with the outer robe slipped off her shoulders and falling behind her. On the left side stands {CHR_yangguo}, facing right, his robes similarly loosened. Only their heads and shoulders are visible above the hedge, which hides their bodies below the shoulders. Their arms hang naturally at their sides, hidden by the hedge. Moonlight comes from high right, casting a cool bluish light and dappled shadows from the flowers onto their shoulders and faces. The composition is a wide shot from a slightly elevated angle, with the two figures balanced on either side of the hedge. The atmosphere is serene and secretive, with a hint of warmth rising in the still air.",
+        "h3_image": "Wide shot at night: {CHR_xiaolongnv} on the right, {CHR_yangguo} on the left, behind a tall hedge of red flowers. Only their heads and shoulders are visible. Their robes are loosened to collarbones and shoulder line, covered below. They face each other, arms at sides. Moonlight from high right casts dappled shadows. The hedge fills the center, separating them. The scene is calm and secretive."
+      },
+      "video_plan": {
+        "summary_en": "A night wide shot: {CHR_xiaolongnv} and {CHR_yangguo} stand on opposite sides of a tall flower hedge, only heads and shoulders visible, robes loosened. They extend their arms through the hedge until their palms meet in a training posture.",
+        "segments": [
+          {
+            "t0": 0,
+            "t1": 4,
+            "camera": "Slow push-in from a wide shot, keeping both figures in frame and tightening slightly on the hedge.",
+            "subject": "{CHR_yangguo} at left, facing right; {CHR_xiaolongnv} at right, facing left; both only heads and shoulders above hedge, arms at sides.",
+            "action": "Both raise their inner arms (Yangguo's left, Xiaolongnü's right) and extend them horizontally into the dense flower hedge, moving slowly through leaves and blossoms.",
+            "environment": "Night clearing in {LOC}, moonlit with soft shadows.",
+            "lighting": "Cool moonlight from high right, dappled shadows on shoulders.",
+            "sound": "Soft rustle of fabric against leaves, continuing night insects.",
+            "lines": [],
+            "avoid": "Do not show arms below shoulders; keep bodies covered below collarbones; ensure hands disappear into hedge, not visible; movement should be slow and deliberate.",
+            "in_short": "They reach into the hedge.",
+            "ending": "Their hands are about to meet deep in the hedge, still hidden."
+          },
+          {
+            "t0": 4,
+            "t1": 8,
+            "camera": "Camera continues slow push or holds, focusing on the hedge center.",
+            "subject": "Same positions; their extended arms are now inside the hedge, only upper arms visible.",
+            "action": "Their palms meet and press together firmly inside the hedge; they hold still, breathing slowly.",
+            "environment": "Same clearing; the hedge shivers slightly as their arms settle.",
+            "lighting": "Moonlight unchanged; a faint glow might appear where hands meet but hidden by hedge.",
+            "sound": "A soft sound of palms touching, then silence except insect chirps.",
+            "lines": [],
+            "avoid": "Do not reveal the hands; keep them hidden by hedge; maintain modesty of shoulder exposure; avoid showing any skin below collarbones.",
+            "in_short": "Palms meet and hold.",
+            "ending": "They stand motionless, hands joined invisibly through the hedge."
+          }
+        ],
+        "soundscape_en": "A quiet summer night: distant crickets, a gentle breeze rustling the flower hedge, and the faint sound of fabric moving through leaves."
+      }
+    },
+    {
+      "shot_id": "E01S03_02",
+      "scene_id": "E01S03",
+      "order": 12,
+      "beats": [
+        "E01S03_b03"
+      ],
+      "duration_s": 5,
+      "cut_to": 3,
+      "mode": "Ref2VA",
+      "shot_size": "MCU",
+      "angle": "平视",
+      "move": "固定",
+      "lens": "50mm",
+      "cam_idx": null,
+      "purpose": "小龙女发令。",
+      "reveal": "她平静说“收神”。",
+      "characters": [
+        {
+          "id": "CHR_xiaolongnv@v1",
+          "outfit": "OUT_xiaolongnv_baiyi@v1",
+          "look": "LOOK_xiaolongnv_baiyi_opened@v1",
+          "screen_pos": "center",
+          "facing": "left",
+          "visible": "face"
+        }
+      ],
+      "extras": 0,
+      "location": {
+        "id": "NEW:LOC_huacong",
+        "camera_card": null,
+        "lighting_state": "night_moon"
+      },
+      "props": [],
+      "start_state": "小龙女在花丛右侧，头肩露出，目光低垂，嘴唇轻启。",
+      "unique_action": "她说“过儿，收神。”",
+      "end_state": "说完后闭目。",
+      "variation_type": "small",
+      "dialogue": [
+        {
+          "line_id": "L007",
+          "speaker": "CHR_xiaolongnv",
+          "kind": "onscreen",
+          "text": "过儿，收神。",
+          "emotion": "平静",
+          "lips_visible": true,
+          "start_s": 0.5,
+          "s2_tag": "[平静]"
+        }
+      ],
+      "continuity": {
+        "prev": "E01S03_01",
+        "next": "E01S03_03",
+        "chain_break_reason": null,
+        "match": null,
+        "carry": [],
+        "cut_motive": "切到两人闭目，白气散出，展示开始运功"
+      },
+      "first_frame_desc": "小龙女在花丛右侧，只露头肩，面朝左，目光低垂，嘴唇轻启。外袍滑落在身后，交领松到锁骨肩线，腰带系着。月光从右上方照在她的面庞，花影在肩头轻晃。构图MCU，她位于画面中央偏右，背景是模糊的花丛和夜色。",
+      "last_frame_desc": null,
+      "motion_desc": "固定机位。小龙女嘴唇轻启，平静说出“过儿，收神。”，然后缓缓闭目。画内动作仅限唇部和眼帘。",
+      "lighting": "月光为主光，从右上方斜照，在她脸部形成柔和的侧光，鼻梁和颧骨有高光，眼窝有阴影，背景花丛被月光勾勒出轮廓。",
+      "audio": {
+        "ambience": "夏夜虫鸣，微风拂花丛的沙沙声",
+        "sfx": [],
+        "music_cue": null,
+        "h3_music": "none"
+      },
+      "refs": [
+        {
+          "role": "first_frame",
+          "src": "episode:E01S03_02/first.png"
+        }
+      ],
+      "prompts": {
+        "krea2": "Close medium shot of {CHR_xiaolongnv} at night. She stands behind a hedge of red flowers, only her head and shoulders visible, facing left. Her robes are loosened to collarbones and shoulder line, covered below, with the outer robe slipped off her shoulders. She looks down slightly, lips parted as if about to speak. Moonlight from high right illuminates her face, casting soft shadows from the flowers across her shoulder. The background is dark with blurred red flowers. The composition is centered, with her face in sharp focus.",
+        "h3_image": "Medium close-up of {CHR_xiaolongnv} behind red flowers at night. Her head and shoulders only, facing left, lips slightly parted. Robes loosened to collarbones and shoulder line. Moonlight from high right, flower shadows on shoulder. Dark blurred background. Centered composition."
+      },
+      "video_plan": {
+        "summary_en": "A close-up of {CHR_xiaolongnv} at night, speaking the command to begin training.",
+        "segments": [
+          {
+            "t0": 0,
+            "t1": 5,
+            "camera": "Static shot, medium close-up on her face and shoulders.",
+            "subject": "{CHR_xiaolongnv} at the right side of a flower hedge, only head and shoulders visible, facing left, looking down.",
+            "action": "Her lips part and she speaks the line, then her eyes slowly close. Minimal movement.",
+            "environment": "Night in {LOC}, with the hedge behind her slightly out of focus.",
+            "lighting": "Cool moonlight from high right, soft shadows on her face.",
+            "sound": "Her voice (dialogue) and faint night insects.",
+            "lines": [
+              "L007"
+            ],
+            "avoid": "Keep her robes properly covering below collarbones; avoid showing too much shoulder; keep her face in focus; don't let her head move significantly.",
+            "in_short": "She gives the command to focus.",
+            "ending": "Her eyes close, expression calm."
+          }
+        ],
+        "soundscape_en": "Quiet night with crickets and a light breeze."
+      }
+    },
+    {
+      "shot_id": "E01S03_03",
+      "scene_id": "E01S03",
+      "order": 13,
+      "beats": [
+        "E01S03_b04"
+      ],
+      "duration_s": 6,
+      "cut_to": 4,
+      "mode": "Ref2VA",
+      "shot_size": "WS",
+      "angle": "平视",
+      "move": "固定",
+      "lens": "35mm",
+      "cam_idx": null,
+      "purpose": "展示运功状态，白气升腾。",
+      "reveal": "月光下白气从肩头散出。",
+      "characters": [
+        {
+          "id": "CHR_yangguo@v1",
+          "outfit": "OUT_yangguo_heiyi@v1",
+          "look": "LOOK_yangguo_heiyi_opened@v1",
+          "screen_pos": "left",
+          "facing": "right",
+          "visible": "profile"
+        },
+        {
+          "id": "CHR_xiaolongnv@v1",
+          "outfit": "OUT_xiaolongnv_baiyi@v1",
+          "look": "LOOK_xiaolongnv_baiyi_opened@v1",
+          "screen_pos": "right",
+          "facing": "left",
+          "visible": "profile"
+        }
+      ],
+      "extras": 0,
+      "location": {
+        "id": "NEW:LOC_huacong",
+        "camera_card": null,
+        "lighting_state": "night_moon"
+      },
+      "props": [],
+      "start_state": "两人手相抵，站立。",
+      "unique_action": "两人同时闭目，白气从肩头散出，淡如夜雾。",
+      "end_state": "白气缭绕，两人静止。",
+      "variation_type": "small",
+      "dialogue": [],
+      "continuity": {
+        "prev": "E01S03_02",
+        "next": "E01S03_04",
+        "chain_break_reason": null,
+        "match": null,
+        "carry": [],
+        "cut_motive": "切到杨过说话，他感到热气"
+      },
+      "first_frame_desc": "两人站在花丛两侧，手相抵（隐藏于花丛中），均闭目，外袍滑落，交领松到锁骨肩线。白气从两人肩头缓缓散出，淡如夜雾。月光下，两人姿势与之前相同，但身体微微发热。机位平视，35mm，两人分居画面两侧，花丛中央有白气升起。",
+      "last_frame_desc": null,
+      "motion_desc": "固定机位。两人同时闭目运功，白气从肩头升腾，逐渐增多，在月光下呈淡白色，缓缓上升消散在夜空中。画内两人几乎不动，只有白气流动。",
+      "lighting": "月光为主，白气反射月光，带一点银白光泽，身体轮廓被月光勾勒，背景花丛有光影。",
+      "audio": {
+        "ambience": "夜虫鸣叫，微风，白气蒸腾的轻微嘶声",
+        "sfx": [
+          {
+            "t": 2,
+            "desc": "轻微的气流声开始"
+          }
+        ],
+        "music_cue": null,
+        "h3_music": "none"
+      },
+      "refs": [
+        {
+          "role": "first_frame",
+          "src": "episode:E01S03_03/first.png"
+        }
+      ],
+      "prompts": {
+        "krea2": "Wide shot at night of two figures on either side of a tall flower hedge. {CHR_yangguo} on the left, {CHR_xiaolongnv} on the right, both with robes loosened to collarbones and shoulder line, covered below. Only their heads and shoulders are visible above the hedge, and their arms are extended into the hedge, hands meeting hidden within. Both have eyes closed. Wisps of white steam rise from their shoulders, faintly glowing in the moonlight. The scene is lit by cool moonlight from high right, casting dappled shadows. The composition is balanced, with the hedge in the center and steam rising between them.",
+        "h3_image": "Wide shot at night: {CHR_yangguo} left, {CHR_xiaolongnv} right, behind a tall flower hedge. Only heads and shoulders visible, robes loosened to collarbones. Arms extended into hedge, hands hidden. Eyes closed. White steam rises from shoulders, glowing faintly in moonlight. Cool moonlight, dappled shadows, balanced composition."
+      },
+      "video_plan": {
+        "summary_en": "A wide shot of {CHR_xiaolongnv} and {CHR_yangguo} practicing internal energy, with white steam rising from their shoulders.",
+        "segments": [
+          {
+            "t0": 0,
+            "t1": 6,
+            "camera": "Static wide shot.",
+            "subject": "{CHR_yangguo} at left, {CHR_xiaolongnv} at right, both facing each other across the hedge, eyes closed, hands joined invisibly through the hedge.",
+            "action": "They stand still as white steam gradually rises from their shoulders, spreading faintly upward and dissipating into the night air.",
+            "environment": "Night clearing in {LOC}, with the flower hedge between them.",
+            "lighting": "Cool moonlight, steam glowing faintly.",
+            "sound": "Soft hiss of steam, crickets.",
+            "lines": [],
+            "avoid": "Keep steam subtle, not obscuring faces; maintain modesty of clothing; keep hands hidden; no movement of bodies.",
+            "in_short": "They cultivate inner energy, steam rising.",
+            "ending": "Steam continues to rise, surrounding them in a faint mist."
+          }
+        ],
+        "soundscape_en": "Quiet night with crickets and a faint hissing from the steam."
+      }
+    },
+    {
+      "shot_id": "E01S03_04",
+      "scene_id": "E01S03",
+      "order": 14,
+      "beats": [
+        "E01S03_b05"
+      ],
+      "duration_s": 5,
+      "cut_to": 3,
+      "mode": "Ref2VA",
+      "shot_size": "MCU",
+      "angle": "平视",
+      "move": "固定",
+      "lens": "50mm",
+      "cam_idx": null,
+      "purpose": "杨过报告热气。",
+      "reveal": "他压低声音。",
+      "characters": [
+        {
+          "id": "CHR_yangguo@v1",
+          "outfit": "OUT_yangguo_heiyi@v1",
+          "look": "LOOK_yangguo_heiyi_opened@v1",
+          "screen_pos": "center",
+          "facing": "right",
+          "visible": "face"
+        }
+      ],
+      "extras": 0,
+      "location": {
+        "id": "NEW:LOC_huacong",
+        "camera_card": null,
+        "lighting_state": "night_moon"
+      },
+      "props": [],
+      "start_state": "杨过在花丛左侧，头肩露出，闭目，嘴唇微动。",
+      "unique_action": "他说“姑姑，热气上来了。”",
+      "end_state": "说完后继续运功，眉头微皱。",
+      "variation_type": "small",
+      "dialogue": [
+        {
+          "line_id": "L008",
+          "speaker": "CHR_yangguo",
+          "kind": "onscreen",
+          "text": "姑姑，热气上来了。",
+          "emotion": "压低，克制",
+          "lips_visible": true,
+          "start_s": 0.5,
+          "s2_tag": "[低声说]"
+        }
+      ],
+      "continuity": {
+        "prev": "E01S03_03",
+        "next": "E01S03_05",
+        "chain_break_reason": null,
+        "match": null,
+        "carry": [],
+        "cut_motive": "切到小龙女反应，眉心一紧，表示察觉到热度"
+      },
+      "first_frame_desc": "杨过在花丛左侧，只露头肩，面朝右，闭目，嘴唇微动。外袍滑落，交领松到锁骨肩线。月光从他左上方照下，映出他额上微汗。构图MCU，他位于画面中央偏左，背景模糊的花丛。",
+      "last_frame_desc": null,
+      "motion_desc": "固定机位。杨过闭目，嘴唇轻动，低声说出“姑姑，热气上来了。”，说完后眉头微皱，继续运功。",
+      "lighting": "月光从左侧上方照下，侧光使他面部轮廓分明，额角和鼻梁有高光，眼窝阴影较深。",
+      "audio": {
+        "ambience": "夜虫鸣叫，微风",
+        "sfx": [],
+        "music_cue": null,
+        "h3_music": "none"
+      },
+      "refs": [
+        {
+          "role": "first_frame",
+          "src": "episode:E01S03_04/first.png"
+        }
+      ],
+      "prompts": {
+        "krea2": "Medium close-up of {CHR_yangguo} at night, standing on the left side of a flower hedge, only head and shoulders visible, facing right. His robes are loosened to collarbones and shoulder line, covered below; the outer robe has slipped off his shoulders. His eyes are closed, lips moving slightly as if speaking. Moonlight from the upper left illuminates his face, highlighting a faint sheen of sweat on his forehead. The background is dark with blurred red flowers. Composition centered on his face.",
+        "h3_image": "Medium close-up of {CHR_yangguo} behind red flowers at night. Head and shoulders only, facing right, eyes closed, lips moving. Robes loosened to collarbones. Moonlight from upper left, slight sweat on forehead. Dark blurred background. Centered composition."
+      },
+      "video_plan": {
+        "summary_en": "A close-up of {CHR_yangguo} reporting that heat is rising during training.",
+        "segments": [
+          {
+            "t0": 0,
+            "t1": 5,
+            "camera": "Static medium close-up.",
+            "subject": "{CHR_yangguo} at left of a hedge, facing right, eyes closed.",
+            "action": "His lips move as he speaks the line, then his eyebrows furrow slightly, and he continues breathing evenly.",
+            "environment": "Night in {LOC}, hedge behind him.",
+            "lighting": "Cool moonlight from upper left, slight sweat on forehead.",
+            "sound": "His voice (dialogue), crickets.",
+            "lines": [
+              "L008"
+            ],
+            "avoid": "Keep clothing modest; don't show below collarbones; keep face in focus; subtle eyebrow movement only.",
+            "in_short": "He reports the heat.",
+            "ending": "He continues cultivation with a slight frown."
+          }
+        ],
+        "soundscape_en": "Quiet night with insects and a breeze."
+      }
+    },
+    {
+      "shot_id": "E01S03_05",
+      "scene_id": "E01S03",
+      "order": 15,
+      "beats": [
+        "E01S03_b06"
+      ],
+      "duration_s": 5,
+      "cut_to": 3,
+      "mode": "Ref2VA",
+      "shot_size": "MCU",
+      "angle": "平视，稍近",
+      "move": "固定",
+      "lens": "50mm",
+      "cam_idx": null,
+      "purpose": "表现小龙女的细微反应。",
+      "reveal": "她眉心一紧，指节抵实掌根。",
+      "characters": [
+        {
+          "id": "CHR_xiaolongnv@v1",
+          "outfit": "OUT_xiaolongnv_baiyi@v1",
+          "look": "LOOK_xiaolongnv_baiyi_opened@v1",
+          "screen_pos": "center",
+          "facing": "right",
+          "visible": "face"
+        }
+      ],
+      "extras": 0,
+      "location": {
+        "id": "NEW:LOC_huacong",
+        "camera_card": null,
+        "lighting_state": "night_moon"
+      },
+      "props": [],
+      "start_state": "小龙女闭目，神情平静，手掌相抵。",
+      "unique_action": "她眉心几不可察地一紧，指节抵实他的掌根。",
+      "end_state": "表情恢复平静，手更紧。",
+      "variation_type": "small",
+      "dialogue": [],
+      "continuity": {
+        "prev": "E01S03_04",
+        "next": "E01S03_06",
+        "chain_break_reason": null,
+        "match": null,
+        "carry": [],
+        "cut_motive": "切到小龙女说话，她让杨过少说话，继续专注"
+      },
+      "first_frame_desc": "小龙女闭目，神情平静，手臂伸入花丛（手不可见），肩头白气微微。月光从右上方照在她的脸上，花影微晃。构图MCU，她位于画面中央偏右，背景模糊。",
+      "last_frame_desc": "她眉心放松，神情恢复平静，仍然闭目，肩头白气依旧。",
+      "motion_desc": "固定机位。小龙女闭目，眉心极轻微地皱了一下，然后恢复平静，同时似乎她的手臂稍微用力（虽不可见，但肩膀肌肉有极细微变化）。",
+      "lighting": "月光从右上方斜照，冷白，花影偶尔在肩头晃动。",
+      "audio": {
+        "ambience": "夜虫，微风",
+        "sfx": [],
+        "music_cue": null,
+        "h3_music": "none"
+      },
+      "refs": [
+        {
+          "role": "first_frame",
+          "src": "episode:E01S03_05/first.png"
+        },
+        {
+          "role": "end_composition",
+          "src": "episode:E01S03_05/last.png"
+        }
+      ],
+      "prompts": {
+        "krea2": "Close medium shot of {CHR_xiaolongnv} at night, behind a red flower hedge, only head and shoulders visible, facing left. Her eyes are closed, expression calm. Her robes are loosened to collarbones and shoulder line, covered below. Moonlight from high right illuminates her face, with flower shadows dappling her shoulder. The composition is centered on her face, capturing a moment of subtle tension.",
+        "h3_image": "Medium close-up of {CHR_xiaolongnv} behind red flowers at night. Head and shoulders only, facing left, eyes closed, expression calm. Robes loosened to collarbones. Moonlight from high right, flower shadows. Centered composition."
+      },
+      "video_plan": {
+        "summary_en": "A close-up of {CHR_xiaolongnv} showing a subtle reaction to rising heat.",
+        "segments": [
+          {
+            "t0": 0,
+            "t1": 5,
+            "camera": "Static medium close-up.",
+            "subject": "{CHR_xiaolongnv} at right of hedge, facing left, eyes closed.",
+            "action": "Her brow furrows almost imperceptibly, then relaxes; her expression becomes calm again, and she continues breathing evenly.",
+            "environment": "Night in {LOC}, hedge behind her.",
+            "lighting": "Cool moonlight from high right.",
+            "sound": "Soft breathing, crickets.",
+            "lines": [],
+            "avoid": "Keep the expression extremely subtle; no head movement; maintain modesty; don't show hands or arms below shoulders.",
+            "in_short": "She reacts subtly to the heat.",
+            "ending": "Her face returns to calm composure."
+          }
+        ],
+        "soundscape_en": "Quiet night with insects."
+      }
+    },
+    {
+      "shot_id": "E01S03_06",
+      "scene_id": "E01S03",
+      "order": 16,
+      "beats": [
+        "E01S03_b07"
+      ],
+      "duration_s": 5,
+      "cut_to": 3,
+      "mode": "Ref2VA",
+      "shot_size": "MCU",
+      "angle": "平视",
+      "move": "固定",
+      "lens": "50mm",
+      "cam_idx": null,
+      "purpose": "小龙女简短指令。",
+      "reveal": "她淡声说少说话。",
+      "characters": [
+        {
+          "id": "CHR_xiaolongnv@v1",
+          "outfit": "OUT_xiaolongnv_baiyi@v1",
+          "look": "LOOK_xiaolongnv_baiyi_opened@v1",
+          "screen_pos": "center",
+          "facing": "right",
+          "visible": "face"
+        }
+      ],
+      "extras": 0,
+      "location": {
+        "id": "NEW:LOC_huacong",
+        "camera_card": null,
+        "lighting_state": "night_moon"
+      },
+      "props": [],
+      "start_state": "小龙女闭目，嘴唇轻启。",
+      "unique_action": "她说“少说话。”",
+      "end_state": "说完后继续运功。",
+      "variation_type": "small",
+      "dialogue": [
+        {
+          "line_id": "L009",
+          "speaker": "CHR_xiaolongnv",
+          "kind": "onscreen",
+          "text": "少说话。",
+          "emotion": "淡，短",
+          "lips_visible": true,
+          "start_s": 0.5,
+          "s2_tag": "[平静]"
+        }
+      ],
+      "continuity": {
+        "prev": "E01S03_05",
+        "next": "E01S03_07",
+        "chain_break_reason": null,
+        "match": null,
+        "carry": [],
+        "cut_motive": "切到花影晃动，虫鸣沉，表现夜晚氛围和练功持续"
+      },
+      "first_frame_desc": "小龙女闭目，嘴唇轻启，神情平静，与上一镜尾帧相同。",
+      "last_frame_desc": null,
+      "motion_desc": "固定机位。小龙女嘴唇轻启，淡声说出“少说话。”，说完后继续闭目运功，表情不变。",
+      "lighting": "月光从右上方斜照，冷白，花影微晃。",
+      "audio": {
+        "ambience": "夜虫，微风",
+        "sfx": [],
+        "music_cue": null,
+        "h3_music": "none"
+      },
+      "refs": [
+        {
+          "role": "prev_last_frame",
+          "src": "episode:E01S03_05/last_frame.png"
+        },
+        {
+          "role": "first_frame",
+          "src": "episode:E01S03_06/first.png"
+        }
+      ],
+      "prompts": {
+        "krea2": "Close medium shot of {CHR_xiaolongnv} at night, behind a red flower hedge, only head and shoulders visible, facing left. Her eyes are closed, lips slightly parted as if about to speak. Her robes are loosened to collarbones and shoulder line, covered below. Moonlight from high right casts soft light on her face, with flower shadows on her shoulder. The expression is calm and unflappable. Composition centered on her face.",
+        "h3_image": "Medium close-up of {CHR_xiaolongnv} behind red flowers at night. Head and shoulders only, facing left, eyes closed, lips slightly parted. Robes loosened to collarbones. Moonlight from high right. Calm expression. Centered."
+      },
+      "video_plan": {
+        "summary_en": "A close-up of {CHR_xiaolongnv} giving a brief instruction during training.",
+        "segments": [
+          {
+            "t0": 0,
+            "t1": 5,
+            "camera": "Static medium close-up.",
+            "subject": "{CHR_xiaolongnv} at right of hedge, facing left, eyes closed, lips parted.",
+            "action": "She speaks the line in a flat tone, then her lips close and she continues breathing steadily.",
+            "environment": "Night in {LOC}, hedge behind her.",
+            "lighting": "Cool moonlight from high right.",
+            "sound": "Her voice (dialogue), crickets.",
+            "lines": [
+              "L009"
+            ],
+            "avoid": "Keep expression unchanging; no head movement; maintain modesty; do not show hands or arms below shoulders.",
+            "in_short": "She tells him to stop talking.",
+            "ending": "She resumes silent meditation."
+          }
+        ],
+        "soundscape_en": "Quiet night with insects and a light breeze."
+      }
+    },
+    {
+      "shot_id": "E01S03_07",
+      "scene_id": "E01S03",
+      "order": 17,
+      "beats": [
+        "E01S03_b08"
+      ],
+      "duration_s": 6,
+      "cut_to": 4,
+      "mode": "Ref2VA",
+      "shot_size": "WS",
+      "angle": "平视，稍广",
+      "move": "固定",
+      "lens": "35mm",
+      "cam_idx": null,
+      "purpose": "营造静谧氛围，为钩子铺垫。",
+      "reveal": "花影在两人头肩间晃动，虫鸣减弱。",
+      "characters": [
+        {
+          "id": "CHR_yangguo@v1",
+          "outfit": "OUT_yangguo_heiyi@v1",
+          "look": "LOOK_yangguo_heiyi_opened@v1",
+          "screen_pos": "left",
+          "facing": "right",
+          "visible": "profile"
+        },
+        {
+          "id": "CHR_xiaolongnv@v1",
+          "outfit": "OUT_xiaolongnv_baiyi@v1",
+          "look": "LOOK_xiaolongnv_baiyi_opened@v1",
+          "screen_pos": "right",
+          "facing": "left",
+          "visible": "profile"
+        }
+      ],
+      "extras": 0,
+      "location": {
+        "id": "NEW:LOC_huacong",
+        "camera_card": null,
+        "lighting_state": "night_moon"
+      },
+      "props": [],
+      "start_state": "两人闭目运功，花丛静止，虫鸣声起。",
+      "unique_action": "花影在两人头肩间晃动，远处虫鸣声沉下去。",
+      "end_state": "一片寂静，只有白气。",
+      "variation_type": "small",
+      "dialogue": [],
+      "continuity": {
+        "prev": "E01S03_06",
+        "next": "E01S04_01",
+        "chain_break_reason": null,
+        "match": null,
+        "carry": [],
+        "cut_motive": "山后传来人声，切到钩子镜头"
+      },
+      "first_frame_desc": "两人站在花丛两侧，闭目运功，白气缭绕，花丛静止。远处虫鸣声逐渐减弱。月光如旧，花影在两人头肩间轻轻晃动。机位稍广，35mm，构图类似E01S03_03。",
+      "last_frame_desc": null,
+      "motion_desc": "固定机位，画内两人几乎不动，只有白气缓慢升腾，花丛因微风偶尔轻颤，远处虫鸣声渐弱，画面趋于寂静。",
+      "lighting": "月光下，白气更明显，但整体光线不变。",
+      "audio": {
+        "ambience": "虫鸣声逐渐减弱，花丛沙沙声，白气嘶声",
+        "sfx": [
+          {
+            "t": 3,
+            "desc": "虫鸣声逐渐降低"
+          }
+        ],
+        "music_cue": null,
+        "h3_music": "none"
+      },
+      "refs": [
+        {
+          "role": "first_frame",
+          "src": "episode:E01S03_07/first.png"
+        }
+      ],
+      "prompts": {
+        "krea2": "Wide shot at night of two figures on either side of a tall flower hedge. {CHR_yangguo} on left, {CHR_xiaolongnv} on right, both with robes loosened to collarbones and shoulder line, covered below, eyes closed. Wisps of white steam rise from their shoulders. The hedge is still, with moonlight casting dappled shadows that move slightly with the breeze. The composition is balanced, with the two figures in profile facing each other, only heads and shoulders visible above the hedge. The background is dark, and the atmosphere is serene and quiet.",
+        "h3_image": "Wide shot at night: {CHR_yangguo} left, {CHR_xiaolongnv} right, behind tall flower hedge. Only heads and shoulders visible, robes loosened to collarbones. Eyes closed. White steam rising. Moonlight dappled shadows, slight breeze. Balanced composition."
+      },
+      "video_plan": {
+        "summary_en": "A static wide shot of the two cultivators, with steam rising and the night growing quieter.",
+        "segments": [
+          {
+            "t0": 0,
+            "t1": 6,
+            "camera": "Static wide shot.",
+            "subject": "{CHR_yangguo} at left, {CHR_xiaolongnv} at right, eyes closed, hands joined invisibly through hedge.",
+            "action": "They remain motionless as white steam continues to rise from their shoulders; the flower shadows sway slightly in a gentle breeze, and the distant insect sounds gradually fade.",
+            "environment": "Night clearing in {LOC}, with the hedge between them.",
+            "lighting": "Cool moonlight, steam glowing softly.",
+            "sound": "Soft hiss of steam, crickets fading, rustle of leaves.",
+            "lines": [],
+            "avoid": "Keep steam subtle; no movement of bodies; maintain modesty; ensure the hedge hides hands and lower bodies.",
+            "in_short": "Silent cultivation continues as night deepens.",
+            "ending": "All is quiet except for the soft steam and faint breeze."
+          }
+        ],
+        "soundscape_en": "The night grows quieter, with distant crickets dying down and a gentle breeze rustling the hedge."
+      }
+    },
+    {
+      "shot_id": "E01S04_01",
+      "scene_id": "E01S04",
+      "order": 18,
+      "beats": [
+        "E01S04_b01"
+      ],
+      "duration_s": 5,
+      "cut_to": 3,
+      "mode": "Ref2VA",
+      "shot_size": "MS",
+      "angle": "平视",
+      "move": "固定",
+      "lens": "35mm",
+      "cam_idx": null,
+      "purpose": "引入外部干扰。",
+      "reveal": "山后传来脚步声和人语。",
+      "characters": [
+        {
+          "id": "CHR_yangguo@v1",
+          "outfit": "OUT_yangguo_heiyi@v1",
+          "look": "LOOK_yangguo_heiyi_opened@v1",
+          "screen_pos": "left",
+          "facing": "right",
+          "visible": "profile"
+        },
+        {
+          "id": "CHR_xiaolongnv@v1",
+          "outfit": "OUT_xiaolongnv_baiyi@v1",
+          "look": "LOOK_xiaolongnv_baiyi_opened@v1",
+          "screen_pos": "right",
+          "facing": "left",
+          "visible": "profile"
+        }
+      ],
+      "extras": 0,
+      "location": {
+        "id": "NEW:LOC_huacong",
+        "camera_card": null,
+        "lighting_state": "night_moon"
+      },
+      "props": [],
+      "start_state": "两人闭目运功，白气微弱，四周安静。",
+      "unique_action": "山后突然传来脚步声与人语声，含糊难辨，渐行渐近。",
+      "end_state": "声音越来越近，两人仍闭目，但身体微微紧绷。",
+      "variation_type": "small",
+      "dialogue": [],
+      "continuity": {
+        "prev": "E01S03_07",
+        "next": "E01S04_02",
+        "chain_break_reason": "scene_change",
+        "match": null,
+        "carry": [],
+        "cut_motive": "切到反应，两人手掌一震"
+      },
+      "first_frame_desc": "月夜山坳红花丛如一道浓密屏风横在画面中央，杨过在左侧侧身面向右，小龙女在右侧侧身面向左，两人各在花丛一侧，只露出头肩和穿过花丛相抵的手掌，闭目运功，衣领松敞至锁骨肩线，外袍被夜风微微掀动，微弱白气自两人身上升起。",
+      "last_frame_desc": null,
+      "motion_desc": "固定镜头，机位不动；画内动作：两人闭目静立，只有相抵的手掌和肩部因山后渐近的脚步声而几乎不可察地绷紧，花丛在夜风中轻微摇动。",
+      "lighting": "月光从画面左上方洒下，穿过树冠形成斑驳花影，照亮两人侧面轮廓，背景是暗蓝夜色。",
+      "audio": {
+        "ambience": "夜间山间虫鸣，远处微弱风声。",
+        "sfx": [
+          {
+            "t": 1,
+            "desc": "山后传来轻微的脚步声和模糊的人语声，渐行渐近"
+          }
+        ],
+        "music_cue": null,
+        "h3_music": "none"
+      },
+      "refs": [
+        {
+          "role": "first_frame",
+          "src": "episode:E01S04_01/first.png"
+        }
+      ],
+      "prompts": {
+        "krea2": "In a moonlit mountain hollow, {CHR_yangguo} stands on the left side of a dense screen of red flowers, shown in profile facing right, while {CHR_xiaolongnv} stands on the right side facing left, their palms pressed together through the flowers between them. Both have their eyes closed, robes loosened to the collarbone and shoulder line, covered below. A faint white vapor rises from their skin. The camera is at a medium shot, level with them, capturing both figures against the dark blue night and the red blossoms, with dappled moonlight filtering through leaves. The mood is still and tense.",
+        "h3_image": "Moonlit night in a mountain hollow, a dense screen of red flowers divides the frame. On the left, a man in black with a high topknot stands in right profile; on the right, a woman in white with long black hair stands in left profile. Their hands meet through the flowers, palms pressed. Both have eyes closed, the collars of their robes loosened to the collarbone and shoulder line, covered below. Faint white vapor drifts upward. Dappled moonlight and dark blue shadows fill the background. The overall composition is balanced and still, with a sense of imminent disturbance."
+      },
+      "video_plan": {
+        "summary_en": "In the moonlit red flower thicket, the two cultivators are interrupted by approaching footsteps and voices from beyond the ridge.",
+        "segments": [
+          {
+            "t0": 0,
+            "t1": 5,
+            "camera": "Static medium shot, level, holding both characters in frame.",
+            "subject": "Yangguo on the left, Xiaolongnü on the right, each in profile facing the other through the flower screen, eyes closed, palms pressed.",
+            "action": "They remain still, a faint white vapor rising. From off-screen, footsteps and muffled voices grow nearer, causing their shoulders and joined hands to tense almost imperceptibly.",
+            "environment": "Mountain hollow at night, a thick wall of red flowers between them, tree canopy overhead casting moonlight shadows.",
+            "lighting": "Moonlight from upper left, dappled by leaves, cool blue tones with warm red accents.",
+            "sound": "Night insects, a soft breeze, then the approaching footsteps and indistinct human voices becoming louder.",
+            "lines": [],
+            "avoid": "Do not show facial details; keep body tension extremely subtle; do not let them open their eyes; no camera movement.",
+            "in_short": "External disturbance approaches.",
+            "ending": "They remain with eyes closed, bodies slightly tensed, the sounds now closer."
+          }
+        ],
+        "soundscape_en": "Night insects chirp softly in the mountain hollow. A gentle breeze rustles the red flowers. From beyond the ridge, faint footsteps and muffled voices grow nearer."
+      }
+    },
+    {
+      "shot_id": "E01S04_02",
+      "scene_id": "E01S04",
+      "order": 19,
+      "beats": [
+        "E01S04_b02"
+      ],
+      "duration_s": 5,
+      "cut_to": 3,
+      "mode": "Ref2VA",
+      "shot_size": "MCU",
+      "angle": "平视",
+      "move": "固定",
+      "lens": "50mm",
+      "cam_idx": null,
+      "purpose": "表现两人受到惊扰的细微反应。",
+      "reveal": "手掌一震，眼皮微颤。",
+      "characters": [
+        {
+          "id": "CHR_xiaolongnv@v1",
+          "outfit": "OUT_xiaolongnv_baiyi@v1",
+          "look": "LOOK_xiaolongnv_baiyi_opened@v1",
+          "screen_pos": "center",
+          "facing": "left",
+          "visible": "face"
+        }
+      ],
+      "extras": 0,
+      "location": {
+        "id": "NEW:LOC_huacong",
+        "camera_card": null,
+        "lighting_state": "night_moon"
+      },
+      "props": [],
+      "start_state": "两人手相抵，闭目，声音传来。",
+      "unique_action": "两人相抵的手掌同时一震；小龙女眼皮微颤，又闭回。",
+      "end_state": "小龙女闭目，表情微凝。",
+      "variation_type": "small",
+      "dialogue": [],
+      "continuity": {
+        "prev": "E01S04_01",
+        "next": "E01S04_03",
+        "chain_break_reason": null,
+        "match": null,
+        "carry": [],
+        "cut_motive": "切到小龙女内心独白，她告诫自己不能停"
+      },
+      "first_frame_desc": "小龙女面部特写，侧对镜头朝左，月光照亮半边脸颊，闭目，表情平静，背景是虚化的红花丛。",
+      "last_frame_desc": null,
+      "motion_desc": "固定镜头；画内动作：小龙女眼皮微颤，又轻轻闭回，眉心微不可察地一蹙，唇线抿紧，表情从平静转为微凝。",
+      "lighting": "月光从她左侧透过花叶斑驳洒下，在面部形成柔和轮廓光，背景暗部虚化。",
+      "audio": {
+        "ambience": "夜间虫鸣，远处脚步声仍隐约可闻。",
+        "sfx": [],
+        "music_cue": null,
+        "h3_music": "none"
+      },
+      "refs": [
+        {
+          "role": "first_frame",
+          "src": "episode:E01S04_02/first.png"
+        }
+      ],
+      "prompts": {
+        "krea2": "Close-up of {CHR_xiaolongnv} in profile facing left, her face lit by dappled moonlight filtering through red flowers. Her eyes are closed, expression calm but with a faint tension gathering. The collar of her white robe is loosened to the collarbone and shoulder line, covered below. The background is a blur of dark leaves and red petals. The mood is intimate and tense, rendered in a restrained cinematic style.",
+        "h3_image": "A medium close-up of a woman in white with long black hair, her face in left profile, eyes closed. Moonlight falls through red blossoms, casting soft shadows across her features. Her lips are slightly pressed, a trace of worry at her brow. The collar of her robe sits at the collarbone and shoulder line, covered below. The background is out-of-focus dark foliage with hints of red. The image is serene yet tense, with cool moonlight dominating the palette."
+      },
+      "video_plan": {
+        "summary_en": "Close on Xiaolongnü's face as her eyelids quiver in response to the sound, then she regains composure.",
+        "segments": [
+          {
+            "t0": 0,
+            "t1": 5,
+            "camera": "Static medium close-up, level, centered on Xiaolongnü's face in left profile.",
+            "subject": "Xiaolongnü on the right side of the flower screen, facing left, eyes closed.",
+            "action": "Her eyelids tremble once, then close again; her brow furrows barely perceptibly before smoothing, and her lips press together as she controls her reaction.",
+            "environment": "Red flower thicket as a blurred background, moonlight filtering through.",
+            "lighting": "Dappled moonlight from the left, soft on her face, cool tones.",
+            "sound": "Distant footsteps continue, but faint; night insects.",
+            "lines": [],
+            "avoid": "Do not show her hands; keep facial movements minimal; no eye opening; do not overact the reaction.",
+            "in_short": "A subtle flinch.",
+            "ending": "Her expression settles into a faint frown, her composure returning."
+          }
+        ],
+        "soundscape_en": "Night insects hum softly. The distant sound of footsteps and voices remains at the edge of hearing. A faint breeze stirs the leaves."
+      }
+    },
+    {
+      "shot_id": "E01S04_03",
+      "scene_id": "E01S04",
+      "order": 20,
+      "beats": [
+        "E01S04_b03"
+      ],
+      "duration_s": 5,
+      "cut_to": 3,
+      "mode": "Ref2VA",
+      "shot_size": "MCU",
+      "angle": "平视",
+      "move": "固定",
+      "lens": "50mm",
+      "cam_idx": null,
+      "purpose": "显示小龙女的决心。",
+      "reveal": "她内心收紧。",
+      "characters": [
+        {
+          "id": "CHR_xiaolongnv@v1",
+          "outfit": "OUT_xiaolongnv_baiyi@v1",
+          "look": "LOOK_xiaolongnv_baiyi_opened@v1",
+          "screen_pos": "center",
+          "facing": "left",
+          "visible": "face"
+        }
+      ],
+      "extras": 0,
+      "location": {
+        "id": "NEW:LOC_huacong",
+        "camera_card": null,
+        "lighting_state": "night_moon"
+      },
+      "props": [],
+      "start_state": "小龙女闭目，眉头微蹙。",
+      "unique_action": "她内心默念“不能停。”",
+      "end_state": "表情恢复坚定。",
+      "variation_type": "small",
+      "dialogue": [
+        {
+          "line_id": "L010",
+          "speaker": "CHR_xiaolongnv",
+          "kind": "inner",
+          "text": "不能停。",
+          "emotion": "收紧",
+          "lips_visible": false,
+          "start_s": 0.5,
+          "s2_tag": "[内心收紧]"
+        }
+      ],
+      "continuity": {
+        "prev": "E01S04_02",
+        "next": "E01S04_04",
+        "chain_break_reason": null,
+        "match": null,
+        "carry": [],
+        "cut_motive": "切到杨过行动，他咬牙递内力"
+      },
+      "first_frame_desc": "小龙女面部特写，侧对镜头朝左，闭目，眉头微蹙，月光照亮半边脸。",
+      "last_frame_desc": null,
+      "motion_desc": "固定镜头；画内动作：她眉心渐渐舒展，嘴唇微抿，表情由微蹙转为坚定，内心响起告诫之声。",
+      "lighting": "月光从左侧透过花叶洒下，在面部形成柔和的明暗，背景虚化。",
+      "audio": {
+        "ambience": "夜间虫鸣，远处脚步声若有若无。",
+        "sfx": [],
+        "music_cue": null,
+        "h3_music": "none"
+      },
+      "refs": [
+        {
+          "role": "first_frame",
+          "src": "episode:E01S04_03/first.png"
+        }
+      ],
+      "prompts": {
+        "krea2": "Close-up of {CHR_xiaolongnv} in left profile, eyes closed, a slight furrow between her brows. Moonlight falls through red flowers, creating delicate shadows on her face. Her lips are gently pressed together. The collar of her white robe is loosened to the collarbone and shoulder line, covered below. The background is a soft blur of dark leaves and red blossoms. The atmosphere is one of quiet determination.",
+        "h3_image": "A medium close-up of a woman in white with long black hair, her face in left profile, eyes closed, brows slightly knitted. Dappled moonlight illuminates her calm features. Her lips are set in a firm line. The collar of her robe rests at the collarbone and shoulder line, covered below. In the background, out-of-focus red flowers and dark leaves create a dreamlike bokeh. The mood is introspective and resolute."
+      },
+      "video_plan": {
+        "summary_en": "Xiaolongnü tells herself internally that she cannot stop, and her expression shifts from worry to resolve.",
+        "segments": [
+          {
+            "t0": 0,
+            "t1": 1,
+            "camera": "Static medium close-up, centered on her face in left profile.",
+            "subject": "Xiaolongnü on the right side of the flower screen, facing left, eyes closed.",
+            "action": "She remains with a slight frown, her breathing steady.",
+            "environment": "Red flowers and leaves as blurred background, moonlight.",
+            "lighting": "Moonlight from left, cool, dappled.",
+            "sound": "Distant footsteps, night insects.",
+            "lines": [],
+            "avoid": "No facial movement yet; keep the frown very subtle; do not open eyes.",
+            "in_short": "Holding tension.",
+            "ending": "She is still, the frown faint."
+          },
+          {
+            "t0": 1,
+            "t1": 5,
+            "camera": "Static medium close-up, no change.",
+            "subject": "Xiaolongnü, same position, eyes closed.",
+            "action": "Her inner voice says 'Cannot stop.' Her brow smooths, her lips press together with resolve, and her whole face settles into a calm determination.",
+            "environment": "Same as above.",
+            "lighting": "Moonlight remains steady.",
+            "sound": "Inner monologue line L010 is heard; ambient sounds continue.",
+            "lines": [
+              "L010"
+            ],
+            "avoid": "Do not move her lips (inner voice); expression change should be gentle; keep eyes closed; no body movement.",
+            "in_short": "Inner resolve.",
+            "ending": "Her face is now composed and determined."
+          }
+        ],
+        "soundscape_en": "Night insects chirp softly. Faint footsteps and voices linger in the distance. A light breeze moves through the flowers, carrying a cool, earthy scent."
+      }
+    },
+    {
+      "shot_id": "E01S04_04",
+      "scene_id": "E01S04",
+      "order": 21,
+      "beats": [
+        "E01S04_b04"
+      ],
+      "duration_s": 5,
+      "cut_to": 3,
+      "mode": "Ref2VA",
+      "shot_size": "MCU",
+      "angle": "平视",
+      "move": "固定",
+      "lens": "50mm",
+      "cam_idx": null,
+      "purpose": "展示杨过的应对。",
+      "reveal": "他咬牙，递内力。",
+      "characters": [
+        {
+          "id": "CHR_yangguo@v1",
+          "outfit": "OUT_yangguo_heiyi@v1",
+          "look": "LOOK_yangguo_heiyi_opened@v1",
+          "screen_pos": "center",
+          "facing": "left",
+          "visible": "face"
+        }
+      ],
+      "extras": 0,
+      "location": {
+        "id": "NEW:LOC_huacong",
+        "camera_card": null,
+        "lighting_state": "night_moon"
+      },
+      "props": [],
+      "start_state": "杨过在花丛左侧，身体紧绷，听到声音后神情紧张。",
+      "unique_action": "杨过咬牙，将内力稳稳递过去。",
+      "end_state": "他表情坚定，手仍相抵。",
+      "variation_type": "small",
+      "dialogue": [],
+      "continuity": {
+        "prev": "E01S04_03",
+        "next": "E01S04_05",
+        "chain_break_reason": null,
+        "match": null,
+        "carry": [],
+        "cut_motive": "切到脚步声停，画面渐暗，结束钩子"
+      },
+      "first_frame_desc": "杨过面部特写，侧对镜头朝左，月光照亮半边脸，牙关微咬，神情紧张而专注。",
+      "last_frame_desc": null,
+      "motion_desc": "固定镜头；画内动作：他牙关咬紧，肩臂微微用力，将内力平稳递出，表情从紧张转为坚定，眼神始终闭合专注。",
+      "lighting": "月光从左侧上方透过花叶洒下，在面部形成斑驳光影，背景虚化。",
+      "audio": {
+        "ambience": "夜间虫鸣，远处脚步声仍在。",
+        "sfx": [],
+        "music_cue": null,
+        "h3_music": "none"
+      },
+      "refs": [
+        {
+          "role": "first_frame",
+          "src": "episode:E01S04_04/first.png"
+        }
+      ],
+      "prompts": {
+        "krea2": "Close-up of {CHR_yangguo} in left profile, eyes closed, jaw set with tension. Moonlight falls through red flowers, casting dappled light across his face. His lips are pressed tightly. His black robe is loosened to the collarbone and shoulder line, covered below. The background is a soft blur of dark leaves and red blossoms. The mood is determined and intense.",
+        "h3_image": "A medium close-up of a man in black with a high topknot, his face in left profile, eyes closed, jaw clenched. Dappled moonlight illuminates his strong features. His lips are set in a firm line, brows slightly furrowed. The collar of his dark robe rests at the collarbone and shoulder line, covered below. In the background, out-of-focus red flowers and leaves create a moody bokeh. The image conveys focused effort."
+      },
+      "video_plan": {
+        "summary_en": "Yangguo grits his teeth and channels internal energy to stabilize their practice.",
+        "segments": [
+          {
+            "t0": 0,
+            "t1": 5,
+            "camera": "Static medium close-up, centered on Yangguo's face in left profile.",
+            "subject": "Yangguo on the left side of the flower screen, facing left, eyes closed.",
+            "action": "He hears the disturbance, his body tenses; he clenches his jaw and subtly shifts his shoulder as he sends a steady flow of internal energy through his palm.",
+            "environment": "Red flower thicket, blurred background, moonlight.",
+            "lighting": "Dappled moonlight from left, cool with warm red accents.",
+            "sound": "Distant footsteps and voices, night insects.",
+            "lines": [],
+            "avoid": "Do not show his hand or the energy flow; keep facial expression restrained; no eye opening; no large movements.",
+            "in_short": "Steadying energy.",
+            "ending": "His face is firm and determined, the energy flowing."
+          }
+        ],
+        "soundscape_en": "Night insects continue. The faint sound of footsteps and voices can still be heard, but it is now more distant. A light breeze stirs the red flowers."
+      }
+    },
+    {
+      "shot_id": "E01S04_05",
+      "scene_id": "E01S04",
+      "order": 22,
+      "beats": [
+        "E01S04_b05"
+      ],
+      "duration_s": 5,
+      "cut_to": 3,
+      "mode": "Ref2VA",
+      "shot_size": "MS",
+      "angle": "平视",
+      "move": "固定",
+      "lens": "35mm",
+      "cam_idx": null,
+      "purpose": "制造悬念结尾。",
+      "reveal": "脚步声停，画面渐暗。",
+      "characters": [
+        {
+          "id": "CHR_yangguo@v1",
+          "outfit": "OUT_yangguo_heiyi@v1",
+          "look": "LOOK_yangguo_heiyi_opened@v1",
+          "screen_pos": "left",
+          "facing": "right",
+          "visible": "profile"
+        },
+        {
+          "id": "CHR_xiaolongnv@v1",
+          "outfit": "OUT_xiaolongnv_baiyi@v1",
+          "look": "LOOK_xiaolongnv_baiyi_opened@v1",
+          "screen_pos": "right",
+          "facing": "left",
+          "visible": "profile"
+        }
+      ],
+      "extras": 0,
+      "location": {
+        "id": "NEW:LOC_huacong",
+        "camera_card": null,
+        "lighting_state": "night_moon"
+      },
+      "props": [],
+      "start_state": "两人手相抵，杨过递内力，小龙女闭目。",
+      "unique_action": "花丛外脚步声停住；画面在两人之间渐暗。",
+      "end_state": "画面变暗，只余轮廓。",
+      "variation_type": "small",
+      "dialogue": [],
+      "continuity": {
+        "prev": "E01S04_04",
+        "next": null,
+        "chain_break_reason": null,
+        "match": null,
+        "carry": [],
+        "cut_motive": "end"
+      },
+      "first_frame_desc": "双人中景，杨过在左小龙女在右，隔红花丛侧身相对，闭目，手掌相抵，杨过微微前倾似在递内力，小龙女平静，月光下两人衣袍色彩分明。",
+      "last_frame_desc": null,
+      "motion_desc": "固定镜头；画内动作：花丛外脚步声停住，两人保持不动，画面从中央开始逐渐变暗，最终只剩月光下的轮廓。",
+      "lighting": "月光从上方洒下，随着渐变暗，光线减弱，最后只留下微弱的轮廓光。",
+      "audio": {
+        "ambience": "夜间虫鸣，脚步声突然停止，四周安静。",
+        "sfx": [
+          {
+            "t": 1,
+            "desc": "山后脚步声骤停，只余虫鸣"
+          }
+        ],
+        "music_cue": null,
+        "h3_music": "none"
+      },
+      "refs": [
+        {
+          "role": "first_frame",
+          "src": "episode:E01S04_05/first.png"
+        }
+      ],
+      "prompts": {
+        "krea2": "Medium shot, two figures separated by a dense wall of red flowers. On the left, {CHR_yangguo} in black stands in right profile; on the right, {CHR_xiaolongnv} in white stands in left profile. Their eyes are closed, and their palms are pressed together through the flowers. Yangguo leans slightly forward as if transmitting energy. The collars of their robes are loosened to the collarbone and shoulder line, covered below. Moonlight filters through leaves, creating dappled patterns. The scene is quiet and suspenseful.",
+        "h3_image": "A night scene in a mountain hollow with a wall of red flowers dividing the frame. On the left, a man in black with a high topknot stands in right profile; on the right, a woman in white with long black hair stands in left profile. They face each other with eyes closed, their hands meeting through the blossoms. The man leans slightly forward, the woman is still. Their robes are loosened to the collarbone and shoulder line, covered below. Moonlight casts soft shadows, and the background is deep blue with touches of red. The composition is balanced, with a sense of impending darkness."
+      },
+      "video_plan": {
+        "summary_en": "The footsteps stop, and the image fades to darkness on a note of suspense.",
+        "segments": [
+          {
+            "t0": 0,
+            "t1": 5,
+            "camera": "Static medium shot, level, holding both characters in frame.",
+            "subject": "Yangguo on the left and Xiaolongnü on the right, facing each other through the flower screen, eyes closed, palms pressed.",
+            "action": "They remain still, Yangguo transmitting energy. Off-screen, the footsteps stop. The image begins to darken from the center outward, gradually reducing visibility until only their silhouettes are faintly visible.",
+            "environment": "Red flower thicket at night, moonlight overhead.",
+            "lighting": "Moonlight initially bright, then dimming as the fade occurs, leaving only soft rim light.",
+            "sound": "Footsteps stop at 1 second; then only night insects remain.",
+            "lines": [],
+            "avoid": "Do not move the characters during the fade; keep the fade gradual, not abrupt; preserve some outline visible; no camera movement.",
+            "in_short": "Suspenseful fade out.",
+            "ending": "The screen is nearly black, only the faintest outlines of the two figures and the flowers."
+          }
+        ],
+        "soundscape_en": "Night insects chirp softly. The footsteps cease abruptly, leaving a tense silence. A light breeze rustles the flowers as the light fades."
+      }
+    }
+  ]
+}

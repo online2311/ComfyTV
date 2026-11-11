@@ -5,6 +5,12 @@
       <button
         type="button"
         class="ctv:ml-auto ctv:py-0.5 ctv:px-2.5 ctv:text-[11px] ctv:rounded ctv:cursor-pointer
+               ctv:bg-secondary-background ctv:border ctv:border-border-subtle ctv:text-base-foreground"
+        @click="pickImport"
+      >{{ $t('storyboard.importJson') }}</button>
+      <button
+        type="button"
+        class="ctv:py-0.5 ctv:px-2.5 ctv:text-[11px] ctv:rounded ctv:cursor-pointer
                ctv:bg-primary-background/15 ctv:border ctv:border-primary-background/40 ctv:text-primary-background
                ctv:hover:bg-primary-background/25"
         @click="addShot"
@@ -141,7 +147,7 @@
         </div>
 
         <dl class="ctv:grid ctv:grid-cols-[max-content_1fr] ctv:gap-x-2.5 ctv:gap-y-[3px] ctv:m-0 ctv:text-2xs ctv:items-start">
-          <template v-for="field in META_FIELDS" :key="field.key">
+          <template v-for="field in metaFields(shot)" :key="field.key">
             <dt class="ctv:opacity-50 ctv:whitespace-nowrap ctv:pt-1">{{ $t(field.label) }}</dt>
             <dd class="ctv:m-0">
               <textarea
@@ -172,6 +178,110 @@
             @input="(e) => setField(shot.id, 'character_desc', (e.target as HTMLTextAreaElement).value)"
           />
         </details>
+        <label v-if="kreaPrompt(shot) !== null"
+               class="ctv:flex ctv:flex-col ctv:gap-0.5 ctv:text-2xs">
+          <span class="ctv:opacity-60">krea2</span>
+          <textarea
+            :class="metaInput(true, true)"
+            :value="kreaPrompt(shot) ?? ''"
+            rows="2"
+            @input="(e) => setKreaPrompt(shot.id, (e.target as HTMLTextAreaElement).value)"
+          />
+        </label>
+
+        <details class="ctv:text-2xs ctv:py-[3px] ctv:px-1.5 ctv:rounded ctv:border ctv:border-dashed ctv:border-border-subtle"
+                 :open="!!shot.source.shot_id">
+          <summary class="ctv:cursor-pointer ctv:opacity-75 ctv:select-none ctv:pb-1 ctv:hover:opacity-100">{{ $t('storyboard.fields') }}</summary>
+          <div class="ctv:flex ctv:flex-col ctv:gap-1 ctv:pt-1">
+            <label v-for="key in panelKeys(shot.source)" :key="key" class="ctv:grid ctv:grid-cols-[max-content_1fr] ctv:gap-1.5 ctv:items-center">
+              <span class="ctv:opacity-60">{{ key }}</span>
+              <input
+                :class="metaInput(false)"
+                type="text"
+                :value="shot.source[key] == null ? '' : String(shot.source[key])"
+                @change="(e) => setSourceScalar(shot.id, key, (e.target as HTMLInputElement).value)"
+              />
+            </label>
+
+            <template v-if="dialogueRows(shot.source)">
+              <span class="ctv:opacity-60">{{ $t('storyboard.dialogueLines') }}</span>
+              <div v-for="(line, li) in dialogueRows(shot.source)" :key="`${shot.id}-line-${li}`"
+                   class="ctv:grid ctv:grid-cols-[1fr_4.5rem] ctv:gap-1">
+                <input :class="metaInput(false)" type="text" :value="String(line.speaker ?? '')"
+                       :placeholder="$t('storyboard.speaker')"
+                       @change="(e) => setDialogueField(shot.id, li, 'speaker', (e.target as HTMLInputElement).value)" />
+                <input :class="metaInput(false)" type="text" :value="String(line.kind ?? '')"
+                       placeholder="kind"
+                       @change="(e) => setDialogueField(shot.id, li, 'kind', (e.target as HTMLInputElement).value)" />
+                <textarea class="ctv:col-span-2" :class="metaInput(true)" rows="2" :value="String(line.text ?? '')"
+                          @change="(e) => setDialogueField(shot.id, li, 'text', (e.target as HTMLTextAreaElement).value)" />
+              </div>
+            </template>
+
+            <template v-if="characterRows(shot.source)">
+              <span class="ctv:opacity-60">{{ $t('storyboard.assetRefs') }}</span>
+              <label v-for="(ch, ci) in characterRows(shot.source)" :key="`${shot.id}-chr-${ci}`"
+                     class="ctv:grid ctv:grid-cols-[max-content_1fr] ctv:gap-1.5 ctv:items-center">
+                <span class="ctv:opacity-50">{{ ch.visible || 'character' }}</span>
+                <input :class="metaInput(false)" type="text" :value="String(ch.id ?? '')"
+                       @change="(e) => setCharacterId(shot.id, ci, (e.target as HTMLInputElement).value)" />
+              </label>
+              <label v-if="isRecord(shot.source.location)" class="ctv:grid ctv:grid-cols-[max-content_1fr] ctv:gap-1.5 ctv:items-center">
+                <span class="ctv:opacity-50">location</span>
+                <input :class="metaInput(false)" type="text" :value="String((shot.source.location as Record<string, unknown>).id ?? '')"
+                       @change="(e) => setLocationId(shot.id, (e.target as HTMLInputElement).value)" />
+              </label>
+              <label v-for="(prop, pi) in propRows(shot)" :key="`${shot.id}-prp-${pi}`"
+                     class="ctv:grid ctv:grid-cols-[max-content_1fr] ctv:gap-1.5 ctv:items-center">
+                <span class="ctv:opacity-50">prop</span>
+                <input :class="metaInput(false)" type="text" :value="String(prop.id ?? '')"
+                       @change="(e) => setPropId(shot.id, pi, (e.target as HTMLInputElement).value)" />
+              </label>
+            </template>
+
+            <template v-if="objectRefs(shot.source)">
+              <div v-for="(ref, ri) in objectRefs(shot.source)" :key="`${shot.id}-ref-${ri}`"
+                   class="ctv:grid ctv:grid-cols-[5.5rem_1fr] ctv:gap-1">
+                <input :class="metaInput(false)" type="text" :value="String(ref.role ?? '')"
+                       @change="(e) => setAssetRef(shot.id, ri, 'role', (e.target as HTMLInputElement).value)" />
+                <input :class="metaInput(false)" type="text" :value="String(ref.src ?? '')"
+                       @change="(e) => setAssetRef(shot.id, ri, 'src', (e.target as HTMLInputElement).value)" />
+              </div>
+            </template>
+
+            <template v-for="key in jsonKeys(shot.source)" :key="key">
+              <span class="ctv:opacity-60">{{ key }}</span>
+              <textarea :class="metaInput(true, true)" rows="3" :value="pretty(shot.source[key])"
+                        @change="(e) => setSourceJson(shot.id, key, (e.target as HTMLTextAreaElement).value)" />
+            </template>
+
+            <template v-for="key in customKeys(shot.source)" :key="key">
+              <div class="ctv:grid ctv:grid-cols-[1fr_auto] ctv:gap-1 ctv:items-start">
+                <span class="ctv:opacity-60 ctv:pt-1">{{ key }}</span>
+                <button type="button" class="ctv:bg-transparent ctv:border-0 ctv:cursor-pointer ctv:text-[11px]"
+                        :title="$t('storyboard.removeField')" @click="removeCustomField(shot.id, key)">×</button>
+                <textarea v-if="isComplex(shot.source[key])" class="ctv:col-span-2" :class="metaInput(true, true)" rows="2"
+                          :value="pretty(shot.source[key])"
+                          @change="(e) => setSourceJson(shot.id, key, (e.target as HTMLTextAreaElement).value)" />
+                <input v-else class="ctv:col-span-2" :class="metaInput(false)" type="text"
+                       :value="shot.source[key] == null ? '' : String(shot.source[key])"
+                       @change="(e) => setCustomScalar(shot.id, key, (e.target as HTMLInputElement).value)" />
+              </div>
+            </template>
+
+            <div class="ctv:grid ctv:grid-cols-[1fr_1fr_auto] ctv:gap-1">
+              <input :class="metaInput(false)" type="text" :placeholder="$t('storyboard.fieldKey')"
+                     :value="draft(shot.id).key"
+                     @input="(e) => setDraft(shot.id, 'key', (e.target as HTMLInputElement).value)" />
+              <input :class="metaInput(false)" type="text" :placeholder="$t('storyboard.fieldValue')"
+                     :value="draft(shot.id).value"
+                     @input="(e) => setDraft(shot.id, 'value', (e.target as HTMLInputElement).value)" />
+              <button type="button" class="ctv:px-1.5 ctv:rounded ctv:cursor-pointer ctv:border ctv:border-border-subtle ctv:bg-secondary-background"
+                      @click="addCustomField(shot.id)">+</button>
+            </div>
+          </div>
+        </details>
+
         <details class="ctv:text-2xs ctv:py-[3px] ctv:px-1.5 ctv:rounded ctv:border ctv:border-dashed ctv:border-border-subtle"
                  :open="!!shot.motion_prompt">
           <summary class="ctv:cursor-pointer ctv:opacity-75 ctv:select-none ctv:pb-1 ctv:hover:opacity-100">{{ $t('storyboard.cols.motion_prompt') }}</summary>
@@ -192,6 +302,13 @@
       class="ctv:hidden"
       @change="onFilePicked"
     />
+    <input
+      ref="importInputEl"
+      type="file"
+      accept="application/json,.json"
+      class="ctv:hidden"
+      @change="onImportPicked"
+    />
 
     <StageCard
       :state="state"
@@ -209,6 +326,17 @@
 import StageCard from '@/components/stages/StageCard.vue'
 import ViewFullButton from '@/components/ViewFullButton.vue'
 import { MAX_SHOT_REFS, useStoryboardShots, type Shot } from '@/composables/stages/useStoryboardShots'
+import {
+  characterRows,
+  customKeys,
+  dialogueRows,
+  isComplex,
+  isRecord,
+  jsonKeys,
+  objectRefs,
+  panelKeys,
+  separateKreaPrompt,
+} from '@/composables/stages/shotDocument'
 import type { LGraphNode } from '@/lib/comfyApp'
 import type { StageState } from '@/stores/stageStore'
 
@@ -223,6 +351,38 @@ const META_FIELDS: ReadonlyArray<{ key: keyof Shot; label: string; multiline?: b
   { key: 'dialogue',   label: 'storyboard.cols.dialogue' },
 ]
 
+function metaFields(shot: Shot) {
+  if (Array.isArray(shot.source?.dialogue)) {
+    return META_FIELDS.filter(field => field.key !== 'dialogue' && field.key !== 'character')
+  }
+  if (Array.isArray(shot.source?.characters)) {
+    return META_FIELDS.filter(field => field.key !== 'character')
+  }
+  return META_FIELDS
+}
+
+function kreaPrompt(shot: Shot): string | null {
+  return separateKreaPrompt(shot.source)
+}
+
+function propRows(shot: Shot): Record<string, unknown>[] {
+  const props = shot.source?.props
+  if (!Array.isArray(props)) return []
+  return props.filter(row => isRecord(row)) as Record<string, unknown>[]
+}
+
+function pretty(value: unknown): string {
+  try {
+    return JSON.stringify(value, null, 2)
+  } catch {
+    return ''
+  }
+}
+
+function draft(id: string) {
+  return customDraft.value[id] ?? { key: '', value: '' }
+}
+
 const props = defineProps<{
   state: StageState
   onRunRequest: () => void
@@ -233,9 +393,12 @@ const props = defineProps<{
 }>()
 
 const {
-  shots, uploadingId, regeneratingId, fileInputEl,
+  shots, uploadingId, regeneratingId, fileInputEl, importInputEl, customDraft,
   addShot, removeShot, move,
   setField, setDuration, setImage, removeRef, setSeed,
+  setSourceScalar, setSourceJson, setDialogueField, setAssetRef, setCharacterId,
+  setLocationId, setPropId, setKreaPrompt, setDraft, addCustomField, removeCustomField,
+  setCustomScalar, pickImport, onImportPicked,
   regenerateShot,
   pickFile, pickExtra, onFilePicked,
 } = useStoryboardShots(props.node, props.state)

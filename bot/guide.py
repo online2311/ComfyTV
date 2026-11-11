@@ -50,6 +50,7 @@ CORE_MCP_TOOLS = [
     "canvas_command",
     "canvas_focus",
     "arrange_canvas",
+    "storyboard",
     "skill",
     "ask_user",
     "remember",

@@ -2,7 +2,7 @@
 
 # Agent access (MCP)
 
-> ComfyTV ships an MCP server so AI agents can read and drive your canvas: build node graphs, run stages, wait for renders, inspect results with real vision, edit the native ComfyUI graph, and manage your workflow configuration — all through 45 tools, plus installed [Agent Skills](skills.md) served as MCP prompts.
+> ComfyTV ships an MCP server so AI agents can read and drive your canvas: build node graphs, run stages, wait for renders, inspect results with real vision, edit the native ComfyUI graph, and manage your workflow configuration — all through 46 tools, plus installed [Agent Skills](skills.md) served as MCP prompts.
 
 ## What it is
 
@@ -103,6 +103,7 @@ accordingly.
 |---|---|
 | `scene_get/edit/capture/record` | Drive a Scene 3D stage: characters, lights, cameras, animation clips, camera paths and the multi-shot director timeline (add_shot/patch_shot/set_path) |
 | `director_get/director_edit` | Read and edit the Director clip timeline |
+| `storyboard` | Read, replace, or validate a Storyboard stage's full shot document (`shots.json` fields and custom keys). `get_stage` only previews a large `storyboard_data` value |
 
 ## Patterns that matter
 

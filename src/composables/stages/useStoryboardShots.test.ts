@@ -77,12 +77,13 @@ describe('useStoryboardShots', () => {
 
   it('commit writes serialized JSON to the storyboard_data widget and state.output', () => {
     const w = makeWidget('storyboard_data', '')
+    const onWrite = w.callback
     const node = makeNode([w])
     const state = makeState()
     const { addShot } = useStoryboardShots(node, state)
     addShot()
     expect(w.value).not.toBe('')
-    expect(w.callback).toHaveBeenCalled()
+    expect(onWrite).toHaveBeenCalled()
     const parsed = JSON.parse(w.value)
     expect(Array.isArray(parsed.shots)).toBe(true)
     expect(parsed.shots[0].shot_no).toBe('1')
@@ -315,6 +316,90 @@ describe('useStoryboardShots', () => {
     expect(shots.value[0].image_url).toBe(
       '/view?filename=uploaded.png&subfolder=comfytv%2Fstoryboard&type=input',
     )
+  })
+
+  it('keeps a production shots.json, including custom keys, across an edit', () => {
+    const doc = {
+      series: 'gumu-sx',
+      episode: 'E01',
+      title_zh: '玉女心经',
+      shots: [{
+        shot_id: 'E01S01_01',
+        scene_id: 'E01S01',
+        order: 1,
+        duration_s: 6,
+        purpose: 'intro',
+        characters: [{ id: 'CHR_xiaolongnv@v1', visible: 'face' }],
+        extras: 0,
+        dialogue: [{
+          line_id: 'L001', speaker: 'CHR_xiaolongnv', kind: 'onscreen',
+          text: '你好', emotion: '平静',
+        }],
+        refs: [{ role: 'first_frame', src: 'episode:E01S01_01/first.png' }],
+        prompts: { krea2: 'krea', h3_image: 'h3' },
+        first_frame_desc: 'candle',
+        last_frame_desc: null,
+        angle: '平视',
+        custom_note: { keep: true },
+      }],
+    }
+    const w = makeWidget('storyboard_data', JSON.stringify(doc))
+    const { shots, setField, setDialogueField, importDocument } = useStoryboardShots(makeNode([w]), makeState())
+    expect(shots.value[0].scene_purpose).toBe('intro')
+    expect(shots.value[0].image_prompt).toBe('h3')
+    expect(shots.value[0].dialogue).toContain('CHR_xiaolongnv: 你好')
+    expect(shots.value[0].character).toContain('CHR_xiaolongnv@v1')
+    setField(shots.value[0].id, 'scene_purpose', 'revised')
+    setDialogueField(shots.value[0].id, 0, 'text', '改过')
+    const parsed = JSON.parse(w.value)
+    expect(parsed.series).toBe('gumu-sx')
+    expect(parsed.title_zh).toBe('玉女心经')
+    const shot = parsed.shots[0]
+    expect(shot.purpose).toBe('revised')
+    expect(shot.scene_purpose).toBeUndefined()
+    expect(shot.prompt).toBeUndefined()
+    expect(shot.seed).toBeUndefined()
+    expect(shot.shot_no).toBeUndefined()
+    expect(shot.extras).toBe(0)
+    expect(shot.custom_note).toEqual({ keep: true })
+    expect(shot.dialogue[0].text).toBe('改过')
+    expect(shot.dialogue[0].speaker).toBe('CHR_xiaolongnv')
+    expect(shot.dialogue[0].line_id).toBe('L001')
+    expect(shot.refs).toEqual(doc.shots[0].refs)
+    expect(shot.prompts).toEqual({ krea2: 'krea', h3_image: 'h3' })
+    expect(shot.last_frame_desc).toBeNull()
+
+    const again = structuredClone(parsed)
+    again.shots[0].purpose = 'from file'
+    expect(importDocument(JSON.stringify(again))).toBe(true)
+    expect(JSON.parse(w.value)).toEqual(again)
+  })
+
+  it('keeps a legacy custom key when an editor field changes', () => {
+    const saved = {
+      shots: [{ shot_no: '1', duration: 3, image_prompt: 'a', pipeline_note: 'keep' }],
+    }
+    const w = makeWidget('storyboard_data', JSON.stringify(saved))
+    const { shots, setField } = useStoryboardShots(makeNode([w]), makeState())
+    setField(shots.value[0].id, 'scene_purpose', 'edited')
+    const shot = JSON.parse(w.value).shots[0]
+    expect(shot.pipeline_note).toBe('keep')
+    expect(shot.scene_purpose).toBe('edited')
+    expect(shot.shot_no).toBe('1')
+  })
+
+  it('reloads a document written into the widget without dropping fields', () => {
+    const w = makeWidget('storyboard_data', '')
+    const { shots } = useStoryboardShots(makeNode([w]), makeState())
+    const doc = {
+      episode: 'E01',
+      shots: [{ shot_id: 'E01S01_01', duration_s: 6, purpose: 'from mcp', camera_notes: 'wide' }],
+    }
+    w.value = JSON.stringify(doc)
+    w.callback?.(w.value)
+    expect(shots.value[0].scene_purpose).toBe('from mcp')
+    expect(shots.value[0].source.camera_notes).toBe('wide')
+    expect(JSON.parse(String(w.value)).shots[0].camera_notes).toBe('wide')
   })
 
   it('onFilePicked is a no-op if no shot is pending (e.g. user picked without click)', async () => {

@@ -1814,7 +1814,16 @@
       "image_prompt": "分镜提示词",
       "motion_prompt": "视频运动提示词"
     },
-    "regenerateFailed": "重新生成镜头失败"
+    "regenerateFailed": "重新生成镜头失败",
+    "importJson": "导入 shots.json",
+    "importFailed": "无法导入这份 JSON — 需要包含 shots 数组",
+    "fields": "镜头字段",
+    "assetRefs": "资产引用",
+    "dialogueLines": "对白",
+    "speaker": "说话人",
+    "fieldKey": "字段",
+    "fieldValue": "值",
+    "removeField": "删除字段"
   },
   "storyboardEditor": {
     "boards": "画板",
