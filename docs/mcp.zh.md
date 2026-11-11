@@ -91,6 +91,7 @@ url = "http://127.0.0.1:8188/comfytv/mcp"
 | `workflow_get` / `workflow_edit` | 读工作流的输入绑定与节点清单;绑定/解绑 stage 值到工作流输入,按真实图校验 |
 | `stage_params` | 定义自定义参数,再以 `option:<key>` 绑定 |
 | `asset_edit` | 把产出存入资产库、改名、归类 |
+| `series_library` | 读写系列目录里的 `library.yaml`（稳定代号 `ID@vN#view`、锁定、新版本、解析到文件、JSON manifest 导入） |
 
 **富编辑器**
 

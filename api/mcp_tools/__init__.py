@@ -91,6 +91,9 @@ from .library import (  # noqa: F401
     _outputs,
     _pick_output,
 )
+from .series_library import (  # noqa: F401
+    _series_library,
+)
 from .media import (  # noqa: F401
     _FX_PREVIEW_WINDOW_DEFAULT,
     _FX_PREVIEW_WINDOW_MAX,
@@ -126,7 +129,7 @@ from .layer_editor import (  # noqa: F401
 )
 from ..mcp_skill_tool import SKILL_TOOL
 
-from . import _shared, info, canvas, stages, runs, bot_tools, workflows, nodes, library, media, director_scene, layer_editor
+from . import _shared, info, canvas, stages, runs, bot_tools, workflows, nodes, library, series_library, media, director_scene, layer_editor
 
 TOOLS: dict[str, dict] = {}
 TOOLS.update(info.TOOLS)
@@ -137,6 +140,7 @@ TOOLS.update(bot_tools.TOOLS)
 TOOLS.update(workflows.TOOLS)
 TOOLS.update(nodes.TOOLS)
 TOOLS.update(library.TOOLS)
+TOOLS.update(series_library.TOOLS)
 TOOLS.update(media.TOOLS)
 TOOLS.update(director_scene.TOOLS)
 TOOLS.update(layer_editor.TOOLS)
