@@ -1,6 +1,7 @@
 import logging
 
 from ._common import *  # noqa: F401, F403
+from .common.shot_document import shot_image_prompt
 from .common.shot_inputs import shot_reference_images, shot_seed
 
 _log = logging.getLogger(__name__)
@@ -546,8 +547,8 @@ class ShotImagesStage(io.ComfyNode):
             if not isinstance(shot, dict):
                 skipped_empty += 1
                 continue
-            shot_no = shot.get("shot_no", str(i + 1))
-            prompt = str(shot.get("prompt") or shot.get("image_prompt") or "").strip()
+            shot_no = shot.get("shot_no", shot.get("shot_id", str(i + 1)))
+            prompt = shot_image_prompt(shot)
             _emit_progress(cls, i, len(shots),
                            text=f"shot {i + 1}/{len(shots)}: {prompt[:40]}")
             shot_payload = None
@@ -608,7 +609,7 @@ class ShotImagesStage(io.ComfyNode):
             if skipped_empty == len(shots):
                 raise RuntimeError(
                     "ShotImagesStage: none of the "
-                    f"{len(shots)} shots had a prompt or image_prompt"
+                    f"{len(shots)} shots had a prompt, image_prompt, or prompts.h3_image / prompts.krea2"
                 )
             raise RuntimeError(
                 f"ShotImagesStage: workflow {workflow!r} returned no shots")
@@ -643,7 +644,7 @@ class StoryboardStage(io.ComfyNode):
                                 tooltip="Known character cards. One per line. Each shot referencing a character will repeat its full description for prompt-independence."),
                 io.String.Input("storyboard_data", default="",
                                 socketless=True, extra_dict={"hidden": True},
-                                tooltip="Serialized shot list (JSON). Driven by the shot-board editor."),
+                                tooltip="Serialized shot list (JSON). The editor keeps every field: the legacy 16 columns, a drama-pipeline shots.json document, and any custom keys."),
                 io.Autogrow.Input("texts", template=_text_template(6)),
                 _custom_params_input(),
             ],

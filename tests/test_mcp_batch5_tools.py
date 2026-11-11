@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 import pytest
 
 
@@ -205,6 +207,66 @@ class TestDirectorPassthrough:
             await _director_edit({"node": "u1", "ops": []})
         with pytest.raises(ValueError, match="'op' field"):
             await _director_edit({"node": "u1", "ops": [{"nope": 1}]})
+
+
+class TestStoryboardDocument:
+    @pytest.fixture()
+    def fake_submit(self, monkeypatch):
+        from ComfyTV.api import mcp_tools
+        calls = {}
+
+        async def submit(action, payload, timeout=15.0):
+            calls["action"] = action
+            calls["payload"] = payload
+            return {"ok": True, "echo": payload.get("document")}
+
+        monkeypatch.setattr(mcp_tools._shared, "submit_command", submit)
+        return calls
+
+    async def test_get_and_set_round_trip_the_document(self, reset_db, fake_submit):
+        from ComfyTV.api.mcp_tools.storyboard_tool import _storyboard
+        await _storyboard({"node": "u1", "action": "get"})
+        assert fake_submit["action"] == "storyboard_get"
+        assert fake_submit["payload"]["node"] == "u1"
+        document = {
+            "episode": "E01",
+            "shots": [{
+                "shot_id": "E01S01_01",
+                "custom_note": "keep",
+                "refs": [{"role": "first_frame", "src": "episode:E01S01_01/first.png"}],
+                "extras": 0,
+            }],
+        }
+        await _storyboard({"node": "u1", "action": "set", "document": json.dumps(document)})
+        assert fake_submit["action"] == "storyboard_set"
+        assert fake_submit["payload"]["document"] == document
+        with pytest.raises(ValueError, match="node is required"):
+            await _storyboard({"action": "set", "document": document})
+
+    async def test_validate_does_not_need_the_page(self, reset_db, fake_submit):
+        from ComfyTV.api.mcp_tools.storyboard_tool import _storyboard
+        report = await _storyboard({
+            "action": "validate",
+            "document": {
+                "episode": "E01",
+                "shots": [{
+                    "shot_id": "E01S01_01",
+                    "scene_id": "E01S01",
+                    "order": 1,
+                    "duration_s": 6,
+                    "mode": "Ref2VA",
+                    "variation_type": "small",
+                    "characters": [],
+                    "dialogue": [],
+                    "refs": [],
+                    "continuity": {"cut_motive": "open"},
+                }],
+            },
+        })
+        assert report["ok"] is True
+        assert fake_submit == {}
+        with pytest.raises(ValueError, match="shots array"):
+            await _storyboard({"action": "validate", "document": {"episode": "E01"}})
 
 
 class TestViewImage:

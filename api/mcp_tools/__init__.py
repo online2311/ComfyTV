@@ -124,9 +124,10 @@ from .layer_editor import (  # noqa: F401
     _layer_get,
     _layer_target,
 )
+from .storyboard_tool import _storyboard  # noqa: F401
 from ..mcp_skill_tool import SKILL_TOOL
 
-from . import _shared, info, canvas, stages, runs, bot_tools, workflows, nodes, library, media, director_scene, layer_editor
+from . import _shared, info, canvas, stages, runs, bot_tools, workflows, nodes, library, media, director_scene, layer_editor, storyboard_tool
 
 TOOLS: dict[str, dict] = {}
 TOOLS.update(info.TOOLS)
@@ -140,4 +141,5 @@ TOOLS.update(library.TOOLS)
 TOOLS.update(media.TOOLS)
 TOOLS.update(director_scene.TOOLS)
 TOOLS.update(layer_editor.TOOLS)
+TOOLS.update(storyboard_tool.TOOLS)
 TOOLS["skill"] = SKILL_TOOL

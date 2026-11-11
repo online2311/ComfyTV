@@ -2,7 +2,7 @@
 
 # Agent 接入(MCP)
 
-> ComfyTV 内置 MCP 服务,让 AI agent 读取并驱动你的画布:搭建节点图、跑渲染、阻塞等待、用真视觉检查结果、编辑原生 ComfyUI 图、管理工作流配置 — 共 45 个工具,外加把已装的 [Agent Skills](skills.zh.md) 作为 MCP prompts 提供。
+> ComfyTV 内置 MCP 服务,让 AI agent 读取并驱动你的画布:搭建节点图、跑渲染、阻塞等待、用真视觉检查结果、编辑原生 ComfyUI 图、管理工作流配置 — 共 46 个工具,外加把已装的 [Agent Skills](skills.zh.md) 作为 MCP prompts 提供。
 
 ## 是什么
 
@@ -98,6 +98,7 @@ url = "http://127.0.0.1:8188/comfytv/mcp"
 |---|---|
 | `scene_get/edit/capture/record` | 驱动 Scene 3D:角色、灯光、相机、动画 clip、相机路径与多镜导演时间轴(add_shot/patch_shot/set_path) |
 | `director_get/director_edit` | 读写导演台 clip 时间线 |
+| `storyboard` | 读取、替换或校验分镜阶段的完整镜头文档（`shots.json` 字段和自定义键）。`get_stage` 对很长的 `storyboard_data` 只给预览 |
 
 ## 关键套路
 

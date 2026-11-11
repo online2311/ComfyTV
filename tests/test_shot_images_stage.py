@@ -61,6 +61,42 @@ async def test_one_image_per_shot_shares_refs_and_stage_seed(shot_stage):
     assert out.values[1].endswith("close.png&type=output")
 
 
+async def test_production_shot_uses_h3_image_and_leaves_asset_codes_alone(shot_stage):
+    g, calls = shot_stage
+    storyboard = json.dumps({
+        "episode": "E01",
+        "shots": [{
+            "shot_id": "E01S01_01",
+            "duration_s": 6,
+            "prompts": {"h3_image": "the chamber", "krea2": "krea text"},
+            "refs": [{"role": "character", "src": "CHR_yangguo@v1#front"}],
+            "extras": 0,
+            "custom_note": "keep",
+        }],
+    })
+    out = await g.ShotImagesStage.execute(
+        workflow="Flux",
+        storyboard=storyboard,
+        images=["/view?filename=shared.png&type=input"],
+    )
+    assert calls[0]["main_prompt"] == "the chamber"
+    assert calls[0]["upstream"]["images"] == ["/view?filename=shared.png&type=input"]
+    assert "CHR_yangguo" not in json.dumps(calls[0]["upstream"])
+    assert json.loads(out.values[0])["images"][0]["index"] == "E01S01_01"
+
+
+async def test_krea2_prompt_is_used_when_h3_image_is_absent(shot_stage):
+    g, calls = shot_stage
+    await g.ShotImagesStage.execute(
+        workflow="Flux",
+        storyboard=_storyboard({
+            "shot_id": "E01S01_02",
+            "prompts": {"krea2": "still of the door"},
+        }),
+    )
+    assert calls[0]["main_prompt"] == "still of the door"
+
+
 async def test_empty_storyboard_names_the_missing_shots(shot_stage):
     g, calls = shot_stage
     with pytest.raises(RuntimeError, match="no shots"):

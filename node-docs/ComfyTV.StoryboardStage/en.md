@@ -8,6 +8,8 @@
 
 An embedded **shot-board editor** lets you edit each shot after the run before wiring **Shot Images Stage** to generate one image per shot.
 
+The same JSON also accepts a drama-pipeline `shots.json` unchanged. Import it from the card (**Import shots.json**) or MCP `storyboard` `action: "set"`. Envelope keys (`series`, `episode`, `title_zh`, `fps`, `target_duration_s`, `new_assets`, and any other top-level key) and every shot key are kept. Standard shot fields include `shot_id`, `scene_id`, `order`, `duration_s`, `cut_to`, `frames`, `mode`, `shot_size`, camera notes (`angle`, `move`, `lens`, `cam_idx`), `purpose`, `characters` (asset codes such as `CHR_name@vN`), `location`, `props`, `dialogue` (objects with `speaker`, `text`, `kind`, `line_id`), `refs` (`role` + `src` code, including `episode:shot/file` first/last frames), `first_frame_desc`, `last_frame_desc`, `prompts.krea2`, `prompts.h3_image`. `extras` is the integer crowd count, not a custom-field bag. Any other key is kept in place. Asset codes are not resolved here. Legacy 16-column boards still load.
+
 **Important**: Storyboard output is **structured text**, not images. Per-shot frames come from **Shot Images Stage**.
 
 ## When to use it

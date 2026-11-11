@@ -1812,7 +1812,16 @@
       "image_prompt": "Image prompt",
       "motion_prompt": "Motion prompt"
     },
-    "regenerateFailed": "Regenerate shot failed"
+    "regenerateFailed": "Regenerate shot failed",
+    "importJson": "Import shots.json",
+    "importFailed": "Could not import that JSON — it needs a shots array",
+    "fields": "Shot fields",
+    "assetRefs": "Asset references",
+    "dialogueLines": "Dialogue",
+    "speaker": "Speaker",
+    "fieldKey": "Field",
+    "fieldValue": "Value",
+    "removeField": "Remove field"
   },
   "storyboardEditor": {
     "boards": "Boards",

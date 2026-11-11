@@ -59,7 +59,7 @@ Bridge：[bridges.zh.md](https://github.com/jtydhr88/ComfyTV/blob/main/docs/brid
 
 - **是什么**：上游 `COMFYTV_STORYBOARD` 连线。
 - **填什么**：**Storyboard → storyboard** 接到此处。
-- **影响**：shots 数组长度 = 运行次数；每镜 `prompt` / `image_prompt` 字段作为该镜生成 prompt。
+- **影响**：shots 数组长度 = 运行次数；每镜提示词按 `prompts.h3_image`、`prompts.krea2`、`image_prompt` / `prompt` 的顺序取。资产代号形式的 `refs` 不会被当成图片 URL。
 - **误区**：在 Shot Images 里改 prompt——应在 **Storyboard 节点 UI** 编辑各镜后再 Run 本节点。
 
 ### images（参考图 autogrow）

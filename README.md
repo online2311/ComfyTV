@@ -120,7 +120,7 @@ ComfyTV is built to be driven by AI agents as well as by hand. Three pieces, all
 
 **ComfyTV Bot** — a chat agent docked beside the canvas (the agent button at the top right), using the same panel the ComfyUI frontend ships for its cloud agent. Describe what you want; it builds nodes, runs workflows, waits for renders, looks at the results with real vision and iterates. It drives your locally installed agent CLI — **Claude Code, Codex, Qwen Code** — or any OpenAI-compatible **local LLM server**; no API keys are ever stored. Image / video attachments, `@` mentions of nodes, per-provider model choice, persistent conversations. [Guide →](docs/bot.md)
 
-**MCP server** — a built-in [MCP](https://modelcontextprotocol.io) endpoint at `/comfytv/mcp` with **45 tools**: read the live canvas, build / run / wait on stages, inspect results (`view_image` returns actual pixels), edit the **native ComfyUI graph** (`graph_edit` / `graph_run` — any node from any plugin), and manage workflow bindings. It runs inside the ComfyUI server process — no extra install:
+**MCP server** — a built-in [MCP](https://modelcontextprotocol.io) endpoint at `/comfytv/mcp` with **46 tools**: read the live canvas, build / run / wait on stages, inspect results (`view_image` returns actual pixels), edit the **native ComfyUI graph** (`graph_edit` / `graph_run` — any node from any plugin), and manage workflow bindings. It runs inside the ComfyUI server process — no extra install:
 
 ```
 claude mcp add --transport http comfytv http://127.0.0.1:8188/comfytv/mcp

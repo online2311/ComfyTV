@@ -1,6 +1,10 @@
 import json
 import re
 
+from .shot_document import (
+    copy_unknown_fields,
+    is_production_document,
+)
 from .shot_inputs import image_ref_url, image_ref_urls, shot_seed
 
 
@@ -247,7 +251,7 @@ def _canonical_shot(raw: dict, index: int) -> dict:
         "scene_tags":     raw.get('scene_tags') or '',
         "lighting":       raw.get('lighting') or '',
         "sfx":            raw.get('sfx') or '',
-        "dialogue":       raw.get('dialogue') or '',
+        "dialogue":       raw.get('dialogue') if raw.get('dialogue') not in (None, '') else '',
         "prompt":         prompt,
         "image_prompt":   image_prompt,
         "motion_prompt":  raw.get('motion_prompt') or '',
@@ -259,10 +263,12 @@ def _canonical_shot(raw: dict, index: int) -> dict:
     seed = shot_seed(raw)
     if seed is not None:
         shot["seed"] = seed
-    return shot
+    # Legacy shaping fills the 16 columns. Anything else on the shot — asset
+    # codes, a production key that arrived beside them, a custom note — stays.
+    return copy_unknown_fields(shot, raw)
 
 
-def _json_shots(raw_text: str) -> list[dict] | None:
+def _parse_json_object(raw_text: str) -> dict | None:
     if not raw_text:
         return None
     s = str(raw_text).replace('\r\n', '\n')
@@ -286,6 +292,11 @@ def _json_shots(raw_text: str) -> list[dict] | None:
         data = json.loads(s[start:end + 1])
     except (ValueError, TypeError):
         return None
+    return data if isinstance(data, dict) else None
+
+
+def _json_shots(raw_text: str) -> list[dict] | None:
+    data = _parse_json_object(raw_text)
     shots = data.get('shots') if isinstance(data, dict) else None
     if not isinstance(shots, list):
         return None
@@ -294,12 +305,28 @@ def _json_shots(raw_text: str) -> list[dict] | None:
 
 
 def _shape_storyboard_from_llm(raw_text: str, seed_parts: tuple = ()) -> str | None:
-    rows = _parse_shotlist_text(raw_text) or _json_shots(raw_text)
+    _ = seed_parts
+    # The 16-field text format still wins when the model actually wrote it.
+    rows = _parse_shotlist_text(raw_text)
     if not rows:
-        return None
-    out = [_canonical_shot(r, i) for i, r in enumerate(rows)]
+        doc = _parse_json_object(raw_text)
+        if doc is None:
+            return None
+        # A production shots.json is the document. Do not project it down to
+        # 16 columns — that drops shot_id, refs, dialogue lines, and custom keys.
+        if is_production_document(doc):
+            return json.dumps(doc, ensure_ascii=False)
+        shots = doc.get('shots')
+        if not isinstance(shots, list):
+            return None
+        rows = [shot for shot in shots if isinstance(shot, dict)]
+        if not rows:
+            return None
+        out = [_canonical_shot(row, index) for index, row in enumerate(rows)]
+        doc = dict(doc)
+        doc['shots'] = out
+        return json.dumps(doc, ensure_ascii=False)
+    out = [_canonical_shot(row, index) for index, row in enumerate(rows)]
     if not out:
         return None
-
-    _ = seed_parts
     return json.dumps({"shots": out}, ensure_ascii=False)
