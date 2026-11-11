@@ -104,7 +104,7 @@ url = "http://127.0.0.1:8188/comfytv/mcp"
 |---|---|
 | `scene_get/edit/capture/record` | 驱动 Scene 3D:角色、灯光、相机、动画 clip、相机路径与多镜导演时间轴(add_shot/patch_shot/set_path) |
 | `director_get/director_edit` | 读写导演台 clip 时间线 |
-| `storyboard` | 读取、替换或校验分镜阶段的完整镜头文档（`shots.json` 字段和自定义键）。`get_stage` 对很长的 `storyboard_data` 只给预览。`validate` 的整集总时长按每镜 `duration_s` 相加，`cut_to` 只和该镜时长比较。镜头少到即使每镜 15 秒也达不到 `target_duration_s` 时（单镜或很短的片段），不再拿整集目标来比 |
+| `storyboard` | 读取、替换或校验分镜阶段的完整镜头文档（`shots.json` 字段和自定义键）。`get_stage` 对很长的 `storyboard_data` 只给预览。`validate` 的整集总时长按每镜 `duration_s` 相加，`cut_to` 只和该镜时长比较。镜头少到即使每镜 15 秒也达不到 `target_duration_s` 时（单镜或很短的片段），不再拿整集目标来比。可选的分镜提示词字段（`aspect_ratio`、`refs.slot`、`subjects`、H3 的 `summary_tasks` / retention / `align_s`）出现时才检查；`strict` 额外要求开场画面、结尾画面、`end_hold` 和至少一段 segment。图片 `src` 是 ComfyTV 资产代号或 `episode:` 路径。`workflow` 决定图片上限（FL2VA 为 2，Ref2VA 为 9） |
 
 ## 关键套路
 
