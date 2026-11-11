@@ -58,6 +58,7 @@ kind 全集：`text, image, shot-images, video, audio, speech, storyboard, panor
 - [`workflows/sequence/README.md`](https://github.com/jtydhr88/ComfyTV/tree/main/workflows/sequence)
 - [`workflows/panorama/README.md`](https://github.com/jtydhr88/ComfyTV/tree/main/workflows/panorama)
 - [`workflows/speech/README.md`](https://github.com/jtydhr88/ComfyTV/tree/main/workflows/speech)
+- [`workflows/speech-to-text/README.md`](../workflows/speech-to-text/README.md)
 - [`workflows/text/README.md`](https://github.com/jtydhr88/ComfyTV/tree/main/workflows/text)
 - [`workflows/video/README.md`](https://github.com/jtydhr88/ComfyTV/tree/main/workflows/video)
 - [`workflows/shot-images/README.md`](https://github.com/jtydhr88/ComfyTV/tree/main/workflows/shot-images)

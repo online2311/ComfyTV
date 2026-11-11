@@ -119,6 +119,7 @@ from .storyboard_editor import StoryboardEditorStage
 from .material import MaterialStage
 from .split_part import SplitPartStage, MaskCleanup
 from .custom_stage import CustomStage
+from ..whisper_transcribe import WhisperTranscribe
 
 
 def stage_classes() -> list:
@@ -190,6 +191,7 @@ def stage_classes() -> list:
         MaterialStage,
         SplitPartStage, MaskCleanup,
         CustomStage,
+        WhisperTranscribe,
         *_bridge_classes(),
     ]
 

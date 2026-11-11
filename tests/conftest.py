@@ -124,6 +124,11 @@ def _ensure_comfyui_stubs():
 
         class _String(_Input):
             Input = _Input
+            Output = _Input
+
+        class _Audio(_Input):
+            Input = _Input
+            Output = _Input
 
         class _Custom(_Input):
             Input = _Input
@@ -161,6 +166,7 @@ def _ensure_comfyui_stubs():
 
         io = types.SimpleNamespace(
             Int=_Int, Float=_Float, Boolean=_Boolean, String=_String,
+            Audio=_Audio,
             Combo=_Combo, Custom=_Custom, Autogrow=_Autogrow,
             Color=_Color, NumberDisplay=_NumDisplay, MultiType=_MultiType,
             Mask=_Mask,

@@ -161,6 +161,23 @@ ACE-Step v1 和 MiniMax Music 3 都是 ComfyUI 核心原生支持,不需要装�
 
 ---
 
+## 字幕 · speech-to-text
+
+| 工作流 | 文件 | 目录 |
+|---|---|---|
+| **Local Whisper large-v3** | `openai/whisper-large-v3` 的完整 Hugging Face 快照（目录里要有 `config.json`、权重和 processor/tokenizer 文件） | 见下文 |
+
+节点不会下载权重。快照目录按这个顺序解析：
+
+1. 节点上的 `model_dir`，非空时优先。
+2. 环境变量 `COMFYTV_WHISPER_MODEL`。
+3. ComfyUI 的 `models/whisper` 或 `models/stt` 下面的快照目录（目录名含 `large-v3` 的优先）。
+4. 文档里的回退路径 `/home/nodecloud/whisper-v3/models/whisper-large-v3`，且该目录真实存在时。
+
+上游权重：<https://huggingface.co/openai/whisper-large-v3>。先把快照拷到本机；加载时始终 `local_files_only=True`。
+
+---
+
 ## 第三方 custom node 依赖
 
 少数工作流依赖第三方 ComfyUI custom node:
@@ -169,7 +186,7 @@ ACE-Step v1 和 MiniMax Music 3 都是 ComfyUI 核心原生支持,不需要装�
 - **Fooocus SDXL Inpaint / Outpaint** → 用的 `INPAINT_*` 节点也由`comfyui-inpaint-nodes` 提供。
 - **Audio Stem Split** 分轨(人声/鼓/贝斯/……)是**内置能力**——不需要第三方节点,也不需要下载模型。
 
-其它工作流只用 ComfyUI 核心节点。
+**Local Whisper large-v3** 用的是本包自带的 `ComfyTV.WhisperTranscribe` 节点，不是第三方节点包。其它工作流只用 ComfyUI 核心节点。
 
 ---
 

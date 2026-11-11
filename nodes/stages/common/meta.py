@@ -5,7 +5,9 @@ PENDING_STAGES: frozenset[str] = frozenset({
     'VideoUpscaleStage',
 })
 
-NON_STAGE_NODES: frozenset[str] = frozenset({'MaskCleanup', 'MakeProxyStage'})
+NON_STAGE_NODES: frozenset[str] = frozenset({
+    'MaskCleanup', 'MakeProxyStage', 'WhisperTranscribe',
+})
 
 STAGE_META: dict[str, dict] = {
     'ProjectStage':                 {'kind': 'project'},

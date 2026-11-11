@@ -95,6 +95,8 @@
 !shot-images/flux-schnell_preset.json
 !shot-images/local-z-image-turbo.json
 !shot-images/local-z-image-turbo_preset.json
+!speech-to-text/local-whisper-large-v3.json
+!speech-to-text/local-whisper-large-v3_preset.json
 !split-part/sam3-prompt.json
 !split-part/sam3-prompt_preset.json
 !split-part/sam3-text.json
