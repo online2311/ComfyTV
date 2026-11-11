@@ -18,6 +18,8 @@ class RunnerContext:
     upstream: dict[str, Any] = field(default_factory=dict)
     options: dict[str, Any] = field(default_factory=dict)
     progress: Any = None
+    # Bumps the nested ComfyUI prompt's cache signature. None leaves it alone.
+    force_run_token: int | None = None
 
 OutputPayload = Any
 

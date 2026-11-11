@@ -304,6 +304,8 @@ class HeadlessJob(Base):
     attempt:        Mapped[int] = mapped_column(Integer, default=1)
     created_at:     Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     updated_at:     Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
+    started_at:     Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    finished_at:    Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class BotChat(Base):
@@ -524,6 +526,15 @@ def _migrate_additive_columns(engine) -> None:
                     "ALTER TABLE comfytv_workflows ADD COLUMN meta_json TEXT"
                 ))
             logging.info("[ComfyTV] migrated: comfytv_workflows + meta_json")
+
+        job_cols = {c["name"] for c in insp.get_columns("comfytv_headless_jobs")}
+        for name in ("started_at", "finished_at"):
+            if name not in job_cols:
+                with engine.begin() as conn:
+                    conn.execute(text(
+                        f"ALTER TABLE comfytv_headless_jobs ADD COLUMN {name} DATETIME"
+                    ))
+                logging.info("[ComfyTV] migrated: comfytv_headless_jobs + %s", name)
 
         asset_cols = {c["name"] for c in insp.get_columns("comfytv_assets")}
         if "is_hidden" not in asset_cols:

@@ -15,6 +15,31 @@ def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def utcnow() -> datetime:
+    return _now()
+
+
+def parse_utc_timestamp(value) -> datetime:
+    """Read a job timestamp. Naive values are UTC, matching rows stored before offsets were emitted."""
+    if isinstance(value, datetime):
+        dt = value
+    else:
+        text = str(value).strip()
+        if text.endswith("Z"):
+            text = text[:-1] + "+00:00"
+        dt = datetime.fromisoformat(text)
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+
+def format_utc_timestamp(value) -> str | None:
+    """ISO-8601 with a numeric offset. Empty values stay null."""
+    if value is None or value == "":
+        return None
+    return parse_utc_timestamp(value).isoformat()
+
+
 def _loads(raw, fallback):
     if not raw:
         return fallback
@@ -49,8 +74,10 @@ def _job_to_dict(row: HeadlessJob) -> dict:
         "progress_json": row.progress_json,
         "completed_json": row.completed_json,
         "attempt": row.attempt or 1,
-        "created_at": row.created_at.isoformat() if row.created_at else None,
-        "updated_at": row.updated_at.isoformat() if row.updated_at else None,
+        "created_at": format_utc_timestamp(row.created_at),
+        "updated_at": format_utc_timestamp(row.updated_at),
+        "started_at": format_utc_timestamp(row.started_at),
+        "finished_at": format_utc_timestamp(row.finished_at),
     }
 
 
@@ -109,6 +136,7 @@ def update_headless_job(job_id: str, **fields) -> Optional[dict]:
     allowed = {
         "status", "prompt_id", "error_text", "outputs_json", "progress_json",
         "completed_json", "partial_json", "attempt", "clear_prompt_id",
+        "started_at", "finished_at", "clear_started_at", "clear_finished_at",
     }
     unknown = set(fields) - allowed
     if unknown:
@@ -135,6 +163,14 @@ def update_headless_job(job_id: str, **fields) -> Optional[dict]:
             row.partial_json = fields["partial_json"]
         if "attempt" in fields and fields["attempt"] is not None:
             row.attempt = int(fields["attempt"])
+        if fields.get("clear_started_at"):
+            row.started_at = None
+        elif "started_at" in fields:
+            row.started_at = fields["started_at"]
+        if fields.get("clear_finished_at"):
+            row.finished_at = None
+        elif "finished_at" in fields:
+            row.finished_at = fields["finished_at"]
         row.updated_at = _now()
         s.commit()
         return _job_to_dict(row)
@@ -159,7 +195,11 @@ def headless_job_by_prompt(prompt_id: str) -> Optional[dict]:
 
 def claim_headless_job(job_id: str, *, expect: str, become: str,
                        prompt_id: Any = _UNSET,
-                       error_text: Any = _UNSET) -> Optional[dict]:
+                       error_text: Any = _UNSET,
+                       started_at: Any = _UNSET,
+                       finished_at: Any = _UNSET,
+                       clear_started_at: bool = False,
+                       clear_finished_at: bool = False) -> Optional[dict]:
     """Move a job from ``expect`` to ``become`` in one transaction.
 
     Returns None when the row is missing or no longer in ``expect``, so a
@@ -174,6 +214,14 @@ def claim_headless_job(job_id: str, *, expect: str, become: str,
             row.prompt_id = prompt_id or None
         if error_text is not _UNSET:
             row.error_text = error_text
+        if clear_started_at:
+            row.started_at = None
+        elif started_at is not _UNSET:
+            row.started_at = started_at
+        if clear_finished_at:
+            row.finished_at = None
+        elif finished_at is not _UNSET:
+            row.finished_at = finished_at
         row.updated_at = _now()
         s.commit()
         return _job_to_dict(row)

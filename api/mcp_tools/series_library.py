@@ -127,7 +127,11 @@ TOOLS: dict[str, dict] = {
             "modify a locked or draft version that already exists. Omit "
             "#view to use the kind default (character/look/outfit front, "
             "location empty or the only camera card, voice voice_ref, style "
-            "style). A prop with more than one state needs #view."
+            "style). A prop with more than one state needs #view. "
+            "resolve does not add #headshot: series-kit compile mounts that "
+            "view in addition to #front, so pass CHR_…@vN#headshot when you "
+            "want the same file. Shot mode resolves only codes already on "
+            "the shot (STY, LOC, and PRP included)."
         ),
         "inputSchema": {
             "type": "object",

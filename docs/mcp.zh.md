@@ -96,13 +96,15 @@ url = "http://127.0.0.1:8188/comfytv/mcp"
 | `asset_edit` | 把产出存入资产库、改名、归类 |
 | `series_library` | 读写系列目录里的 `library.yaml`（稳定代号 `ID@vN#view`、锁定、新版本、解析到文件、JSON manifest 导入） |
 
+`resolve`（单个代号、代号列表，或 shot 模式）返回代号上写明的视图。省略 `#view` 时，角色、造型、服装在有文件的情况下用 `#front`。它不会额外挂上 `#headshot`。series-kit 的 `compile` 会在 `#front` 之外再挂角色的 `#headshot`；要拿这张图，对 `resolve` 传入 `CHR_…@vN#headshot`。shot 模式只解析镜头上已经写下的代号，STY、LOC、PRP 也一样。
+
 **富编辑器**
 
 | 工具 | 作用 |
 |---|---|
 | `scene_get/edit/capture/record` | 驱动 Scene 3D:角色、灯光、相机、动画 clip、相机路径与多镜导演时间轴(add_shot/patch_shot/set_path) |
 | `director_get/director_edit` | 读写导演台 clip 时间线 |
-| `storyboard` | 读取、替换或校验分镜阶段的完整镜头文档（`shots.json` 字段和自定义键）。`get_stage` 对很长的 `storyboard_data` 只给预览 |
+| `storyboard` | 读取、替换或校验分镜阶段的完整镜头文档（`shots.json` 字段和自定义键）。`get_stage` 对很长的 `storyboard_data` 只给预览。`validate` 的整集总时长按每镜 `duration_s` 相加，`cut_to` 只和该镜时长比较。镜头少到即使每镜 15 秒也达不到 `target_duration_s` 时（单镜或很短的片段），不再拿整集目标来比 |
 
 ## 关键套路
 
@@ -129,7 +131,7 @@ url = "http://127.0.0.1:8188/comfytv/mcp"
 1. `add_stage` / `set_stage` / `connect_stages` / `graph_edit` 改的是按项目存在数据库里的图(`comfytv_headless_graphs`)。`graph_get` 读的就是它。页面正在镜像时,那一页仍是该项目的真相。
 2. `run_stage` 和 `graph_run` 写入 `comfytv_headless_jobs` 并立刻返回 `{job_id, status: "queued"}`。`graph_run` 可直接传要 POST 给 `/prompt` 的 API 图。
 3. 工作线程**一次只提交一个**任务到 ComfyUI 进程内的 prompt 队列(和 `GET /queue` 是同一份),而且仅当该队列里既没有 running 也没有 pending。这条路径不调用 `/interrupt` 或 `/free`。
-4. 用 `queue_status` / `list_queue` 看 `queued` / `running` / `done` / `error`、进度和产出。不要靠固定超时干等。
+4. 用 `queue_status` / `list_queue` 看 `queued` / `running` / `done` / `error`、进度和产出。`created_at` / `updated_at` / `started_at` / `finished_at` 是带偏移的 UTC ISO-8601（`+00:00`）。`started_at` 是交给 ComfyUI 的时刻；`finished_at` 在 done、error 或 cancel 时写入。`completed_nodes` 来自执行进度，成功时包含 prompt 里的每个节点。不要靠固定超时干等。
 5. 任务状态落在 sqlite 里。启动时先查 `GET /queue`（running 和 pending）和 `GET /history/{prompt_id}`。还在队列里的重新挂上并继续等；已经在 history 里的收回产出，不再提交。ComfyUI 完全没有记录时**不会**自动再提交，除非调用 `resume_queue`，或打开设置 `headless-auto-resume`（默认关）。再次提交时会丢掉已经存下产出的 stage，下游输入改接到那份产出。对 `error` 任务传入 `job_id` 会在同样的检查之后再排队。
 
 新表由现有的启动 `create_all` 建出。这条路径不另开监听端口。
