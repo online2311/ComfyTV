@@ -494,6 +494,99 @@ def test_many_aac_segments_match_picture_by_decoded_samples():
         assert abs(heard - freq) < 40, f"segment {i}: heard {heard:.1f} Hz, expected {freq}"
 
 
+def test_audio_refit_stops_when_progress_cancels():
+    """Matching AAC clips are fitted one at a time. The progress callback is
+    the cancellation check, so a cancel on the second clip must leave the
+    later clips unprocessed instead of falling through to a re-encode."""
+    from ComfyTV.runners import media
+
+    class Cancelled(Exception):
+        pass
+
+    src = _src_dir("concat-aac-cancel")
+    paths = []
+    for i in range(4):
+        path = src / f"s{i:02d}.mp4"
+        _write_clip(path, w=64, h=48, fps=24, seconds=0.5, with_audio=True)
+        paths.append(path)
+
+    calls = []
+
+    def progress(index, total, text=""):
+        calls.append((index, total, text))
+        if index == 1:
+            raise Cancelled()
+
+    with pytest.raises(Cancelled):
+        media.concat_videos(_urls(paths), progress=progress)
+    assert calls == [(0, 4, "clip 1/4"), (1, 4, "clip 2/4")]
+
+
+def test_refit_keeps_a_leading_audio_gap():
+    """A 1s picture whose AAC starts about 60ms late is still copy-compatible.
+
+    Sample padding has to keep that opening silence. Dropping it and padding
+    the end plays the tone early.
+    """
+    from ComfyTV.runners import media
+
+    src = _src_dir("concat-aac-gap")
+    paths = []
+    for i in range(2):
+        path = src / f"s{i:02d}.mp4"
+        subprocess.check_call([
+            _ffmpeg(), "-y", "-hide_banner", "-loglevel", "error",
+            "-f", "lavfi", "-t", "1.0", "-i", "color=c=blue:s=64x48:r=24",
+            "-itsoffset", "0.06", "-f", "lavfi", "-t", "0.94", "-i",
+            "sine=frequency=880:sample_rate=44100",
+            "-c:v", "libx264", "-pix_fmt", "yuv420p", "-bf", "0",
+            "-c:a", "aac", "-b:a", "160k", "-ar", "44100", "-ac", "2",
+            "-map", "0:v:0", "-map", "1:a:0",
+            str(path),
+        ])
+        paths.append(path)
+
+    report = {}
+    out = media.concat_videos(_urls(paths), report=report)
+    assert report["video_encoder"] == "copy"
+    assert report["audio_encoder"] == "reencode"
+    assert _mono_rms(out, 0.0, 0.03) < 0.01
+    assert _mono_rms(out, 0.12, 0.40) > 0.02
+    video_s, _audio_s = _stream_durations(out)
+    assert abs(_decoded_audio_seconds(out) - video_s) <= 0.05
+
+
+def test_refit_decodes_the_probed_audio_stream():
+    """The probe reads the first audio stream. A later default track must
+    not replace it when the clip is decoded for the refit."""
+    from ComfyTV.runners import media
+
+    src = _src_dir("concat-aac-first-stream")
+    built = src / "dual.mp4"
+    subprocess.check_call([
+        _ffmpeg(), "-y", "-hide_banner", "-loglevel", "error",
+        "-f", "lavfi", "-t", "0.5", "-i", "color=c=red:s=64x48:r=24",
+        "-f", "lavfi", "-t", "0.5", "-i", "sine=frequency=440:sample_rate=44100",
+        "-f", "lavfi", "-t", "0.5", "-i", "sine=frequency=1760:sample_rate=44100",
+        "-map", "0:v:0", "-map", "1:a:0", "-map", "2:a:0",
+        "-c:v", "libx264", "-pix_fmt", "yuv420p", "-bf", "0",
+        "-c:a:0", "aac", "-ac:a:0", "1", "-b:a:0", "96k",
+        "-c:a:1", "aac", "-ac:a:1", "2", "-b:a:1", "160k",
+        "-disposition:a:0", "0", "-disposition:a:1", "default",
+        str(built),
+    ])
+    paths = [src / "a.mp4", src / "b.mp4"]
+    for path in paths:
+        path.write_bytes(built.read_bytes())
+
+    report = {}
+    out = media.concat_videos(_urls(paths), report=report)
+    assert report["video_encoder"] == "copy"
+    pcm, rate = _mono_pcm(out)
+    heard = _tone_hz(pcm, rate, 0.12, 0.38)
+    assert abs(heard - 440) < 40, heard
+
+
 def test_all_silent_sources_stay_silent():
     from ComfyTV.runners import media
 

@@ -132,7 +132,7 @@ def _concat_sources(ffmpeg, probed, target, want_audio, out, progress,
             # two clips. Rebuild that audio instead of trusting the joined
             # container duration: edit lists make it look aligned.
             if want_audio:
-                _copy_video_refit_audio(ffmpeg, probed, out)
+                _copy_video_refit_audio(ffmpeg, probed, out, progress)
                 return "copy", "reencode"
             _concat_copy(
                 ffmpeg, [item["path"] for item in probed], out, faststart=True,
@@ -600,18 +600,23 @@ def _concat_copy(ffmpeg: str, parts: list[Path], dest: Path, *,
         listing.unlink(missing_ok=True)
 
 
-def _copy_video_refit_audio(ffmpeg: str, probed: list, out: Path) -> None:
+def _copy_video_refit_audio(ffmpeg: str, probed: list, out: Path, progress) -> None:
     """Stream-copy the picture and encode one AAC track fitted to it.
 
     Decoding the joined AAC and trimming on timestamps does not drop the
     extra samples: those samples share a shorter timestamp span than their
     count. Each source is decoded while its own edit list still applies, then
-    padded or trimmed to that picture's sample count.
+    padded or trimmed to that picture's sample count. ``progress`` is the
+    same cancellation hook the normalize path uses, so a cancel stops the
+    remaining clips.
     """
     with tempfile.TemporaryDirectory(prefix="comfytv-concat-") as tmp:
         tmp_dir = Path(tmp)
         wavs: list[Path] = []
+        total = len(probed)
         for i, item in enumerate(probed):
+            if progress is not None:
+                progress(i, total, f"clip {i + 1}/{total}")
             wav = tmp_dir / f"a{i:04d}.wav"
             _fit_clip_audio(ffmpeg, item, wav)
             wavs.append(wav)
@@ -630,11 +635,16 @@ def _fit_clip_audio(ffmpeg: str, item: dict, dest: Path) -> None:
     rate = _as_int(audio.get("sample_rate")) or _AUDIO_RATE
     channels = _as_int(audio.get("channels")) or 2
     samples = max(1, int(round(float(item["duration"]) * rate)))
+    # aresample fills a leading timestamp gap with silence before the sample
+    # trim. Without it, apad/atrim keep the first samples and the tone starts
+    # early. 0:a:0 is the stream the probe inspected; automatic selection can
+    # prefer a later default track.
     cmd = [
         ffmpeg, "-y", "-hide_banner", "-loglevel", "error",
         "-i", str(item["path"]),
-        "-vn",
+        "-map", "0:a:0",
         "-af", (
+            f"aresample={rate}:async=1:first_pts=0,"
             f"apad=pad_len={samples},atrim=end_sample={samples},"
             "asetpts=PTS-STARTPTS"
         ),
