@@ -190,7 +190,66 @@ class TestE01DryRun:
         assert bridged["frame_mode"] == "FL2VA"
         assert bridged["mode"] == "Ref2VA"
         assert bridged["mode_source"] == "shot.mode"
+        assert bridged["reason"] is None
         assert any(image["role"] == "end_composition" for image in bridged["images"])
+        assert all(shot["reason"] is None for shot in plan["shots"])
+
+    def test_e01_frame_shot_with_dialogue_downgrades_to_ref2va(self, tmp_path):
+        from ComfyTV.nodes.stages.common.episode_video import plan_episode_videos
+        import folder_paths
+
+        doc = json.loads(FIXTURE.read_text(encoding="utf-8"))
+        shot = next(item for item in doc["shots"] if item["shot_id"] == "E01S03_05")
+        shot["mode"] = "FL2VA"
+        shot.pop("video_mode", None)
+        shot["characters"] = []
+        shot["location"] = None
+        shot["props"] = []
+        shot["dialogue"] = [{
+            "line_id": "L008",
+            "text": "热是上来了。",
+        }]
+        frames = Path(folder_paths.get_input_directory()) / "e01-downgrade-frames"
+        for ref in shot["refs"]:
+            _png(frames / ref["src"].split("episode:", 1)[1])
+        speech = Path(folder_paths.get_output_directory()) / "e01-downgrade" / "L008.wav"
+        _wav(speech, 0.4)
+        for other in doc["shots"]:
+            if other["shot_id"] != "E01S03_05":
+                other["dialogue"] = []
+                other["refs"] = [{"role": "first_frame", "src": "/view?filename=a.png&type=input"}]
+                other["characters"] = []
+                other["location"] = None
+                other["props"] = []
+        planned = plan_episode_videos(
+            doc,
+            frames_root=str(frames),
+            audio={"by_line": {"L008": str(speech)}},
+            work_dir=str(tmp_path / "work"),
+        )
+        assert planned["ok"] is True, planned["errors"]
+        affected = next(item for item in planned["shots"] if item["shot_id"] == "E01S03_05")
+        assert affected["frame_mode"] == "FL2VA"
+        assert affected["mode"] == "Ref2VA"
+        assert affected["reason"] == "dialogue_downgrade"
+        assert affected["mode_source"] == "dialogue_downgrade"
+        assert affected["workflow"] == "Local MiniMax H3 R2V"
+        assert affected["workflow_source"] == "dialogue_downgrade"
+        roles = [image["role"] for image in affected["images"]]
+        assert roles[0] == "first_frame"
+        assert "end_composition" in roles
+        assert len(affected["images"]) <= 9
+        assert affected["audio"]["line_ids"] == ["L008"]
+        assert affected["stage"]["widgets"]["workflow"] == "Local MiniMax H3 R2V"
+        assert affected["stage"]["widgets"]["audio.audio0"].startswith("/view?")
+        assert affected["stage"]["widgets"]["images.image0"] == affected["images"][0]["url"]
+        assert "<Audio 1>" in affected["prompt"]
+        assert not any("not sent to the model" in warning for warning in planned["warnings"])
+        assert all(
+            item["reason"] is None
+            for item in planned["shots"]
+            if item["shot_id"] != "E01S03_05"
+        )
 
     async def test_plan_tool_returns_the_same_dry_run(self, tmp_path):
         from ComfyTV.api.mcp_tools.episode_batch import _episode_batch
@@ -227,6 +286,7 @@ class TestShotRules:
         assert planned["ok"] is True
         assert shot["mode"] == "FL2VA"
         assert shot["mode_source"] == "frames"
+        assert shot["reason"] is None
         assert shot["frame_mode"] == "FL2VA"
         assert shot["workflow"] == "Local MiniMax H3 FLF2V"
         assert [image["role"] for image in shot["images"]] == ["first_frame", "end_composition"]
@@ -256,6 +316,89 @@ class TestShotRules:
         assert first["shots"][0]["seed"] == second["shots"][0]["seed"]
         assert owned["shots"][0]["seed"] == 42
         assert owned["shots"][0]["seed_source"] == "shot"
+
+    def test_dialogue_downgrades_fl2va_unless_video_mode_is_explicit(self, tmp_path):
+        from ComfyTV.nodes.stages.common.episode_video import plan_episode_videos
+
+        speech = tmp_path / "L001.wav"
+        _wav(speech, 0.4)
+        audio = {"by_line": {"L001": str(speech)}}
+        doc = self._shot(
+            mode="FL2VA",
+            dialogue=[{"line_id": "L001", "text": "热上来了。"}],
+        )
+        downgraded = plan_episode_videos(doc, audio=audio, work_dir=str(tmp_path / "work"))
+        shot = downgraded["shots"][0]
+        assert downgraded["ok"] is True, downgraded["errors"]
+        assert shot["mode"] == "Ref2VA"
+        assert shot["reason"] == "dialogue_downgrade"
+        assert shot["workflow"] == "Local MiniMax H3 R2V"
+        assert [image["role"] for image in shot["images"]] == ["first_frame", "end_composition"]
+        assert shot["stage"]["widgets"]["audio.audio0"].startswith("/view?")
+        assert "<Audio 1>" in shot["prompt"]
+        assert downgraded["warnings"] == []
+
+        kept = plan_episode_videos(
+            self._shot(
+                mode="Ref2VA",
+                video_mode="FL2VA",
+                dialogue=[{"line_id": "L001", "text": "热上来了。"}],
+            ),
+            audio=audio,
+            work_dir=str(tmp_path / "work"),
+        )
+        explicit = kept["shots"][0]
+        assert explicit["mode"] == "FL2VA"
+        assert explicit["reason"] is None
+        assert explicit["mode_source"] == "shot.video_mode"
+        assert explicit["workflow"] == "Local MiniMax H3 FLF2V"
+        assert [image["role"] for image in explicit["images"]] == ["first_frame", "end_composition"]
+        assert "audio.audio0" in explicit["stage"]["widgets"]
+        assert "<Audio 1>" not in explicit["prompt"]
+        assert any("does not bind upstream audio" in warning for warning in kept["warnings"])
+
+        accepts = plan_episode_videos(
+            doc,
+            audio=audio,
+            work_dir=str(tmp_path / "work"),
+            workflows={"FL2VA": "Local MiniMax H3 R2V"},
+        )
+        stayed = accepts["shots"][0]
+        assert stayed["mode"] == "FL2VA"
+        assert stayed["reason"] is None
+        assert stayed["workflow"] == "Local MiniMax H3 R2V"
+        assert "<Audio 1>" in stayed["prompt"]
+        assert accepts["warnings"] == []
+
+    def test_downgrade_still_errors_when_references_exceed_nine(self, tmp_path):
+        from ComfyTV.nodes.stages.common.episode_video import plan_episode_videos
+
+        speech = tmp_path / "L001.wav"
+        _wav(speech, 0.4)
+        refs = [
+            {"role": "first_frame", "src": "/view?filename=first.png&type=input"},
+            {"role": "last_frame", "src": "/view?filename=last.png&type=input"},
+        ]
+        refs.extend(
+            {"role": "ref", "src": f"/view?filename=p{i}.png&type=input"}
+            for i in range(8)
+        )
+        planned = plan_episode_videos(
+            self._shot(
+                mode="FL2VA",
+                refs=refs,
+                dialogue=[{"line_id": "L001", "text": "一句。"}],
+            ),
+            audio={"by_line": {"L001": str(speech)}},
+            work_dir=str(tmp_path / "work"),
+        )
+        shot = planned["shots"][0]
+        assert shot["mode"] == "Ref2VA"
+        assert shot["reason"] == "dialogue_downgrade"
+        assert len(shot["images"]) == 10
+        assert planned["ok"] is False
+        assert any("none were dropped" in error for error in planned["errors"])
+        assert shot["stage"] is None
 
     def test_extra_images_are_reported_and_kept(self):
         from ComfyTV.nodes.stages.common.episode_video import plan_episode_videos
@@ -546,6 +689,43 @@ class TestSerialSubmit:
         assert result["ok"] is True, result["errors"]
         assert result["shot_count"] == 3
         assert result["shots"][1]["audio"]["line_ids"] == ["L001"]
+
+    async def test_run_submits_the_downgraded_ref2va_workflow(self, headless, tmp_path):
+        from ComfyTV.api.episode_batch import run_episode_batch
+
+        speech = tmp_path / "L008.wav"
+        _wav(speech, 0.4)
+        task = asyncio.create_task(run_episode_batch({
+            "action": "run",
+            "document": {
+                "episode": "E01",
+                "shots": [{
+                    "shot_id": "E01S03_05",
+                    "order": 15,
+                    "duration_s": 5,
+                    "cut_to": 3,
+                    "mode": "FL2VA",
+                    "dialogue": [{"line_id": "L008", "text": "热是上来了。"}],
+                    "refs": [
+                        {"role": "first_frame", "src": "/view?filename=first.png&type=input"},
+                        {"role": "end_composition", "src": "/view?filename=last.png&type=input"},
+                    ],
+                    "video_prompt": "she reacts",
+                }],
+            },
+            "audio": {"by_line": {"L008": str(speech)}},
+            "work_dir": str(tmp_path / "work"),
+            "state_path": str(tmp_path / "state.json"),
+        }))
+        await self._finish(headless["comfy"], 1)
+        result = await task
+        assert result["submitted"] == 1
+        node = next(iter(headless["comfy"].submitted[0]["prompt"].values()))
+        assert node["inputs"]["workflow"] == "Local MiniMax H3 R2V"
+        assert node["inputs"]["images.image0"].endswith("first.png") or "first.png" in node["inputs"]["images.image0"]
+        assert "last.png" in node["inputs"]["images.image1"]
+        assert node["inputs"]["audio.audio0"]
+        assert "<Audio 1>" in node["inputs"]["main_prompt"]
 
     async def test_http_plan_does_not_require_a_model(self, reset_db):
         from ComfyTV import api  # noqa: F401

@@ -11,6 +11,13 @@ Workflow choice is field-driven. A shot with both a first frame
 ``video_mode`` overrides that, then the production ``mode`` field
 (``Ref2VA`` / ``FL2VA``). ``auto`` keeps the frame rule.
 
+If that choice is FL2VA, the shot has mapped dialogue, and the FL2VA
+workflow does not bind upstream audio, the shot is planned as Ref2VA
+instead (``reason`` ``dialogue_downgrade``). The first frame stays picture
+1 and the last frame stays in the reference list, which is still capped at
+9. ``video_mode=FL2VA`` is explicit and is not downgraded; the audio stays
+on the slot and a warning says the workflow will not receive it.
+
 Duration sent to the stage is ``duration_s`` (the shot length). ``cut_to``
 must not exceed it and is kept as the edit point; it does not replace
 ``duration_s``.
@@ -37,6 +44,7 @@ from typing import Any
 import folder_paths
 
 from ....runners._media_paths import path_to_view_url, view_url_to_path
+from ....runners.workflow_db.config import get_workflow_config
 from ....storage.series_library import (
     SeriesLibraryError,
     iter_shot_refs,
@@ -304,20 +312,31 @@ def _plan_shot(
     mode, mode_source, frame_mode = _mode(shot, tag, errors)
     seed, seed_source = _seed_for(shot, tag, base_seed, errors)
     prompt = _video_prompt(shot, tag, errors)
-    workflow, workflow_source = _workflow_label(shot, mode, labels, tag, errors)
-    images = _images(
-        shot, tag, mode, library, frames, require_locked, errors,
-    )
     dialogue = _attach_audio(
         shot, tag, episode, duration_source, cut_to, audio, work, errors, warnings,
     )
-    if dialogue is not None and mode == "FL2VA":
+    reason = None
+    if _downgrade_for_dialogue(shot, mode, frame_mode, dialogue, labels):
+        mode = "Ref2VA"
+        mode_source = "dialogue_downgrade"
+        reason = "dialogue_downgrade"
+    workflow, workflow_source = _workflow_label(
+        shot, mode, labels, tag, errors,
+        ignore_shot_workflow=reason == "dialogue_downgrade",
+    )
+    if reason == "dialogue_downgrade":
+        workflow_source = "dialogue_downgrade"
+    images = _images(
+        shot, tag, mode, library, frames, require_locked, errors,
+    )
+    sends_audio = _workflow_accepts_upstream_audio(workflow)
+    if dialogue is not None and mode == "FL2VA" and not sends_audio:
         warnings.append(
             f"{tag}: dialogue is on the VideoStage audio slot. "
-            "The shipped FL2VA workflow does not bind that slot, "
+            f"Workflow {workflow!r} does not bind upstream audio, "
             "so this file is stored on the stage and is not sent to the model."
         )
-    elif dialogue is not None and mode == "Ref2VA" and "<Audio " not in prompt and "@audio_" not in prompt:
+    elif dialogue is not None and sends_audio and "<Audio " not in prompt and "@audio_" not in prompt:
         prompt = prompt + "\n\nDialogue reference: <Audio 1>"
 
     ready = not errors and duration_s is not None and bool(prompt) and bool(workflow)
@@ -349,6 +368,7 @@ def _plan_shot(
         "ready": ready,
         "mode": mode,
         "mode_source": mode_source,
+        "reason": reason,
         "frame_mode": frame_mode,
         "workflow": workflow,
         "workflow_source": workflow_source,
@@ -505,11 +525,92 @@ def _video_prompt(shot: dict, tag: str, errors: list[str]) -> str:
     return ""
 
 
-def _workflow_label(
-    shot: dict, mode: str, labels: dict[str, str], tag: str, errors: list[str],
-) -> tuple[str, str]:
+def _explicit_video_mode(shot: dict) -> str | None:
+    raw = shot.get("video_mode")
+    if isinstance(raw, str) and raw.strip() in _MODES:
+        return raw.strip()
+    return None
+
+
+def _downgrade_for_dialogue(
+    shot: dict, mode: str, frame_mode: str, dialogue: dict | None, labels: dict[str, str],
+) -> bool:
+    """FL2VA plus dialogue becomes Ref2VA when that workflow cannot take audio.
+
+    ``video_mode=FL2VA`` is an explicit choice and stays FL2VA.
+    """
+    if dialogue is None or frame_mode != "FL2VA" or mode != "FL2VA":
+        return False
+    if _explicit_video_mode(shot) == "FL2VA":
+        return False
+    return not _workflow_accepts_upstream_audio(_fl2va_target_label(shot, labels))
+
+
+def _fl2va_target_label(shot: dict, labels: dict[str, str]) -> str:
     override = shot.get("video_workflow")
     if isinstance(override, str) and override.strip():
+        return override.strip()
+    return labels["FL2VA"]
+
+
+def _workflow_accepts_upstream_audio(label: str) -> bool:
+    """True when this video workflow binds an ``upstream_audio`` input."""
+    bindings = _db_audio_bindings(label)
+    if bindings is not None:
+        return bindings
+    return _shipped_audio_by_label().get(label, False)
+
+
+def _db_audio_bindings(label: str) -> bool | None:
+    try:
+        cfg = get_workflow_config("video", label)
+    except Exception:
+        return None
+    if not isinstance(cfg, dict):
+        return None
+    bindings = cfg.get("bindings")
+    if not bindings:
+        return None
+    for row in bindings:
+        if isinstance(row, dict) and str(row.get("from") or "").startswith("upstream_audio"):
+            return True
+    return False
+
+
+def _shipped_audio_by_label() -> dict[str, bool]:
+    found: dict[str, bool] = {}
+    root = Path(__file__).resolve().parents[3] / "workflows" / "video"
+    if not root.is_dir():
+        return found
+    for path in root.glob("*_preset.json"):
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        name = data.get("label")
+        if isinstance(name, str) and name.strip():
+            found[name.strip()] = _tree_has_upstream_audio(data.get("inputs"))
+    return found
+
+
+def _tree_has_upstream_audio(node: Any) -> bool:
+    if isinstance(node, dict):
+        source = node.get("from")
+        if isinstance(source, str) and source.startswith("upstream_audio"):
+            return True
+        return any(_tree_has_upstream_audio(value) for value in node.values())
+    if isinstance(node, list):
+        return any(_tree_has_upstream_audio(item) for item in node)
+    return False
+
+
+def _workflow_label(
+    shot: dict, mode: str, labels: dict[str, str], tag: str, errors: list[str],
+    *,
+    ignore_shot_workflow: bool = False,
+) -> tuple[str, str]:
+    override = shot.get("video_workflow")
+    if not ignore_shot_workflow and isinstance(override, str) and override.strip():
         return override.strip(), "shot.video_workflow"
     if mode not in labels:
         errors.append(f"{tag}: no workflow label for mode {mode}")
