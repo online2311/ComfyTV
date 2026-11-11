@@ -12,12 +12,18 @@ Policy when clips disagree (this is the rule, not a guess):
   AAC once, so encoder delay does not accumulate per clip.
 * If no clip has audio, the output has no audio track.
 
-Pictures are never decoded in this process. Each clip is normalized by its
-own ffmpeg subprocess, then the concat demuxer stream-copies them.
+Pictures are never decoded in this process. Duration, size, frame rate, and
+whether a clip has audio are read with PyAV. When the container omits a video
+duration (Matroska and WebM often do, and then report the longer audio track
+as the container duration), the picture length is the end of the video packet
+timestamps. Each clip is normalized by its own ffmpeg subprocess, then the
+concat demuxer stream-copies them. The binary comes from
+``ffmpeg_bin.find_ffmpeg``.
 """
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 import tempfile
@@ -27,6 +33,12 @@ from pathlib import Path
 
 from ._audio_io import _AUDIO_RATE
 from ._media_paths import fresh_output_path, localize, path_to_view_url
+from .ffmpeg_bin import find_ffmpeg, usable_executable
+
+try:
+    import av as _av
+except ImportError:  # optional; probe falls back to ffprobe
+    _av = None
 
 _MAX_FPS = 480
 
@@ -69,10 +81,9 @@ def concat_videos(view_urls: list, progress=None) -> str:
     if len(urls) < 2:
         raise RuntimeError(f"concat: need at least 2 videos, got {len(urls)}")
 
-    ffmpeg = _tool("ffmpeg")
-    ffprobe = _tool("ffprobe")
+    ffmpeg = find_ffmpeg()
     sources = [localize(u) for u in urls]
-    probed = [_probe(ffprobe, path, i) for i, path in enumerate(sources)]
+    probed = [_probe(path, i) for i, path in enumerate(sources)]
     first_video = probed[0]["video"]
     if first_video is None:
         raise RuntimeError("concat: clip 1 has no video stream")
@@ -101,16 +112,6 @@ def concat_videos(view_urls: list, progress=None) -> str:
         out.unlink(missing_ok=True)
         raise
     return path_to_view_url(out)
-
-
-def _tool(name: str) -> str:
-    path = shutil.which(name)
-    if not path:
-        raise RuntimeError(
-            "concat: ffmpeg/ffprobe not found on PATH. "
-            "Concat runs ffmpeg as a subprocess and does not install Python packages."
-        )
-    return path
 
 
 def _parse_rate(raw) -> Fraction | None:
@@ -142,7 +143,133 @@ def _nonnegative(raw) -> float | None:
     return value if value >= 0 else None
 
 
-def _probe(ffprobe: str, path: Path, index: int) -> dict:
+def _probe(path: Path, index: int) -> dict:
+    """Default probe is PyAV. ffprobe is used only when asked, or when av is missing."""
+    override = os.environ.get("COMFYTV_FFPROBE", "").strip()
+    if override:
+        exe = usable_executable(override)
+        if exe is None:
+            raise RuntimeError(
+                f"concat: COMFYTV_FFPROBE={override} is not an executable file. "
+                "Unset COMFYTV_FFPROBE to probe with PyAV, or set it to the "
+                "absolute path of an ffprobe binary."
+            )
+        return _probe_ffprobe(exe, path, index)
+    if _av is not None:
+        return _probe_pyav(path, index)
+    found = usable_executable(shutil.which("ffprobe"))
+    if found:
+        return _probe_ffprobe(found, path, index)
+    raise RuntimeError(
+        "concat: PyAV (package av) is not installed, and ffprobe was not found. "
+        "Checked COMFYTV_FFPROBE (not set) and PATH "
+        "(shutil.which('ffprobe') found nothing). "
+        "Install av, or set COMFYTV_FFPROBE to the absolute path of an ffprobe binary."
+    )
+
+
+def _stream_rate(stream) -> Fraction | None:
+    for attr in ("average_rate", "base_rate", "guessed_rate"):
+        raw = getattr(stream, attr, None)
+        if not raw:
+            continue
+        try:
+            rate = Fraction(raw.numerator, raw.denominator)
+        except (AttributeError, TypeError, ValueError, ZeroDivisionError):
+            try:
+                rate = Fraction(str(raw))
+            except (ValueError, ZeroDivisionError):
+                continue
+        if rate > 0:
+            return rate
+    return None
+
+
+def _rate_text(rate: Fraction | None) -> str:
+    if rate is None:
+        return "0/0"
+    return f"{int(rate.numerator)}/{int(rate.denominator)}"
+
+
+def _stream_seconds(stream) -> float | None:
+    if stream.duration is None or not stream.time_base:
+        return None
+    try:
+        seconds = float(stream.duration * stream.time_base)
+    except (TypeError, ValueError, ZeroDivisionError):
+        return None
+    if seconds <= 0:
+        return None
+    return seconds
+
+
+def _packet_end(container, video, fps: Fraction | None) -> float | None:
+    frame_dur = (1.0 / float(fps)) if fps else 0.0
+    end = 0.0
+    saw = False
+    for packet in container.demux(video):
+        if packet.pts is None or packet.pts < 0:
+            continue
+        time_base = packet.time_base or video.time_base
+        if not time_base:
+            continue
+        pts = float(packet.pts * time_base)
+        if pts < 0:
+            continue
+        pkt_dur = None
+        if packet.duration is not None and packet.duration > 0:
+            pkt_dur = float(packet.duration * time_base)
+        if pkt_dur is None or pkt_dur <= 0:
+            pkt_dur = frame_dur
+        saw = True
+        end = max(end, pts + pkt_dur)
+    return end if saw and end > 0 else None
+
+
+def _probe_pyav(path: Path, index: int) -> dict:
+    if _av is None:
+        raise ImportError("av is not installed")
+    try:
+        with _av.open(str(path)) as container:
+            if not container.streams.video:
+                raise RuntimeError(f"concat: clip {index + 1} has no video stream")
+            video = container.streams.video[0]
+            audio = container.streams.audio[0] if container.streams.audio else None
+            fps = _stream_rate(video)
+            duration = _stream_seconds(video)
+            frames = int(video.frames or 0)
+            if duration is None and fps is not None and frames > 0:
+                duration = frames / float(fps)
+            if not duration:
+                duration = _packet_end(container, video, fps)
+            if not duration:
+                raise RuntimeError(f"concat: clip {index + 1} has no duration")
+            width = int(video.width or 0) or int(getattr(video.codec_context, "width", 0) or 0)
+            height = int(video.height or 0) or int(getattr(video.codec_context, "height", 0) or 0)
+            rate = _rate_text(fps)
+            stream = {
+                "codec_type": "video",
+                "width": width,
+                "height": height,
+                "avg_frame_rate": rate,
+                "r_frame_rate": rate,
+                "duration": f"{duration}",
+                "nb_frames": str(frames) if frames > 0 else None,
+            }
+            audio_info = {"codec_type": "audio"} if audio is not None else None
+            return {
+                "path": path,
+                "video": stream,
+                "audio": audio_info,
+                "duration": duration,
+            }
+    except RuntimeError:
+        raise
+    except Exception as exc:
+        raise RuntimeError(f"concat: failed to probe clip {index + 1}: {exc}") from exc
+
+
+def _probe_ffprobe(ffprobe: str, path: Path, index: int) -> dict:
     proc = subprocess.run(
         [
             ffprobe, "-v", "error", "-print_format", "json",

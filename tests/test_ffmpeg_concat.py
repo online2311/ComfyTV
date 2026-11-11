@@ -1,5 +1,10 @@
-"""Unlimited ffmpeg concat: many segments, silence padding, no in-process decode."""
-import json
+"""Unlimited ffmpeg concat: many segments, silence padding, no in-process decode.
+
+The autouse fixture removes ffmpeg and ffprobe from PATH. That is the Spark
+production case: ComfyUI's venv Python does not see a system ffmpeg, and the
+imageio-ffmpeg wheel ships ffmpeg without ffprobe.
+"""
+import os
 import subprocess
 from pathlib import Path
 
@@ -9,6 +14,24 @@ av = pytest.importorskip("av")
 np = pytest.importorskip("numpy")
 
 from test_media_concat import _write_clip  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def hide_system_ffmpeg(monkeypatch, tmp_path):
+    """Do not let a system ffmpeg/ffprobe satisfy concat."""
+    empty = tmp_path / "empty-path"
+    empty.mkdir()
+    monkeypatch.setenv("PATH", str(empty))
+    monkeypatch.delenv("COMFYTV_FFMPEG", raising=False)
+    monkeypatch.delenv("COMFYTV_FFPROBE", raising=False)
+    monkeypatch.delenv("IMAGEIO_FFMPEG_EXE", raising=False)
+    from ComfyTV.runners.ffmpeg_bin import clear_ffmpeg_cache
+    clear_ffmpeg_cache()
+
+
+def _ffmpeg() -> str:
+    from ComfyTV.runners.ffmpeg_bin import find_ffmpeg
+    return find_ffmpeg()
 
 
 def _urls(paths):
@@ -122,11 +145,14 @@ def test_sequence_forwards_64_cuts(monkeypatch):
     assert captured["n"] == 64
 
 
-def test_concat_uses_ffmpeg_demuxer_not_inprocess_decode(monkeypatch):
-    """Python must not decode the pictures. One ffmpeg concat demuxer call,
-    and no single ffmpeg process is handed every source."""
+def test_concat_uses_bundled_ffmpeg_and_does_not_decode_pictures(monkeypatch):
+    """PATH has no ffmpeg/ffprobe. The bundled imageio-ffmpeg binary runs the
+    concat, PyAV opens each clip to read timestamps, and no video frame is
+    decoded in this process. No ffmpeg process is handed every source."""
+    import imageio_ffmpeg
     from ComfyTV.runners import media
 
+    bundled = imageio_ffmpeg.get_ffmpeg_exe()
     src = _src_dir("concat-ff")
     a = src / "guard-a.mp4"
     b = src / "guard-b.mp4"
@@ -145,18 +171,37 @@ def test_concat_uses_ffmpeg_demuxer_not_inprocess_decode(monkeypatch):
 
     monkeypatch.setattr(subprocess, "run", spy)
 
-    def refuse_decode(*args, **kwargs):
-        raise AssertionError("concat_videos decoded media with PyAV")
+    opened = {"n": 0}
+    real_open = av.open
+    real_decode = av.container.InputContainer.decode
 
-    monkeypatch.setattr(av, "open", refuse_decode)
+    def guarding_open(*args, **kwargs):
+        opened["n"] += 1
+        return real_open(*args, **kwargs)
+
+    def guarding_decode(self, *dargs, **dkwargs):
+        if not dargs:
+            raise AssertionError("concat decoded video frames with PyAV")
+        for item in dargs:
+            if getattr(item, "type", None) == "video":
+                raise AssertionError("concat decoded video frames with PyAV")
+        return real_decode(self, *dargs, **dkwargs)
+
+    monkeypatch.setattr(av, "open", guarding_open)
+    monkeypatch.setattr(av.container.InputContainer, "decode", guarding_decode)
     media.concat_videos(_urls([a, b]))
 
+    assert opened["n"] >= 2
+    assert commands
+    assert not any(Path(c[0]).name.startswith("ffprobe") for c in commands)
     ffmpeg_cmds = [c for c in commands if c and Path(c[0]).name.startswith("ffmpeg")]
+    assert ffmpeg_cmds
+    for cmd in ffmpeg_cmds:
+        assert os.path.samefile(cmd[0], bundled)
+        assert cmd.count("-i") <= 2
     concat_cmds = [c for c in ffmpeg_cmds if "concat" in c]
     assert len(concat_cmds) == 1
     assert concat_cmds[0].count("-i") == 1
-    for cmd in ffmpeg_cmds:
-        assert cmd.count("-i") <= 2
 
 
 def test_silent_segment_does_not_shift_later_audio():
@@ -180,6 +225,36 @@ def test_silent_segment_does_not_shift_later_audio():
     assert _mono_rms(out, 0.15, 0.85) > 0.02
     assert _mono_rms(out, 1.12, 1.38) < 0.01
     assert _mono_rms(out, 1.65, 2.35) > 0.02
+
+
+def test_concat_22_segments_mixed_audio_and_size():
+    """A 22-shot episode: silent and sounding clips, two frame sizes."""
+    from ComfyTV.runners import media
+
+    src = _src_dir("concat-22")
+    paths = []
+    for i in range(22):
+        path = src / f"s{i:02d}.mp4"
+        odd = i % 2 == 1
+        if not path.exists():
+            _write_clip(
+                path,
+                w=96 if odd else 64,
+                h=64 if odd else 48,
+                fps=24 if odd else 12,
+                seconds=0.25,
+                with_audio=i % 3 != 2,
+            )
+        paths.append(path)
+
+    out = media.concat_videos(_urls(paths))
+    info = media.get_video_info(out)
+    assert (info["width"], info["height"]) == (64, 48)
+    assert info["has_audio"] is True
+    video_s, audio_s = _stream_durations(out)
+    assert audio_s is not None
+    assert abs(video_s - audio_s) < 0.08
+    assert 5.0 <= video_s <= 6.2
 
 
 def test_concat_64_segments_mixed_audio_and_geometry():
@@ -237,7 +312,7 @@ def test_long_audio_does_not_freeze_the_picture():
     other = src / "other.mp4"
     if not long.exists():
         subprocess.check_call([
-            "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
+            _ffmpeg(), "-y", "-hide_banner", "-loglevel", "error",
             "-f", "lavfi", "-i", "color=c=red:s=64x48:r=24:d=0.5",
             "-f", "lavfi", "-i", "sine=frequency=440:sample_rate=44100:duration=1.5",
             "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac",
@@ -262,13 +337,13 @@ def test_clip_shorter_than_half_a_frame_is_kept():
     brief = src / "quarter.mp4"
     if not slow.exists():
         subprocess.check_call([
-            "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
+            _ffmpeg(), "-y", "-hide_banner", "-loglevel", "error",
             "-f", "lavfi", "-i", "color=c=red:s=64x48:r=1:d=1",
             "-c:v", "libx264", "-pix_fmt", "yuv420p", "-an", str(slow),
         ])
     if not brief.exists():
         subprocess.check_call([
-            "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
+            _ffmpeg(), "-y", "-hide_banner", "-loglevel", "error",
             "-f", "lavfi", "-i", "color=c=blue:s=80x48:r=24:d=0.25",
             "-c:v", "libx264", "-pix_fmt", "yuv420p", "-an", str(brief),
         ])
@@ -288,7 +363,7 @@ def test_missing_video_stream_is_an_error():
         _write_clip(video, w=64, h=48, fps=12, seconds=0.25, with_audio=True)
     if not audio_only.exists():
         subprocess.check_call([
-            "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
+            _ffmpeg(), "-y", "-hide_banner", "-loglevel", "error",
             "-f", "lavfi", "-i", "sine=frequency=440:duration=0.25",
             "-c:a", "aac", str(audio_only),
         ])

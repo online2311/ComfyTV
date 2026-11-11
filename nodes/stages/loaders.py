@@ -1,23 +1,52 @@
 from ._common import *  # noqa: F401, F403
 
 
-_UPLOADS_SUBFOLDER = "comfytv/uploads"
+def _inside_input(root: str, path: str) -> bool:
+    try:
+        root_real = os.path.realpath(root)
+        path_real = os.path.realpath(path)
+        return os.path.commonpath([root_real, path_real]) == root_real
+    except (OSError, ValueError):
+        return False
+
+
+def _relative_input_path(root: str, path: str) -> str | None:
+    """Path relative to input, or None when it escapes the input directory."""
+    if not _inside_input(root, path):
+        return None
+    rel = os.path.relpath(path, root).replace("\\", "/")
+    parts = rel.split("/")
+    if not parts or any(part in ("", ".", "..") for part in parts):
+        return None
+    return rel
 
 
 def _list_input_files(content_kinds: list[str]) -> list[str]:
+    """Recursive input listing. Symlinks that leave the input directory are dropped."""
     try:
         input_dir = folder_paths.get_input_directory()
-        files = [
-            f for f in os.listdir(input_dir)
-            if os.path.isfile(os.path.join(input_dir, f))
-        ]
-        uploads_dir = os.path.join(input_dir, *_UPLOADS_SUBFOLDER.split("/"))
-        if os.path.isdir(uploads_dir):
-            files.extend(
-                f"{_UPLOADS_SUBFOLDER}/{f}"
-                for f in os.listdir(uploads_dir)
-                if os.path.isfile(os.path.join(uploads_dir, f))
-            )
+        files: list[str] = []
+        for dirpath, dirnames, filenames in os.walk(input_dir, followlinks=False):
+            kept_dirs = []
+            for dirname in dirnames:
+                candidate = os.path.join(dirpath, dirname)
+                if os.path.islink(candidate):
+                    continue
+                if _inside_input(input_dir, candidate):
+                    kept_dirs.append(dirname)
+            dirnames[:] = kept_dirs
+            for filename in filenames:
+                candidate = os.path.join(dirpath, filename)
+                try:
+                    if not os.path.isfile(candidate):
+                        rel = None
+                    else:
+                        rel = _relative_input_path(input_dir, candidate)
+                except OSError:
+                    continue
+                if rel is None:
+                    continue
+                files.append(rel)
         return sorted(folder_paths.filter_files_content_types(files, content_kinds))
     except Exception:
         return []
