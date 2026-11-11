@@ -398,6 +398,59 @@ def pack_transcript(segments: list[dict]) -> tuple[str, str, str]:
     return segments_to_srt(segments), join_transcript(segments), segments_to_json(segments)
 
 
+# Half-width sentence marks Whisper emits inside Chinese transcripts.
+# Decimal points are handled separately so "3.5" stays "3.5".
+_ZH_PUNCT = str.maketrans({
+    ",": "，",
+    "?": "？",
+    "!": "！",
+    ":": "：",
+    ";": "；",
+    "(": "（",
+    ")": "）",
+})
+
+
+def normalize_zh_punctuation(text: str) -> str:
+    """Map half-width sentence punctuation to full-width Chinese forms.
+
+    ``.`` between digits stays a decimal point. ``...`` becomes ``……``.
+    SRT timestamp lines are not passed here; ``finish_transcript`` rewrites
+    cue and word text before the SRT is built, so ``00:00:06,100`` stays.
+    """
+    if not text:
+        return text
+    text = text.replace("...", "……")
+    text = text.translate(_ZH_PUNCT)
+    if "." not in text:
+        return text
+    chars = list(text)
+    for index, ch in enumerate(chars):
+        if ch != ".":
+            continue
+        prev = chars[index - 1] if index else ""
+        nxt = chars[index + 1] if index + 1 < len(chars) else ""
+        if prev.isdigit() and nxt.isdigit():
+            continue
+        chars[index] = "。"
+    return "".join(chars)
+
+
+def _normalize_segment_punctuation(segments: list[dict]) -> list[dict]:
+    normalized = []
+    for seg in segments:
+        item = dict(seg)
+        item["text"] = normalize_zh_punctuation(str(item.get("text") or ""))
+        words = item.get("words")
+        if words:
+            item["words"] = [
+                {**word, "text": normalize_zh_punctuation(str(word.get("text") or ""))}
+                for word in words
+            ]
+        normalized.append(item)
+    return normalized
+
+
 def parse_whisper_timestamp_text(decoded: str) -> list[dict]:
     """Turn ``<|0.00|>text<|1.20|>`` decoder text into segments."""
     if not decoded:
@@ -499,25 +552,129 @@ def _decode(tokenizer, ids, *, timestamps: bool = False) -> str:
         return tokenizer.decode(ids)
 
 
-def _words_for_tokens(tokenizer, tokens, token_times, segment_end: float) -> list[dict]:
+def _clamp_word_times(words: list[dict], segment_start: float, segment_end: float) -> list[dict]:
+    """Pull word timestamps into ``[segment_start, segment_end]``.
+
+    Token times can land past the segment boundary (observed: a word end of
+    6.20 s inside a segment that ends at 6.10 s). The segment end stays the
+    SRT cue so the next cue does not overlap; the word is clamped instead of
+    extending the segment.
+    """
+    lo = float(segment_start)
+    hi = float(segment_end)
+    if hi < lo:
+        hi = lo
+    clamped = []
+    for word in words:
+        start = min(max(float(word.get("start") or 0.0), lo), hi)
+        end_value = word.get("end")
+        end = float(end_value if end_value is not None else start)
+        end = min(max(end, lo), hi)
+        if end < start:
+            end = start
+        item = dict(word)
+        item["start"] = round(start, 3)
+        item["end"] = round(end, 3)
+        clamped.append(item)
+    return clamped
+
+
+def _token_window(index: int, times: list[float], segment_end: float) -> tuple[float, float]:
+    """One token's ``[start, end]``. The end is the next timestamp, or the segment end."""
+    start = float(times[index])
+    if index + 1 < len(times):
+        end = float(times[index + 1])
+    else:
+        end = max(start, float(segment_end))
+    if end < start:
+        end = start
+    return start, end
+
+
+def _append_timed_text(
+    pieces: list[tuple[str, float, float]], text: str, start: float, end: float,
+) -> None:
+    """Add ``text`` to ``pieces``. Each CJK character is its own piece."""
+    if end < start:
+        end = start
+    buf = ""
+    for ch in text:
+        if _is_cjk(ch):
+            if buf:
+                pieces.append((buf, start, end))
+                buf = ""
+            pieces.append((ch, start, end))
+        else:
+            buf += ch
+    if buf:
+        pieces.append((buf, start, end))
+
+
+def _pieces_from_tokens(
+    tokenizer, ids: list[int], times: list[float], segment_end: float,
+) -> list[tuple[str, float, float]]:
+    """Decode tokens, merging consecutive byte-level fragments into UTF-8.
+
+    A Whisper byte-level token that is only part of a Chinese character
+    decodes to U+FFFD. Consecutive fragments are merged until the span
+    decodes. Every character that is already valid is kept, including when
+    one token finishes a character and starts the next (``b'\\xe4\\xb8'`` +
+    ``b'\\x93\\xe7'`` is 专 plus a trailing byte). The unfinished tail is
+    dropped so a word is never U+FFFD. A piece uses the first token's start
+    and the last token's end.
+    """
+    pieces: list[tuple[str, float, float]] = []
+    count = len(ids)
+    index = 0
+    while index < count:
+        single = _decode(tokenizer, [ids[index]])
+        if single == "":
+            index += 1
+            continue
+        if "\ufffd" not in single:
+            start, end = _token_window(index, times, segment_end)
+            pieces.append((single, start, end))
+            index += 1
+            continue
+        start_i = index
+        last = index
+        emitted = 0
+        char_from = start_i
+        while True:
+            text = _decode(tokenizer, ids[start_i:last + 1])
+            valid = text.replace("\ufffd", "")
+            if len(valid) > emitted:
+                origin = char_from if char_from <= last else last
+                start, _ = _token_window(origin, times, segment_end)
+                _, end = _token_window(last, times, segment_end)
+                _append_timed_text(pieces, valid[emitted:], start, end)
+                emitted = len(valid)
+                char_from = last + 1
+            if "\ufffd" not in text:
+                break
+            if last + 1 >= count:
+                break
+            nxt = _decode(tokenizer, [ids[last + 1]])
+            if not nxt or "\ufffd" not in nxt:
+                break
+            last += 1
+        index = last + 1
+    return pieces
+
+
+def _words_for_tokens(
+    tokenizer, tokens, token_times, segment_end: float, segment_start: float = 0.0,
+) -> list[dict]:
     ids = _as_id_list(tokens)
     times = _as_float_list(token_times)
     if len(times) > len(ids) > 0:
         times = times[-len(ids):]
-    pieces = []
-    for index, (token_id, stamp) in enumerate(zip(ids, times)):
-        piece = _decode(tokenizer, [token_id])
-        if not piece:
-            continue
-        start = float(stamp)
-        if index + 1 < len(times):
-            end = float(times[index + 1])
-        else:
-            end = max(start, float(segment_end))
-        if end < start:
-            end = start
-        pieces.append((piece, start, end))
-    return group_token_words(pieces)
+    elif len(times) < len(ids):
+        ids = ids[:len(times)]
+    pieces = _pieces_from_tokens(tokenizer, ids, times, segment_end)
+    return _clamp_word_times(
+        group_token_words(pieces), segment_start, segment_end,
+    )
 
 
 def _segment_rows(outputs) -> list[dict] | None:
@@ -554,6 +711,7 @@ def segments_from_generate_output(outputs, tokenizer, *, timestamps: str, durati
             if timestamps == "word" and row.get("token_timestamps") is not None and tokenizer is not None:
                 words = _words_for_tokens(
                     tokenizer, row.get("tokens"), row.get("token_timestamps"), end,
+                    segment_start=start,
                 )
                 if words:
                     item["words"] = words
@@ -583,3 +741,60 @@ def finalize_segments(segments: list[dict], *, timestamps: str, duration_s: floa
     if not text:
         return []
     return [{"start": 0.0, "end": round(float(duration_s), 3), "text": text}]
+
+
+def finish_transcript(
+    segments: list[dict],
+    *,
+    timestamps: str,
+    duration_s: float,
+    normalize_punctuation: bool = False,
+) -> tuple[str, str, str]:
+    """Build ``(srt, text, segments_json)``.
+
+    ``normalize_punctuation`` rewrites half-width sentence punctuation in cue
+    and word text to full-width Chinese forms before the SRT is rendered.
+    """
+    if normalize_punctuation:
+        segments = _normalize_segment_punctuation(segments)
+    segments = finalize_segments(
+        segments, timestamps=timestamps, duration_s=duration_s,
+    )
+    return pack_transcript(segments)
+
+
+def srt_output_stem(media: str) -> str:
+    """Stem for ``output/comfytv/<name>.srt``.
+
+    Uses the media filename from a ``/view`` URL, ``name [output]`` annotation,
+    or filesystem path. An audio-only run with an empty media string uses
+    ``whisper``.
+    """
+    raw = (media or "").strip()
+    if not raw:
+        return "whisper"
+    name = raw
+    if raw.startswith("/view?") or raw.startswith("http://") or raw.startswith("https://"):
+        parsed = urllib.parse.urlparse(raw if "://" in raw else f"http://local{raw}")
+        params = dict(urllib.parse.parse_qsl(parsed.query))
+        name = params.get("filename") or Path(parsed.path).name
+    elif raw.endswith("]") and " [" in raw:
+        name = raw[:raw.rfind(" [")]
+    stem = Path(Path(name).name).stem.replace("\x00", "").strip()
+    if stem in {"", ".", ".."}:
+        return "whisper"
+    return stem
+
+
+def write_output_srt(media: str, srt: str) -> str:
+    """Write ``<name>.srt`` under ComfyUI ``output/comfytv`` and return the path.
+
+    The same media name overwrites the previous file. The returned path is absolute.
+    """
+    root = (Path(folder_paths.get_output_directory()) / "comfytv").resolve()
+    root.mkdir(parents=True, exist_ok=True)
+    path = (root / f"{srt_output_stem(media)}.srt").resolve()
+    if path.parent != root:
+        path = root / "whisper.srt"
+    path.write_text(srt or "", encoding="utf-8")
+    return str(path)
