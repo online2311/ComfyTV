@@ -288,6 +288,37 @@ def test_concat_64_segments_mixed_audio_and_geometry():
     assert 14.0 <= video_s <= 16.5
 
 
+def test_stream_copy_aac_duration_stays_within_one_frame():
+    """Matching AAC clips are joined with a video stream copy. Encoder
+    priming must not leave the audio more than one frame (~0.05s) away
+    from the picture."""
+    from ComfyTV.runners import media
+
+    src = _src_dir("concat-aac-align")
+    fps = 24
+    paths = []
+    for i in range(8):
+        path = src / f"s{i:02d}.mp4"
+        subprocess.check_call([
+            _ffmpeg(), "-y", "-hide_banner", "-loglevel", "error",
+            "-f", "lavfi", "-t", "0.5", "-i", f"color=c=red:s=64x48:r={fps}",
+            "-f", "lavfi", "-t", "0.56", "-i", "sine=frequency=440:sample_rate=44100",
+            "-c:v", "libx264", "-pix_fmt", "yuv420p", "-bf", "0",
+            "-c:a", "aac", "-b:a", "160k", "-ar", "44100", "-ac", "2",
+            "-map", "0:v:0", "-map", "1:a:0",
+            str(path),
+        ])
+        paths.append(path)
+
+    report = {}
+    out = media.concat_videos(_urls(paths), report=report)
+    assert report["video_encoder"] == "copy"
+    video_s, audio_s = _stream_durations(out)
+    assert audio_s is not None
+    assert video_s >= 8 * 0.5 - 0.05
+    assert abs(video_s - audio_s) <= 0.05
+
+
 def test_all_silent_sources_stay_silent():
     from ComfyTV.runners import media
 
