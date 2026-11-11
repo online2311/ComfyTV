@@ -3,12 +3,60 @@ import logging
 from ._common import *  # noqa: F401, F403
 from .common.ref_slots import (
     ReferenceSlotError, UNSET_SEED, align_picture_prompt, load_image_cap,
-    prepare_references,
+    ordered_reference_images, prepare_references,
 )
-from .common.shot_document import shot_image_prompt
+from .common.shot_document import load_shots_document, shot_image_prompt
 from .common.shot_inputs import shot_reference_images, shot_seed
+from .common.storyboard import apply_character_slots, normalize_supplied_storyboard, storyboard_is_supplied
 
 _log = logging.getLogger(__name__)
+
+
+def _shot_identity(shot: dict, index: int) -> tuple[int, str]:
+    """``index`` is the 1-based order. ``shot_no`` is the shot's own id as text."""
+    order = index + 1
+    raw = None
+    if shot.get("shot_no") not in (None, ""):
+        raw = shot.get("shot_no")
+    elif shot.get("shot_id") not in (None, ""):
+        raw = shot.get("shot_id")
+    return order, str(raw) if raw is not None else str(order)
+
+
+def _apply_storyboard_to_video(storyboard, shot_index, images, seed, prompt):
+    try:
+        doc = load_shots_document(storyboard)
+    except ValueError as exc:
+        raise RuntimeError(f"VideoStage: {exc}") from exc
+    shots = [shot for shot in doc.get("shots") or [] if isinstance(shot, dict)]
+    if not shots:
+        raise RuntimeError("VideoStage: storyboard has no shots")
+    try:
+        index = int(shot_index or 1)
+    except (TypeError, ValueError) as exc:
+        raise RuntimeError("VideoStage: shot_index must be an integer") from exc
+    if index < 1 or index > len(shots):
+        raise RuntimeError(
+            f"VideoStage: shot_index {index} is outside 1..{len(shots)}"
+        )
+    shot = shots[index - 1]
+    wired = ordered_reference_images(images)
+    shot_images = shot_reference_images(shot, [])
+    if not wired:
+        image_input = shot_images
+    else:
+        merged = list(wired)
+        for item in shot_images:
+            if item not in merged:
+                merged.append(item)
+        image_input = merged
+    own = shot_seed(shot)
+    seed_field = own if own is not None else seed
+    if not str(prompt or "").strip():
+        motion = shot.get("motion_prompt") or shot.get("motion_desc") or ""
+        if isinstance(motion, str) and motion.strip():
+            prompt = motion.strip()
+    return image_input, seed_field, prompt
 
 
 class ProjectStage(io.ComfyNode):
@@ -231,9 +279,23 @@ class VideoStage(io.ComfyNode):
                     default=UNSET_SEED, min=UNSET_SEED, max=2_147_483_647, step=1,
                     tooltip="Generation seed. -1 keeps the workflow default, or a "
                             "seed still stored in custom_params on older projects. "
-                            "A set value is what gets saved.",
+                            "A set value is what gets saved. A connected storyboard "
+                            "shot's own seed replaces this.",
                 ),
                 _custom_params_input(),
+                COMFYTV_STORYBOARD.Input(
+                    "storyboard", optional=True,
+                    tooltip="Optional shot list. With no images wired, that shot's "
+                            "reference images fill the picture slots; wired images stay "
+                            "first and the shot's references are added after them. The "
+                            "shot seed replaces the stage seed when the shot has one. "
+                            "shot_index chooses the shot (1 is the first).",
+                ),
+                io.Int.Input(
+                    "shot_index", default=1, min=1, max=999, step=1,
+                    tooltip="1-based shot whose reference images and seed fill this "
+                            "stage when storyboard is connected.",
+                ),
             ],
             outputs=[COMFYTV_VIDEO.Output("video")],
             is_output_node=True,
@@ -245,20 +307,25 @@ class VideoStage(io.ComfyNode):
                 aspect_ratio="", duration_s=VIDEO_DURATION_DEFAULT_S,
                 generate_audio=False, main_prompt="",
                 texts=None, images=None, videos=None, audio=None,
-                seed=UNSET_SEED, custom_params="{}"):
+                seed=UNSET_SEED, storyboard=None, shot_index=1, custom_params="{}"):
 
         text_vals = _autogrow_values(texts)
+        prompt = _combine_prompt(main_prompt, text_vals)
+        image_input = images
+        seed_field = seed
+        if storyboard_is_supplied(storyboard):
+            image_input, seed_field, prompt = _apply_storyboard_to_video(
+                storyboard, shot_index, images, seed, prompt,
+            )
         try:
             image_vals, resolved_seed, custom_params = prepare_references(
-                images,
-                seed_field=seed,
+                image_input,
+                seed_field=seed_field,
                 custom_params=custom_params,
                 cap=load_image_cap('video', workflow),
                 where=f"VideoStage {workflow!r}",
             )
-            combined_prompt = align_picture_prompt(
-                _combine_prompt(main_prompt, text_vals), len(image_vals),
-            )
+            combined_prompt = align_picture_prompt(prompt, len(image_vals))
         except ReferenceSlotError as exc:
             raise RuntimeError(str(exc)) from exc
         options = {
@@ -590,11 +657,13 @@ class ShotImagesStage(io.ComfyNode):
             if not isinstance(shot, dict):
                 skipped_empty += 1
                 continue
-            shot_no = shot.get("shot_no", shot.get("shot_id", str(i + 1)))
+            order, shot_no = _shot_identity(shot, i)
             prompt = shot_image_prompt(shot)
             _emit_progress(cls, i, len(shots),
                            text=f"shot {i + 1}/{len(shots)}: {prompt[:40]}")
             shot_payload = None
+            shot_images: list = []
+            use_seed = None
             if not prompt:
                 skipped_empty += 1
             else:
@@ -638,12 +707,18 @@ class ShotImagesStage(io.ComfyNode):
                 try:
                     parsed = json.loads(shot_payload) if isinstance(shot_payload, str) else shot_payload
                     for img in (parsed.get("images") if isinstance(parsed, dict) else None) or []:
-                        out_images.append({
-                            "index":     shot_no,
+                        record = {
+                            "index":     order,
+                            "shot_no":   shot_no,
                             "label":     f"Shot {shot_no}",
                             "prompt":    prompt,
                             "image_url": img.get("image_url"),
-                        })
+                        }
+                        if use_seed is not None:
+                            record["seed"] = use_seed
+                        if shot_images:
+                            record["reference_images"] = list(shot_images)
+                        out_images.append(record)
                 except (ValueError, TypeError) as e:
                     last_error = e
 
@@ -695,6 +770,15 @@ class StoryboardStage(io.ComfyNode):
                                 tooltip="Serialized shot list (JSON). The editor keeps every field: the legacy 16 columns, a drama-pipeline shots.json document, and any custom keys."),
                 io.Autogrow.Input("texts", template=_text_template(6)),
                 _custom_params_input(),
+                io.Combo.Input(
+                    "source",
+                    options=["auto", "data", "llm"],
+                    default="auto",
+                    tooltip="auto emits storyboard_data when it is non-empty and does not "
+                            "call the LLM. data requires that document. llm rewrites from "
+                            "the premise. force_run_token only busts the cache; it does not "
+                            "switch the source.",
+                ),
             ],
             outputs=[COMFYTV_STORYBOARD.Output("storyboard")],
             is_output_node=True,
@@ -704,7 +788,29 @@ class StoryboardStage(io.ComfyNode):
     @classmethod
     async def execute(cls, force_run_token=0, project_id="", parent_output_id=0,
                       workflow="", main_prompt="", total_duration_s=30, shot_count=6,
-                      characters="", storyboard_data="", texts=None, custom_params="{}"):
+                      characters="", storyboard_data="", texts=None, source="auto",
+                      custom_params="{}"):
+        # force_run_token is a cache key. It does not choose llm vs data.
+        _ = force_run_token
+        mode = str(source or "auto").strip().lower()
+        if mode not in ("auto", "data", "llm"):
+            mode = "auto"
+        supplied = storyboard_is_supplied(storyboard_data)
+        if mode == "data" or (mode == "auto" and supplied):
+            if not supplied:
+                raise RuntimeError(
+                    "StoryboardStage: source is data but storyboard_data is empty"
+                )
+            try:
+                payload = normalize_supplied_storyboard(storyboard_data)
+            except ValueError as exc:
+                raise RuntimeError(f"StoryboardStage: {exc}") from exc
+            return _stage_emit_auto(
+                cls,
+                project_id=project_id,
+                payload_str=payload,
+                parent_output_id=parent_output_id,
+            )
 
         text_vals = _autogrow_values(texts)
         premise = _combine_prompt(main_prompt, text_vals, sep="\n")
@@ -714,6 +820,7 @@ class StoryboardStage(io.ComfyNode):
             shot_count=int(shot_count or 6),
             characters=characters or '',
         )
+        character_text = characters or ""
         return await run_stage_workflow(
             cls,
             custom_params=custom_params,
@@ -725,6 +832,9 @@ class StoryboardStage(io.ComfyNode):
             upstream={'texts': text_vals},
             options={},
             option_defaults={'max_length': 6144},
-            transform=lambda raw: _shape_storyboard_from_llm(str(raw or '')),
+            transform=lambda raw, _characters=character_text: apply_character_slots(
+                _shape_storyboard_from_llm(str(raw or '')),
+                _characters,
+            ),
         )
 

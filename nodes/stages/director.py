@@ -4,6 +4,9 @@ from ._common import *  # noqa: F401, F403
 from .common.ref_slots import (
     ReferenceSlotError, align_picture_prompt, load_image_cap, prepare_references,
 )
+from .common.shot_document import load_shots_document
+from .common.shot_inputs import shot_reference_images, shot_seed
+from .common.storyboard import storyboard_is_supplied
 
 _log = logging.getLogger(__name__)
 
@@ -38,6 +41,33 @@ def _chain_mode(settings: dict) -> str:
     if mode in _CHAIN_MODES:
         return mode
     return 'prepend' if settings.get('chain_last_frame') else 'off'
+
+
+def _apply_storyboard_slots(clips: list, storyboard) -> None:
+    """Fill clips that have no images or seed from the shot at the same index."""
+    if not storyboard_is_supplied(storyboard):
+        return
+    try:
+        doc = load_shots_document(storyboard)
+    except ValueError as exc:
+        raise RuntimeError(f"DirectorStage: {exc}") from exc
+    shots = [shot for shot in doc.get("shots") or [] if isinstance(shot, dict)]
+    for index, clip in enumerate(clips):
+        if index >= len(shots) or not isinstance(clip, dict):
+            continue
+        # Keep this clip's index so later shots stay aligned, but do not
+        # resolve references for a clip execute will skip.
+        if not clip.get("enabled", True):
+            continue
+        shot = shots[index]
+        if not _clip_refs(clip)["images"]:
+            urls = shot_reference_images(shot, [])
+            if urls:
+                clip["images"] = urls
+        if clip.get("seed") is None:
+            own = shot_seed(shot)
+            if own is not None:
+                clip["seed"] = own
 
 
 def _clip_refs(clip: dict) -> dict:
@@ -201,6 +231,13 @@ class DirectorStage(io.ComfyNode):
                                 tooltip="Serialized director timeline JSON — "
                                         "driven by the Vue panel."),
                 _custom_params_input(),
+                COMFYTV_STORYBOARD.Input(
+                    "storyboard", optional=True,
+                    tooltip="Optional shot list. Each clip with no images of its own "
+                            "takes that shot's reference images, and a clip with no "
+                            "seed takes the shot seed. Clip order follows the timeline, "
+                            "including disabled clips.",
+                ),
             ],
             outputs=[COMFYTV_VIDEO.Output("video")],
             is_output_node=True,
@@ -286,10 +323,11 @@ class DirectorStage(io.ComfyNode):
     async def execute(cls, force_run_token=0, project_id="", parent_output_id=0,
                       workflow="", resolution="", aspect_ratio="",
                       generate_audio=True, main_prompt="",
-                      timeline_data="", custom_params="{}"):
+                      timeline_data="", storyboard=None, custom_params="{}"):
         import comfy.model_management as mm
 
         plan = _parse_director_timeline(timeline_data)
+        _apply_storyboard_slots(plan["clips"], storyboard)
         settings = plan['settings']
         clips = [c for c in plan['clips'] if c.get('enabled', True)]
         if not clips:
