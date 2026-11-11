@@ -158,6 +158,27 @@ class TestEdits:
         assert _cue_texts(result["srt"]) == ["同练"]
         assert result["report"]["sentences"][0]["substitutions"][0]["whisper"] == "炼"
 
+    def test_numeric_srt_body_keeps_its_whisper_time(self):
+        from ComfyTV.runners.subtitle_align import align_subtitles
+
+        srt = "1\n00:00:05,000 --> 00:00:06,000\n2026\n"
+        result = align_subtitles(srt, "2026", max_line_cells=40)
+        sentence = result["report"]["sentences"][0]
+        assert sentence["status"] == "aligned"
+        assert sentence["text"] == "2026"
+        assert sentence["heard"] == "2026"
+        assert sentence["start"] == pytest.approx(5.0, abs=1e-3)
+        assert sentence["end"] == pytest.approx(6.0, abs=1e-3)
+
+        numbered = align_subtitles(
+            "1\n00:00:01,000 --> 00:00:02,000\n1\n",
+            "1",
+            max_line_cells=40,
+        )["report"]["sentences"][0]
+        assert numbered["status"] == "aligned"
+        assert numbered["start"] == pytest.approx(1.0, abs=1e-3)
+        assert numbered["end"] == pytest.approx(2.0, abs=1e-3)
+
 
 class TestUnmatchedAndConfidence:
     def test_unrecognized_line_is_interpolated_and_marked(self):
@@ -338,6 +359,49 @@ class TestCuesAndShots:
         )
         assert absolute["report"]["sentences"][1]["start"] == pytest.approx(5.0, abs=1e-3)
         assert absolute["report"]["sentences"][1]["end"] == pytest.approx(6.2, abs=1e-3)
+
+    def test_untagged_script_uses_the_combined_shot_clock(self):
+        from ComfyTV.runners.subtitle_align import align_subtitles
+
+        single = align_subtitles(
+            {"S1": [{"start": 10.0, "end": 11.0, "text": "你好"}]},
+            "你好",
+            max_line_cells=40,
+        )["report"]["sentences"][0]
+        assert single["status"] == "aligned"
+        assert single["start"] == pytest.approx(10.0, abs=1e-3)
+        assert single["end"] == pytest.approx(11.0, abs=1e-3)
+
+        combined = align_subtitles(
+            {
+                "S1": [{"start": 0.0, "end": 1.0, "text": "你好"}],
+                "S2": [{"start": 0.0, "end": 1.2, "text": "世界"}],
+            },
+            "你好\n世界",
+            max_line_cells=40,
+        )["report"]["sentences"]
+        assert combined[0]["status"] == "aligned"
+        assert combined[0]["end"] == pytest.approx(1.0, abs=1e-3)
+        assert combined[1]["text"] == "世界"
+        assert combined[1]["start"] == pytest.approx(1.0, abs=1e-3)
+        assert combined[1]["end"] == pytest.approx(2.2, abs=1e-3)
+
+    def test_long_alignment_still_keeps_the_homophone(self):
+        from ComfyTV.runners.subtitle_align import align_subtitles
+
+        prefix = "甲" * 400
+        script = prefix + "练" + prefix
+        heard = prefix + "炼" + prefix
+        result = align_subtitles(
+            [{"start": 0.0, "end": 10.0, "text": heard}],
+            script,
+            max_line_cells=80,
+        )
+        sentence = result["report"]["sentences"][0]
+        assert sentence["text"] == script
+        assert sentence["substitutions"] == [{"script": "练", "whisper": "炼", "at": 400}]
+        assert sentence["exact"] == 800
+        assert "炼" not in result["srt"]
 
     def test_by_shot_map_matches_each_shot_on_its_own(self):
         from ComfyTV.runners.subtitle_align import align_subtitles

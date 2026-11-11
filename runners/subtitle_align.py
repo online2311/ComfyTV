@@ -91,8 +91,9 @@ def align_subtitles(
     if not lines:
         return _pack([], cells, threshold)
     mode, payload = _parse_whisper(whisper)
-    if mode == "flat":
-        rows = _align_lines(lines, _tokens_from_segments(payload))
+    if mode == "flat" or not any(line.shot_id for line in lines):
+        segments = payload if mode == "flat" else _flatten_shot_clocks(payload)
+        rows = _align_lines(lines, _tokens_from_segments(segments))
         _fill_gaps(rows, min_cue_s)
     else:
         segmap = {shot_id: segments for shot_id, segments in payload}
@@ -247,29 +248,35 @@ def _align_lines(lines: list[_Line], tokens: list[_Tok]) -> list[dict]:
 
 
 def _edit_ops(script: list[str], whisper: list[str]) -> list[tuple[str, int | None, int | None]]:
+    """Global alignment. Scores stay on two rows; moves are one byte per cell.
+
+    A full matrix of Python tuples is tens of bytes per cell, so a few
+    thousand characters on each side would hold gigabytes in this process.
+    The byte moves keep the same tie-break: higher score, then more exact
+    matches, then less index drift.
+    """
     n, m = len(script), len(whisper)
-    # (score, exact matches, negative index drift). Drift only breaks ties.
-    state = [[(0, 0, 0) for _ in range(m + 1)] for _ in range(n + 1)]
-    move = [[0] * (m + 1) for _ in range(n + 1)]
-    for i in range(1, n + 1):
-        state[i][0] = (_GAP * i, 0, 0)
-        move[i][0] = 1
-    for j in range(1, m + 1):
-        state[0][j] = (_GAP * j, 0, 0)
-        move[0][j] = 2
+    width = m + 1
+    moves = bytearray((n + 1) * width)
+    prev = [(_GAP * j, 0, 0) for j in range(width)]
+    for j in range(1, width):
+        moves[j] = 2
     for i in range(1, n + 1):
         key = script[i - 1]
-        for j in range(1, m + 1):
+        row = i * width
+        curr = [(_GAP * i, 0, 0)]
+        moves[row] = 1
+        for j in range(1, width):
             equal = key == whisper[j - 1]
-            prev_score, prev_exact, prev_drift = state[i - 1][j - 1]
+            prev_score, prev_exact, prev_drift = prev[j - 1]
             diag = (
                 prev_score + (_MATCH if equal else _MISMATCH),
                 prev_exact + (1 if equal else 0),
                 prev_drift - abs((i - 1) - (j - 1)),
             )
-            up_score, up_exact, up_drift = state[i - 1][j]
+            up_score, up_exact, up_drift = prev[j]
             up = (up_score + _GAP, up_exact, up_drift)
-            left_score, left_exact, left_drift = state[i][j - 1]
+            left_score, left_exact, left_drift = curr[j - 1]
             left = (left_score + _GAP, left_exact, left_drift)
             best = diag
             how = 0
@@ -279,13 +286,14 @@ def _edit_ops(script: list[str], whisper: list[str]) -> list[tuple[str, int | No
             if left > best:
                 best = left
                 how = 2
-            state[i][j] = best
-            move[i][j] = how
+            curr.append(best)
+            moves[row + j] = how
+        prev = curr
 
     ops: list[tuple[str, int | None, int | None]] = []
     i, j = n, m
     while i or j:
-        how = move[i][j]
+        how = moves[i * width + j]
         if how == 0 and i and j:
             kind = "eq" if script[i - 1] == whisper[j - 1] else "sub"
             ops.append((kind, i - 1, j - 1))
@@ -513,6 +521,79 @@ def _parse_whisper_data(data):
     raise ValueError("whisper timeline must be segments JSON or SRT")
 
 
+def _flatten_shot_clocks(groups: list[tuple[str, list]]) -> list[dict]:
+    """Lay per-shot Whisper clocks onto one timeline for an untagged script.
+
+    A shot that already starts at or after the previous shot's end keeps its
+    absolute times. A shot-local clock that restarts near zero is shifted.
+    """
+    timeline_end = 0.0
+    flat: list[dict] = []
+    for _shot_id, segments in groups:
+        span = _segment_span(segments)
+        if span is None:
+            continue
+        local_start, local_end = span
+        offset = 0.0
+        if timeline_end > 0 and local_start < timeline_end - 1e-6:
+            offset = timeline_end
+        for segment in segments:
+            if isinstance(segment, dict):
+                flat.append(_shift_segment(segment, offset))
+        timeline_end = max(timeline_end, local_end + offset)
+    return flat
+
+
+def _segment_span(segments) -> tuple[float, float] | None:
+    starts: list[float] = []
+    ends: list[float] = []
+    for segment in segments:
+        if not isinstance(segment, dict):
+            continue
+        start = _as_float(segment.get("start"))
+        if start is None:
+            start = 0.0
+        end = _as_float(segment.get("end"))
+        if end is None or end < start:
+            end = start
+        starts.append(start)
+        ends.append(end)
+    if not starts:
+        return None
+    return min(starts), max(ends)
+
+
+def _shift_segment(segment: dict, offset: float) -> dict:
+    if not offset:
+        return segment
+    shifted = dict(segment)
+    start = _as_float(shifted.get("start"))
+    if start is None:
+        start = 0.0
+    end = _as_float(shifted.get("end"))
+    if end is None or end < start:
+        end = start
+    shifted["start"] = start + offset
+    shifted["end"] = end + offset
+    words = shifted.get("words")
+    if isinstance(words, list):
+        moved = []
+        for word in words:
+            if not isinstance(word, dict):
+                moved.append(word)
+                continue
+            item = dict(word)
+            word_start = _as_float(item.get("start"))
+            word_end = _as_float(item.get("end"))
+            if word_start is not None:
+                item["start"] = word_start + offset
+            if word_end is not None:
+                item["end"] = word_end + offset
+            moved.append(item)
+        shifted["words"] = moved
+    return shifted
+
+
 def _group_segments(segments: list) -> list[tuple[str, list]]:
     order: list[str] = []
     buckets: dict[str, list] = {}
@@ -535,7 +616,7 @@ def _parse_srt(text: str) -> list[dict]:
             if match:
                 start = _stamp(match, 1)
                 end = _stamp(match, 5)
-            elif start is not None and not line.strip().isdigit():
+            elif start is not None:
                 body.append(line)
         if start is None:
             continue
