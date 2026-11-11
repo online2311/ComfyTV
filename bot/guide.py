@@ -6,6 +6,7 @@ CORE_MCP_TOOLS = [
     "stage_catalog",
     "list_workflows",
     "servers",
+    "executors",
     "jobs",
     "exec_errors",
     "resources",
@@ -71,7 +72,8 @@ CODEX_INSTRUCTIONS = (
     "With no page open, `run_stage` and `graph_run` return a job_id "
     "immediately and run one at a time on ComfyUI's queue; poll "
     "`queue_status`. `resume_queue` continues unfinished stages after a "
-    "restart. Do not interrupt the ComfyUI queue.\n"
+    "restart. `executors` lists GPU hosts and whether each one is idle; "
+    "do not interrupt or free a ComfyUI queue.\n"
     "- Look at results with `view_image` (returns real pixels), "
     "`media_frame`, `fx_preview`.\n"
     "- The `skill` tool lists installed skills (instruction packs). When a "

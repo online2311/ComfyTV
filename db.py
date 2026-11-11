@@ -306,6 +306,50 @@ class HeadlessJob(Base):
     updated_at:     Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
 
 
+class Executor(Base):
+    """A ComfyUI host the controller can send work to.
+
+    ``health`` is unknown until a probe succeeds. ``idle_since`` is set only
+    while the latest probe saw both ``/queue`` lists empty. The scheduler
+    added later reads ``accepts_work`` (derived, not stored) and ``gpu_class``.
+    """
+
+    __tablename__ = "comfytv_executors"
+
+    id:               Mapped[str] = mapped_column(String, primary_key=True)
+    name:             Mapped[str] = mapped_column(String, unique=True)
+    kind:             Mapped[str] = mapped_column(String, index=True)
+    base_url:         Mapped[str] = mapped_column(Text)
+    gpu_class:        Mapped[str] = mapped_column(String, default="")
+    labels_json:      Mapped[str] = mapped_column(Text, default="{}")
+    capabilities_json: Mapped[str] = mapped_column(Text, default="{}")
+    max_concurrency:  Mapped[int] = mapped_column(Integer, default=1)
+    enabled:          Mapped[bool] = mapped_column(Boolean, default=True)
+    draining:         Mapped[bool] = mapped_column(Boolean, default=False)
+    is_default:       Mapped[bool] = mapped_column(Boolean, default=False)
+    last_seen:        Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    health:           Mapped[str] = mapped_column(String, default="unknown", index=True)
+    health_error:     Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    running_count:    Mapped[int] = mapped_column(Integer, default=0)
+    pending_count:    Mapped[int] = mapped_column(Integer, default=0)
+    queue_known:      Mapped[bool] = mapped_column(Boolean, default=False)
+    idle_since:       Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    gpu_json:         Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    provider_json:    Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at:       Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at:       Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
+
+
+class ExecutorJoinToken(Base):
+    """SHA-256 of a one-time executor join token. The token itself is never stored."""
+
+    __tablename__ = "comfytv_executor_join_tokens"
+
+    token_hash: Mapped[str] = mapped_column(String, primary_key=True)
+    origin:     Mapped[str] = mapped_column(String, default="configured")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
 class BotChat(Base):
     __tablename__ = "comfytv_bot_chats"
 
