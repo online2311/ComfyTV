@@ -169,6 +169,7 @@ class TestProtocol:
             "arrange_canvas",
             "scene_get", "scene_edit", "scene_capture", "scene_record", "layer_get", "layer_edit", "layer_capture",
             "storyboard",
+            "segment_reshoot",
             "skill",
         }
         for t in tools.values():

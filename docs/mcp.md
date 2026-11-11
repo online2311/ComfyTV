@@ -109,6 +109,7 @@ accordingly.
 | `scene_get/edit/capture/record` | Drive a Scene 3D stage: characters, lights, cameras, animation clips, camera paths and the multi-shot director timeline (add_shot/patch_shot/set_path) |
 | `director_get/director_edit` | Read and edit the Director clip timeline |
 | `storyboard` | Read, replace, or validate a Storyboard stage's full shot document (`shots.json` fields and custom keys). `get_stage` only previews a large `storyboard_data` value. `validate` sums `duration_s` for the episode total (`cut_to` is only checked against that shot). The `target_duration_s` comparison is skipped when the board cannot reach the target even at 15s per shot (a single shot or a short partial extract) |
+| `segment_reshoot` | Plan, run, list, adopt, or roll back an audio-only reshoot inside one take. `plan` does not submit a prompt. `adopt` and `rollback` require `approved_by` 张景. Records: `<user>/comfytv/projects/<project_id>/reshoots/<shot_id>/takes.json` and `take_<n>_r<k>.json`. New media: `<output>/comfytv/reshoot/<project_id>/<shot_id>/take_<n>_r<k>.mp4`. Imported takes and `rough_cut*.mp4` are not overwritten |
 
 ## Patterns that matter
 
