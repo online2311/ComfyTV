@@ -6,6 +6,7 @@ from ...nodes.stages import STAGE_META
 from ..stages import NOT_RUNNABLE_VARIANTS
 from ..canvas_state import get_canvas_state
 
+from .. import headless_queue
 from . import _shared
 from ._shared import _command_payload
 from .bot_tools import _maybe_ask_run_approval
@@ -25,7 +26,7 @@ async def _run_stage(args: dict) -> dict:
     payload = _command_payload(args, ("project_id",))
     payload["node"] = str(node)
     started_at = time.time()
-    result = await _shared.submit_command("run_stage", payload, timeout=60.0)
+    result = await _shared.submit_or_headless("run_stage", payload, timeout=60.0)
     if isinstance(result, dict) and result.get("started"):
         uid = str(result.get("uid") or "")
         if uid:
@@ -111,6 +112,14 @@ async def _wait_stage(args: dict) -> dict:
         raise ValueError("timeout_s must be a number")
     timeout_s = max(2.0, min(timeout_s, _WAIT_MAX_S))
 
+    project_raw = args.get("project_id")
+    project_id = project_raw if isinstance(project_raw, str) and project_raw else "default"
+    if not _shared.page_is_live(project_raw if isinstance(project_raw, str) else None):
+        headless = await headless_queue.get_queue().wait_for_stage(
+            project_id, str(node), timeout_s)
+        if headless is not None:
+            return headless
+
     pid, stage = await _mirror_stage_wait(args.get("project_id"), str(node))
     _reject_not_runnable(stage)
     uid = str(stage.get("uid") or "")
@@ -180,8 +189,12 @@ TOOLS: dict[str, dict] = {
             "(they hold media) and editor stages such as Crop / Rotate / "
             "ColorGrade / Mirror (their result is applied live downstream) are "
             "rejected — drive those with set_stage and run the downstream "
-            "stage. node is a stage uid or graph_node_id. Requires an open "
-            "ComfyTV page in Desktop or a browser."
+            "stage. node is a stage uid or graph_node_id. When a ComfyTV page "
+            "is open and mirroring, the page queues the run (same as the Run "
+            "button). With no page open, the stage is queued on the server "
+            "against ComfyUI's prompt queue and this returns a job_id "
+            "immediately — poll queue_status. Headless jobs run one at a time "
+            "and only when ComfyUI's own queue is empty."
         ),
         "inputSchema": {
             "type": "object",
@@ -209,7 +222,8 @@ TOOLS: dict[str, dict] = {
             "a call cut off by the client can simply be re-issued. Right "
             "after add_stage the mirror may lag a few seconds; this tool "
             "waits up to 6 s for the stage to appear. node is a stage uid "
-            "or graph_node_id."
+            "or graph_node_id. With no page open, this polls the headless "
+            "job for that stage instead of the canvas mirror."
         ),
         "inputSchema": {
             "type": "object",
@@ -223,5 +237,61 @@ TOOLS: dict[str, dict] = {
             "additionalProperties": False,
         },
         "handler": _wait_stage,
+    },
+    "queue_status": {
+        "description": (
+            "Status of one headless run queued by run_stage or graph_run when "
+            "no ComfyTV page is open: status (queued, running, done, error, "
+            "cancelled), progress {value, max, node} when ComfyUI has reported "
+            "it, outputs as /view URLs, prompt_id, completed_nodes, and error. "
+            "Pass job_id (returned at submit) or prompt_id. Does not block. "
+            "A page-owned run is still observed with wait_stage."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "job_id": {"type": "string"},
+                "prompt_id": {"type": "string"},
+            },
+            "additionalProperties": False,
+        },
+        "handler": headless_queue.queue_status,
+    },
+    "list_queue": {
+        "description": (
+            "List headless runs submitted by run_stage / graph_run (newest "
+            "first). Optional status filter: queued, running, done, error, "
+            "cancelled. These are the server-side jobs, not the remote-machine "
+            "jobs from the jobs tool. ComfyTV keeps at most one of them in "
+            "ComfyUI's prompt queue."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "status": {"type": "string"},
+                "project_id": {"type": "string"},
+                "limit": {"type": "integer"},
+            },
+            "additionalProperties": False,
+        },
+        "handler": headless_queue.list_queue,
+    },
+    "resume_queue": {
+        "description": (
+            "After a restart or a lost prompt, requeue headless jobs that were "
+            "running but are no longer in ComfyUI's queue or history. Completed "
+            "stages that left a saved output are not submitted again; the "
+            "unfinished nodes are. Optional job_id limits this to one job "
+            "(an error job is queued again). Does not interrupt whatever is "
+            "currently running."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "job_id": {"type": "string"},
+            },
+            "additionalProperties": False,
+        },
+        "handler": headless_queue.resume_queue,
     },
 }

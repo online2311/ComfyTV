@@ -2,13 +2,13 @@
 
 # Agent access (MCP)
 
-> ComfyTV ships an MCP server so AI agents can read and drive your canvas: build node graphs, run stages, wait for renders, inspect results with real vision, edit the native ComfyUI graph, and manage your workflow configuration — all through 45 tools, plus installed [Agent Skills](skills.md) served as MCP prompts.
+> ComfyTV ships an MCP server so AI agents can read and drive your canvas: build node graphs, run stages, wait for renders, inspect results with real vision, edit the native ComfyUI graph, and manage your workflow configuration — including a headless queue for when no page is open — plus installed [Agent Skills](skills.md) served as MCP prompts.
 
 ## What it is
 
 ComfyTV exposes a [Model Context Protocol](https://modelcontextprotocol.io) endpoint at `POST /comfytv/mcp` on your ComfyUI server. Any MCP-capable agent (Claude Code, or anything speaking streamable HTTP JSON-RPC) can connect and use ComfyTV as a set of tools.
 
-The design has one important twist: **the canvas truth lives in the open ComfyTV page**. Read tools answer from the server, but write tools (adding nodes, setting prompts, running stages) are executed *by the open ComfyTV page* — inside Comfy Desktop or a browser — and the server relays commands to it over the websocket. No open page → write tools fail with a clear timeout message.
+When a ComfyTV page is open and mirroring, that page is still the live canvas: write tools are relayed to it over the websocket, exactly as before. **With no page open, stage and graph writes are applied on the server** to a persisted headless graph, and `run_stage` / `graph_run` queue work on ComfyUI's own prompt queue. They return a job id immediately instead of waiting out a browser timeout. Scene, director, and layer editors, and viewport commands, still need a page.
 
 ## Enabling
 
@@ -59,9 +59,12 @@ accordingly.
 |---|---|
 | `add_stage` / `set_stage` | Create and configure stages: prompt, workflow, widgets, asset references, target server |
 | `connect_stages` | Wire outputs to inputs (auto-matches types) |
-| `run_stage` | Queue a run, exactly like the Run button |
-| `wait_stage` | Block until the run lands an output or errors — no polling |
-| `cancel_stage` | Stop an in-flight run |
+| `run_stage` | Queue a run. With a page open, the page runs it. With no page, returns a `job_id` immediately |
+| `wait_stage` | Block until the run lands an output or errors — no polling. Also polls a headless job |
+| `queue_status` | Status, progress, and `/view` outputs of one headless job. Does not block |
+| `list_queue` | Headless jobs (queued, running, done, error). Not the remote-machine `jobs` tool |
+| `resume_queue` | After a restart, requeue unfinished headless jobs and skip stages that already saved an output |
+| `cancel_stage` | Stop an in-flight page run. Headless: drop a job that has not been submitted; a prompt already in ComfyUI is left running |
 | `remove_stage` | Delete a node |
 | `arrange_canvas` | Tidy the canvas layout (rows, columns, grids) |
 
@@ -71,7 +74,7 @@ accordingly.
 |---|---|
 | `graph_get` | Read the native canvas graph — every node, widget, link and group, ComfyTV or not |
 | `graph_edit` | Batch-edit the native graph: add/remove/clone nodes, set widgets, wire links, group, collapse, bypass, pack/unpack subgraphs — one undo step |
-| `graph_run` | Queue the native graph exactly like ComfyUI's Run button and wait for the outputs |
+| `graph_run` | Queue the native graph. With a page open, waits up to `wait_s`. With no page, pass `prompt` (API format) or `workflow` (UI format) and get a `job_id` back immediately |
 | `workflow_create` | Author a brand-new workflow file for a stage kind from an API-format graph |
 | `canvas_command` | Whitelisted native commands: undo/redo, save, fit view, interrupt, refresh node definitions |
 | `canvas_focus` | Select a node and glide the user's viewport to it — show the user what changed |
@@ -121,11 +124,33 @@ accordingly.
 
 **Skills.** When the user has [Agent Skills](skills.md) installed, the `skill` tool's description lists them; read a matching skill before acting and follow it. Each enabled skill is also exposed as an **MCP prompt** — in Claude Code they appear as `/mcp__comfytv__<skill-name>` slash commands for explicit invocation.
 
+## Headless queue
+
+With no ComfyTV page open:
+
+1. `add_stage` / `set_stage` / `connect_stages` / `graph_edit` edit a graph stored per project in the ComfyTV database (`comfytv_headless_graphs`). `graph_get` reads it back. An open, freshly mirroring page is still the source of truth for that project — close it (or let the mirror go stale) before driving the headless graph.
+2. `run_stage` and `graph_run` insert a row in `comfytv_headless_jobs` and return `{job_id, status: "queued"}` without waiting. `graph_run` accepts an API-format `prompt` (what you would POST to `/prompt`) or a UI-format `workflow`. Omit both to run the stored graph.
+3. A worker submits **one** job to ComfyUI's in-process prompt queue — the same queue `GET /queue` reads — and only when that queue has nothing running and nothing pending. ComfyTV never calls `/interrupt` or `/free`.
+4. Poll `queue_status` (or `list_queue`) for `queued` / `running` / `done` / `error`, plus `progress` and `outputs`. There is no fixed timeout to wait out.
+5. Jobs survive a process restart. On the next queue start, a job that was `running` but is gone from both the ComfyUI queue and its history is queued again. Stages whose outputs were saved are removed from the resubmitted prompt and downstream inputs are rewired to those outputs, so finished stages are not run again. `resume_queue` does this on demand; an `error` job is queued again when you pass its `job_id`.
+
+The new tables are created by the existing startup `create_all`. Nothing in this path binds a port; ComfyUI stays on `127.0.0.1`.
+
+### Verify on ComfyUI 0.45.0 with no browser
+
+1. Start ComfyUI v0.45.0 (commit `989d93d`) with ComfyTV enabled and MCP on. Do not open the ComfyTV page.
+2. Confirm `server_info` reports `write_tools_need_open_tab: false` and `headless_queue: "one_at_a_time"`.
+3. `graph_run` with a small API `prompt` (or `run_stage` after `add_stage`). The call returns a `job_id` at once.
+4. `GET http://127.0.0.1:8188/queue` shows at most one ComfyTV prompt. A second `graph_run` stays `queued` in `list_queue` until the first leaves `/queue`.
+5. `queue_status` with that `job_id` moves to `done` and lists `/view` URLs, including for a run longer than a few minutes (no client timeout to extend).
+6. Restart ComfyUI while a multi-stage job is unfinished. After it is back, `resume_queue` (or the worker's own startup) resubmits only the stages that did not save an output.
+
 ## Requirements and behavior notes
 
-- Write tools need an open ComfyTV page in Desktop or a browser; the canvas mirror activates lazily after the first MCP call (retry `get_canvas` after ~10 s on a fresh connection).
+- When a page is open and its mirror is fresh, write tools and runs still go to that page. The mirror activates lazily after the first MCP call (retry `get_canvas` after ~10 s on a fresh connection).
+- With no page, use the headless queue above. `queue_status` / `list_queue` are the headless jobs; `jobs` is still the remote-machine list.
 - MCP clients cache `tools/list` per session — reconnect after the server gains new tools.
-- If your client enforces a per-call tool timeout, pass a smaller `timeout_s` to `wait_stage` and re-call in slices.
+- If your client enforces a per-call tool timeout, poll `queue_status` instead of blocking inside `graph_run`. `wait_stage` still slices long waits (`timeout_s`, default 90, max 170) and can be re-called.
 
 ## See also
 

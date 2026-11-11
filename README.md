@@ -126,7 +126,7 @@ ComfyTV is built to be driven by AI agents as well as by hand. Three pieces, all
 claude mcp add --transport http comfytv http://127.0.0.1:8188/comfytv/mcp
 ```
 
-Canvas writes are executed by the open ComfyTV page (Comfy Desktop or a browser). The endpoint shares ComfyUI's trust boundary — expose port 8188 carefully. Pairs with the official [comfy-mcp](https://github.com/Comfy-Org/comfy-mcp) for the machine layer (installing nodes, downloading models). [Guide →](docs/mcp.md)
+Canvas writes go to the open ComfyTV page when one is mirroring. With no page open, stage and graph edits hit a persisted headless graph, and runs queue one-at-a-time on ComfyUI's own prompt queue (`queue_status` / `list_queue` / `resume_queue`). The endpoint shares ComfyUI's trust boundary — expose port 8188 carefully. Pairs with the official [comfy-mcp](https://github.com/Comfy-Org/comfy-mcp) for the machine layer (installing nodes, downloading models). [Guide →](docs/mcp.md)
 
 **Agent Skills** — installable `SKILL.md` instruction packs (the open Agent Skills format) that teach agents your methodologies. Every agent above discovers them automatically; invoke one explicitly from the Bot by starting a message with `/<name>`, or from Claude Code as a `/mcp__comfytv__<name>` slash command. One skill ships built in: `h3-cinematic-director`, a director-grade MiniMax H3 production methodology. [Guide →](docs/skills.md)
 

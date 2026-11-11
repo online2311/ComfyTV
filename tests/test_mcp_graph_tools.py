@@ -14,6 +14,7 @@ def bus(monkeypatch):
         return results.get(action, {"ok": True})
 
     monkeypatch.setattr(mcp_tools._shared, "submit_command", fake_submit)
+    monkeypatch.setattr(mcp_tools._shared, "page_is_live", lambda project_id=None: True)
     return {"calls": calls, "results": results}
 
 

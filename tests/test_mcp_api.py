@@ -164,6 +164,7 @@ class TestProtocol:
             "resources", "stage_params", "media_probe", "media_frame",
             "media_waveform", "media_timeline", "pick_output",
             "cancel_stage", "get_stage",
+            "queue_status", "list_queue", "resume_queue",
             "director_get", "director_edit", "view_image", "fx_preview",
             "arrange_canvas",
             "scene_get", "scene_edit", "scene_capture", "scene_record", "layer_get", "layer_edit", "layer_capture",
@@ -208,7 +209,8 @@ class TestReadTools:
     async def test_server_info(self, client):
         info = _tool_json(await _call_tool(client, "server_info"))
         assert info["readonly"] is False
-        assert info["write_tools_need_open_tab"] is True
+        assert info["write_tools_need_open_tab"] is False
+        assert info["headless_queue"] == "one_at_a_time"
         assert info["comfytv_version"] != "unknown"
         assert info["stage_types"] > 0
         assert info["canvas_mirror"] == "absent"

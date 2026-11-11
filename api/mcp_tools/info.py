@@ -22,7 +22,9 @@ async def _server_info(_args: dict) -> dict:
         "canvas_mirror": mirror_summary() or "absent",
         "recent_exec_errors": len(list_exec_errors(50)),
         "readonly": False,
-        "write_tools_need_open_tab": True,
+        "write_tools_need_open_tab": False,
+        "headless_graph": True,
+        "headless_queue": "one_at_a_time",
     }
 
 async def _projects(args: dict) -> dict:

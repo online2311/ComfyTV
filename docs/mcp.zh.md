@@ -8,7 +8,7 @@
 
 ComfyTV 在你的 ComfyUI 服务器上开放 [Model Context Protocol](https://modelcontextprotocol.io) 端点 `POST /comfytv/mcp`。任何支持 MCP 的 agent(Claude Code,或任何会说 streamable HTTP JSON-RPC 的客户端)都能连上来,把 ComfyTV 当成一套工具使用。
 
-设计上有个关键点:**画布的真相在打开着的 ComfyTV 页面里**。读工具由服务器直接回答,写工具(加节点、设 prompt、跑渲染)则由*打开着的 ComfyTV 页面*执行——无论它在 Comfy Desktop 还是浏览器中；服务器通过 websocket 把命令转给它。没有开着的页面 → 写工具会以明确的超时信息失败。
+有页面在镜像时,写工具仍由那一页经 websocket 执行,和以前一样。**没有打开的页面时**,stage / 图的写入落到服务器上持久化的无头图,`run_stage` / `graph_run` 直接进 ComfyUI 自己的 prompt 队列,立刻返回 job id,不再等浏览器超时。场景、导演台、图层编辑器和视口命令仍然需要打开的页面。
 
 ## 启用
 
@@ -55,9 +55,12 @@ url = "http://127.0.0.1:8188/comfytv/mcp"
 |---|---|
 | `add_stage` / `set_stage` | 建节点、配节点:prompt、工作流、widget、资产参考、目标机器 |
 | `connect_stages` | 连线(类型自动匹配) |
-| `run_stage` | 排队运行,等同点 Run 按钮 |
-| `wait_stage` | 阻塞等待出结果或报错 — 不用轮询 |
-| `cancel_stage` | 停止进行中的运行 |
+| `run_stage` | 排队运行。有页面时由页面执行;无页面时立刻返回 `job_id` |
+| `wait_stage` | 阻塞等到出结果或报错。无页面时改等无头任务 |
+| `queue_status` | 查一个无头任务的状态、进度和 `/view` 产出,不阻塞 |
+| `list_queue` | 列出无头队列(不是远程机器的 `jobs`) |
+| `resume_queue` | 重启后重排未完成的无头任务,已有产出的 stage 不再重跑 |
+| `cancel_stage` | 有页面时停止该次运行。无页面时只丢掉还没提交的任务;已经在 ComfyUI 队列里的不中断 |
 | `remove_stage` | 删节点 |
 | `arrange_canvas` | 整理画布布局(行/列/网格) |
 
@@ -67,7 +70,7 @@ url = "http://127.0.0.1:8188/comfytv/mcp"
 |---|---|
 | `graph_get` | 读原生画布图 — 所有节点、widget、连线、分组,不限 ComfyTV 节点 |
 | `graph_edit` | 批量编辑原生图:加/删/克隆节点、设 widget、连线、分组、折叠、bypass、打包/解包子图 — 整批一个撤销步 |
-| `graph_run` | 像点 ComfyUI 的 Run 按钮一样排队原生图并等待产出 |
+| `graph_run` | 排队原生图。有页面时最多等 `wait_s`。无页面时传 `prompt`(API 格式)或 `workflow`(UI 格式),立刻返回 `job_id` |
 | `workflow_create` | 用 API 格式的图为某个 stage kind 新建一个工作流文件 |
 | `canvas_command` | 白名单原生命令:撤销/重做、保存、适配视图、中断、刷新节点定义 |
 | `canvas_focus` | 选中节点并把用户视口平滑移过去 — 展示你改了什么 |
@@ -117,11 +120,26 @@ url = "http://127.0.0.1:8188/comfytv/mcp"
 
 **技能。**用户装了 [Agent Skills](skills.zh.md) 时,`skill` 工具的 description 会列出它们;任务命中就先读再照做。每个启用的技能同时暴露为一条 **MCP prompt** — 在 Claude Code 里表现为 `/mcp__comfytv__<技能名>` 斜杠命令,可显式调用。
 
+## 无头队列
+
+没有打开的 ComfyTV 页面时:
+
+1. `add_stage` / `set_stage` / `connect_stages` / `graph_edit` 改的是按项目存在数据库里的图(`comfytv_headless_graphs`)。`graph_get` 读的就是它。页面正在镜像时,那一页仍是该项目的真相。
+2. `run_stage` 和 `graph_run` 写入 `comfytv_headless_jobs` 并立刻返回 `{job_id, status: "queued"}`。`graph_run` 可直接传要 POST 给 `/prompt` 的 API 图。
+3. 工作线程**一次只提交一个**任务到 ComfyUI 进程内的 prompt 队列(和 `GET /queue` 是同一份),而且仅当该队列里既没有 running 也没有 pending。这条路径不调用 `/interrupt` 或 `/free`。
+4. 用 `queue_status` / `list_queue` 看 `queued` / `running` / `done` / `error`、进度和产出。不要靠固定超时干等。
+5. 任务状态落在 sqlite 里。进程重启后,若任务曾是 `running` 但已经不在 ComfyUI 队列和 history 里,会重新排队。已经存下产出的 stage 会从再次提交的 prompt 里拿掉,下游输入改接到那份产出,所以做完的 stage 不会重跑。`resume_queue` 可以手动触发;对 `error` 任务传入 `job_id` 会再排队。
+
+新表由现有的启动 `create_all` 建出。这条路径不另开监听端口。
+
+在 ComfyUI v0.45.0(commit `989d93d`)上、不打开浏览器验证:MCP 开着、不要打开 ComfyTV 页面; `server_info` 里 `write_tools_need_open_tab` 为 false; `graph_run` 传一个小 API `prompt`,应立刻得到 `job_id`; `GET /queue` 里来自 ComfyTV 的任务同时不超过一个;第二个 `graph_run` 在 `list_queue` 里保持 `queued`,直到第一个离开 `/queue`;长任务用 `queue_status` 等到 `done`。中途重启后 `resume_queue` 只补未完成的 stage。
+
 ## 前置条件与行为说明
 
-- 写工具需要开着的 ComfyTV 页面（Comfy Desktop 或浏览器均可）;画布镜像在首次 MCP 调用后懒激活(刚连上时 `get_canvas` 等 ~10 秒重试)。
+- 页面开着且镜像还新鲜时,写和跑仍走那一页。镜像在首次 MCP 调用后懒激活(刚连上时 `get_canvas` 等 ~10 秒重试)。
+- 没有页面时走上面的无头队列。`queue_status` / `list_queue` 是无头任务;`jobs` 仍是远程机器列表。
 - MCP 客户端会按会话缓存 `tools/list` — 服务器加了新工具后需重连。
-- 客户端若有单次工具调用超时,给 `wait_stage` 传更小的 `timeout_s` 分片续调。
+- 客户端若有单次工具调用超时,用 `queue_status` 轮询,不要把等待放进 `graph_run`。`wait_stage` 仍按 `timeout_s`(默认 90,最大 170)切片,可以接着调。
 
 ## 另见
 

@@ -48,6 +48,7 @@ def fake_submit(monkeypatch):
         return {"ok_from_tab": True}
 
     monkeypatch.setattr(mcp_tools._shared, "submit_command", submit)
+    monkeypatch.setattr(mcp_tools._shared, "page_is_live", lambda project_id=None: True)
     return calls
 
 
@@ -123,6 +124,7 @@ class TestGetStageLatestOutput:
             return {"graph_node_id": "2", "uid": "u-1", "widgets": {}}
 
         monkeypatch.setattr(mcp_tools._shared, "submit_command", submit)
+        monkeypatch.setattr(mcp_tools._shared, "page_is_live", lambda project_id=None: True)
         monkeypatch.setattr(storage, "latest_output_by_uid", lambda pid, uid: {
             "id": 42, "output_type": "images", "created_at": "t", "payload_url": "",
             "picked_index": 1,
