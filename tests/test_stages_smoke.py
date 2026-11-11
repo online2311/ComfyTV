@@ -518,7 +518,7 @@ class TestVideoAudioEditStageExecute:
         from ComfyTV.nodes.stages import video_edit
         captured = {}
 
-        def fake_concat(urls, progress=None):
+        def fake_concat(urls, progress=None, **_ignored):
             captured['urls'] = list(urls)
             return "/view?filename=out.mp4"
 

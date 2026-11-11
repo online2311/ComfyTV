@@ -24,6 +24,7 @@ def hide_system_ffmpeg(monkeypatch, tmp_path):
     monkeypatch.setenv("PATH", str(empty))
     monkeypatch.delenv("COMFYTV_FFMPEG", raising=False)
     monkeypatch.delenv("COMFYTV_FFPROBE", raising=False)
+    monkeypatch.delenv("COMFYTV_VIDEO_ENCODER", raising=False)
     monkeypatch.delenv("IMAGEIO_FFMPEG_EXE", raising=False)
     from ComfyTV.runners.ffmpeg_bin import clear_ffmpeg_cache
     clear_ffmpeg_cache()
@@ -111,7 +112,7 @@ def test_concat_stage_forwards_every_slot(reset_db, monkeypatch):
 
     captured = {}
 
-    def fake_concat(urls, progress=None):
+    def fake_concat(urls, progress=None, **_ignored):
         captured["urls"] = list(urls)
         return "/view?filename=out.mp4"
 
@@ -131,7 +132,7 @@ def test_sequence_forwards_64_cuts(monkeypatch):
 
     captured = {}
 
-    def fake_concat(urls, progress=None):
+    def fake_concat(urls, progress=None, **_ignored):
         captured["n"] = len(list(urls))
         return list(urls)[0]
 

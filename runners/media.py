@@ -626,8 +626,11 @@ def extract_frames_multi(view_url: str, times) -> str:
     return json.dumps({'images': images})
 
 
-def concat_videos(view_urls: list, progress=None) -> str:
-    return _ffmpeg_concat_videos(view_urls, progress=progress)
+def concat_videos(view_urls: list, progress=None, *,
+                  video_encoder: str | None = None, report: dict | None = None) -> str:
+    return _ffmpeg_concat_videos(
+        view_urls, progress=progress, video_encoder=video_encoder, report=report,
+    )
 
 
 __all__ = [
