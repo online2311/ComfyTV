@@ -125,6 +125,7 @@ def stage_classes() -> list:
     return [
         ProjectStage,
         TextStage, ImageStage, VideoStage, AudioStage, SpeechStage,
+        StoryboardStage, ShotImagesStage,
         DirectorStage,
         ImagePickerStage, AudioPickerStage, VideoPickerStage,
         PanoramaStage, PanoramaCurrentViewStage, PanoramaMultiViewStage,

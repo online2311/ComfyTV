@@ -37,6 +37,7 @@ Legend: ✅ done · ⏳ pending.
 | **Video editing · Clip / Crop / Resize / Extract Frame / Demux** | Real edits on the source clip — trim to range, crop a region, resize, pull a still, split audio from video. No GPU or model needed. |
 | **Extend a video** (↪ action) | One-click chain: extract the source's last frame → spawn a new Video Stage with that frame as the I2V starting image, fill prompt and Run. |
 | **Text · Qwen3 4B** | Local LLM text generation. |
+| **Storyboard + Shot Images** | Storyboard runs the LLM 16-field shot list. Shot Images renders one image per shot from that list. The storyboard card's **Generate Shot Images** action spawns and wires Shot Images. |
 | **Audio Stage · ACE-Step v1 Music** | Text-to-music via ACE-Step v1 3.5B (native to ComfyUI core). Free-form tags + optional lyrics for vocal tracks + per-stage duration slider. |
 | **Crop / Rotate / Mirror** | Browser-side, instant, no GPU. |
 | **Grid Split** | Slice image → set, browser-side. |
@@ -69,9 +70,6 @@ Legend: ✅ done · ⏳ pending.
 
 ### Audio
 - [ ] **Vocals Only / Background Only** convenience stages — the built-in **Audio Stem Split** already covers this; the dedicated toolbar stages still need rewiring onto it.
-
-### Storyboard & shots
-- [ ] **Storyboard + Shot Images** — Storyboard runs the LLM shot-list, Shot Images iterates it per shot.
 
 ### Panorama
 - [ ] **Diffusion360 low-VRAM variant** (SD1.5 base + circular blending) — for users without enough VRAM for Flux Dev. Requires installing `ArcherFMY/Diffusion360_ComfyUI`.

@@ -110,14 +110,13 @@ class TestParseShotlist:
         assert rows[0]["scene_purpose"] == "第一镜"
         assert rows[1]["duration"] == "5"
 
-    def test_fullwidth_colon_currently_not_parsed(self):
-        # Despite the docstring claim of tolerance, the shot_no regex is
-        # `^\s*镜号\s*[::]` with only ASCII colons in the bracket — fullwidth
-        # input doesn't actually match. This test pins the current behavior
-        # so a future fix is visible as a test break.
+    def test_fullwidth_colon(self):
         txt = "镜号：1\n时长：4\n画面描述：测试"
         rows = c._parse_shotlist_text(txt)
-        assert rows == []
+        assert len(rows) == 1
+        assert rows[0]["shot_no"] == "1"
+        assert rows[0]["duration"] == "4"
+        assert rows[0]["scene_purpose"] == "测试"
 
     def test_strips_think_wrapper(self):
         txt = "<think>preamble</think>\n镜号: 1\n时长: 4\n画面描述: x"
@@ -175,6 +174,27 @@ class TestShapeStoryboard:
     def test_returns_none_on_empty(self):
         assert c._shape_storyboard_from_llm("") is None
         assert c._shape_storyboard_from_llm("no shots here") is None
+
+    def test_json_shots_when_text_fields_are_absent(self):
+        raw = """```json
+        {"shots": [{"shot_no": "3", "duration": 6, "prompt": "close on the door",
+                    "image_url": "/view?filename=ref.png&type=input"}]}
+        ```"""
+        data = json.loads(c._shape_storyboard_from_llm(raw))
+        shot = data["shots"][0]
+        assert shot["shot_no"] == "3"
+        assert shot["duration"] == "6s"
+        assert shot["prompt"] == "close on the door"
+        assert shot["image_url"] == "/view?filename=ref.png&type=input"
+
+    def test_sixteen_field_text_wins_over_embedded_json(self):
+        raw = (
+            '{"shots": [{"shot_no": "9", "prompt": "from json"}]}\n'
+            '镜号: 1\n时长: 4\n画面描述: 文本镜\n分镜提示词: from text\n'
+        )
+        data = json.loads(c._shape_storyboard_from_llm(raw))
+        assert [s["shot_no"] for s in data["shots"]] == ["1"]
+        assert data["shots"][0]["prompt"] == "from text"
 
 
 # ─── _fake_storyboard / _fake_image_batch_from_storyboard ────────────────────

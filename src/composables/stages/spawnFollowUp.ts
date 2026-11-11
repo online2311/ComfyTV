@@ -329,6 +329,11 @@ const SPAWN_HANDLERS: Partial<Record<StageKind, Record<string, SpawnHandler>>> =
     'view-four':    src => spawnPanoramaView(src, 'four'),
     'view-twelve':  src => spawnPanoramaView(src, 'twelve'),
   },
+  storyboard: {
+    'gen-shots': src => {
+      spawnConsumingNode(src, 'ComfyTV.ShotImagesStage', 'storyboard')
+    },
+  },
 }
 
 export function spawnFollowUpStage(

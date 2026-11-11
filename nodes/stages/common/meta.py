@@ -1,7 +1,6 @@
 PENDING_STAGES: frozenset[str] = frozenset({
     'AudioExtractBgStage', 'AudioExtractVocalStage',
     'DirectorTimelineStage', 'TimelineVideoStage',
-    'ShotImagesStage', 'StoryboardStage',
     'VideoSubtitleSelectEraseStage', 'VideoSubtitleSmartEraseStage',
     'VideoUpscaleStage',
 })

@@ -21,6 +21,7 @@ _STORYBOARD_FIELDS: list[tuple[str, str]] = [
     ("视频运动提示词", "motion_prompt"),
 ]
 _STORYBOARD_CN_TO_EN = dict(_STORYBOARD_FIELDS)
+_FIELD_COLON = r"[:\uFF1A]"
 
 
 def _storyboard_llm_prompt(
@@ -185,7 +186,7 @@ def _parse_shotlist_text(text: str) -> list[dict]:
 
     blocks: list[list[str]] = []
     cur: list[str] = []
-    shot_no_re = re.compile(r'^\s*镜号\s*[::]')
+    shot_no_re = re.compile(r'^\s*镜号\s*' + _FIELD_COLON)
     for line in s.split('\n'):
         if shot_no_re.match(line) and cur:
             blocks.append(cur)
@@ -196,7 +197,8 @@ def _parse_shotlist_text(text: str) -> list[dict]:
         blocks.append(cur)
 
     field_re = re.compile(
-        r'^\s*(' + '|'.join(re.escape(cn) for cn, _ in _STORYBOARD_FIELDS) + r')\s*[::]\s*(.*)$'
+        r'^\s*(' + '|'.join(re.escape(cn) for cn, _ in _STORYBOARD_FIELDS)
+        + r')\s*' + _FIELD_COLON + r'\s*(.*)$'
     )
     rows: list[dict] = []
     for block in blocks:
@@ -214,41 +216,85 @@ def _parse_shotlist_text(text: str) -> list[dict]:
     return rows
 
 
+def _duration_label(raw, index: int) -> str:
+    duration_raw = str(raw or '').strip()
+    if duration_raw and not duration_raw.endswith('s'):
+        duration_raw = duration_raw.rstrip('.') + 's'
+    if not duration_raw:
+        duration_raw = f'{2 + (index % 4)}s'
+    return duration_raw
+
+
+def _image_url_or_none(raw) -> str | None:
+    if isinstance(raw, str) and raw.strip():
+        return raw.strip()
+    return None
+
+
+def _canonical_shot(raw: dict, index: int) -> dict:
+    prompt = (
+        raw.get('image_prompt') or raw.get('prompt') or raw.get('scene_purpose') or ''
+    )
+    prompt = str(prompt).strip()
+    image_prompt = str(raw.get('image_prompt') or prompt)
+    return {
+        "shot_no":        str(raw.get('shot_no') or index + 1),
+        "duration":       _duration_label(raw.get('duration'), index),
+        "scene_purpose":  raw.get('scene_purpose') or '',
+        "character":      raw.get('character') or '',
+        "character_desc": raw.get('character_desc') or '',
+        "character_img":  raw.get('character_img') or '',
+        "reference_img":  raw.get('reference_img') or '',
+        "shot_size":      raw.get('shot_size') or '',
+        "action":         raw.get('action') or '',
+        "emotion":        raw.get('emotion') or '',
+        "scene_tags":     raw.get('scene_tags') or '',
+        "lighting":       raw.get('lighting') or '',
+        "sfx":            raw.get('sfx') or '',
+        "dialogue":       raw.get('dialogue') or '',
+        "prompt":         prompt,
+        "image_prompt":   image_prompt,
+        "motion_prompt":  raw.get('motion_prompt') or '',
+        "image_url":      _image_url_or_none(raw.get('image_url')),
+    }
+
+
+def _json_shots(raw_text: str) -> list[dict] | None:
+    if not raw_text:
+        return None
+    s = str(raw_text).replace('\r\n', '\n')
+    for marker in ('</think>', '</thinking>'):
+        idx = s.lower().find(marker)
+        if idx >= 0:
+            s = s[idx + len(marker):]
+    s = s.strip()
+    if '```' in s:
+        parts = s.split('```')
+        if len(parts) >= 3:
+            inner = max(parts[1::2], key=len).strip()
+            if inner.lower().startswith('json'):
+                inner = inner[4:].strip()
+            s = inner
+    start = s.find('{')
+    end = s.rfind('}')
+    if start < 0 or end <= start:
+        return None
+    try:
+        data = json.loads(s[start:end + 1])
+    except (ValueError, TypeError):
+        return None
+    shots = data.get('shots') if isinstance(data, dict) else None
+    if not isinstance(shots, list):
+        return None
+    rows = [shot for shot in shots if isinstance(shot, dict)]
+    return rows or None
+
+
 def _shape_storyboard_from_llm(raw_text: str, seed_parts: tuple = ()) -> str | None:
-    rows = _parse_shotlist_text(raw_text)
+    rows = _parse_shotlist_text(raw_text) or _json_shots(raw_text)
     if not rows:
         return None
-    out: list[dict] = []
-    for i, r in enumerate(rows):
-        duration_raw = (r.get('duration') or '').strip()
-
-        if duration_raw and not duration_raw.endswith('s'):
-            duration_raw = duration_raw.rstrip('.') + 's'
-        if not duration_raw:
-            duration_raw = f'{2 + (i % 4)}s'
-
-        prompt = (r.get('image_prompt') or r.get('scene_purpose') or '').strip()
-
-        out.append({
-            "shot_no":        str(r.get('shot_no') or i + 1),
-            "duration":       duration_raw,
-            "scene_purpose":  r.get('scene_purpose') or '',
-            "character":      r.get('character') or '',
-            "character_desc": r.get('character_desc') or '',
-            "character_img":  r.get('character_img') or '',
-            "reference_img":  r.get('reference_img') or '',
-            "shot_size":      r.get('shot_size') or '',
-            "action":         r.get('action') or '',
-            "emotion":        r.get('emotion') or '',
-            "scene_tags":     r.get('scene_tags') or '',
-            "lighting":       r.get('lighting') or '',
-            "sfx":            r.get('sfx') or '',
-            "dialogue":       r.get('dialogue') or '',
-            "prompt":         prompt,
-            "image_prompt":   r.get('image_prompt') or prompt,
-            "motion_prompt":  r.get('motion_prompt') or '',
-            "image_url":      None,
-        })
+    out = [_canonical_shot(r, i) for i, r in enumerate(rows)]
     if not out:
         return None
 

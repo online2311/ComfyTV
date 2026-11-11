@@ -10,14 +10,14 @@
 
 ## 工作流需要包含
 
-- 一个能输出 JSON 字符串的文本生成节点,JSON 结构匹配 `COMFYTV_STORYBOARD` 形状:`{"shots": [{shot_no, duration, prompt, scene_purpose, character, ...}]}`。
-- 提示词输入接 LLM 的 prompt 端。
+- 一个文本节点,第 0 个输出是模型原文。StoryboardStage 会自己把前提包成 16 字段 ChatML,并解析回复。能解析的回复是 `镜号:` 字段表(半角或全角冒号),或 JSON 对象 `{"shots": [...]}`。
+- 提示词输入接 LLM 的 prompt 端。关掉模型自带的对话模板(`use_default_template=false`),避免把 stage 的 ChatML 再包一层。
 - 结果走 `graph_output_first` 取该节点的第 0 个输出。
 
-完整字段定义参见 `nodes/stages.py` 里的 `_fake_storyboard`。
+字段名是 `nodes/stages/common/storyboard.py` 里 `_shape_storyboard_from_llm` 产出的 16 个键。
 
 加自己的工作流见 [docs/custom-workflows.zh.md](../../docs/custom-workflows.zh.md);具体绑定在画布上选中 stage 后通过左侧 **ComfyTV** 侧边栏配,详见 [docs/sidebar-config-editor.zh.md](../../docs/sidebar-config-editor.zh.md)。
 
 ## 当前内置
 
-无 , 当前的 Qwen / Flux storyboard 选项是 `runners/__init__.py` 里手写的占位 stub。把工作流 + config 放进这个文件夹可以替代它们。
+`local-qwen3-storyboard` — 本地 Qwen3 4B,走核心节点 `TextGenerate`。预设把 stage 提示词原样送进去,并从节点 7 读生成的字符串。需要 `qwen_3_4b.safetensors`。

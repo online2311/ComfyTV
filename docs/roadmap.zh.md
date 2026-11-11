@@ -37,6 +37,7 @@ ComfyTV 还是 pre-release 状态。
 | **Video 编辑 · 剪辑 / 裁剪 / 缩放 / 抽帧 / 音视频分离** | 对原片的真实编辑 , 起止剪、裁剪区域、改尺寸、抽一帧、把视频拆成音轨 + 静音视频。不占 GPU、不需要模型。 |
 | **视频续接(↪ 动作)** | 一键链:抽源片末帧 → 生成一个新的 Video Stage,把那帧接为 I2V 起始图,后面填提示词点运行即可。 |
 | **Text · Qwen3 4B** | 本地 LLM 文本生成。 |
+| **Storyboard + Shot Images** | Storyboard 跑 LLM 的 16 字段分镜表。Shot Images 按这张表逐镜出图。分镜卡片上的**生成分镜图**会派生并接上 Shot Images。 |
 | **Audio Stage · ACE-Step v1 Music** | 文生音乐,走 ACE-Step v1 3.5B(ComfyUI 原生支持)。自由 tags + 可选歌词触发人声 + 每 stage 时长滑块。 |
 | **Crop / Rotate / Mirror** | 浏览器端,瞬时,不占 GPU。 |
 | **Grid Split** | 切图 → 批量,浏览器端。 |
@@ -69,9 +70,6 @@ ComfyTV 还是 pre-release 状态。
 
 ### 音频
 - [ ] **Vocals Only / Background Only** 便捷 stage , 内置的 **Audio Stem Split** 已覆盖同样能力;这两个工具栏 stage 还需改接到它上面。
-
-### 分镜 & 出图
-- [ ] **Storyboard + Shot Images** , Storyboard 跑 LLM 分镜表,Shot Images 逐 shot 出图。
 
 ### 全景图
 - [ ] **Diffusion360 低 VRAM 变体**(SD1.5 base + circular blending), 给没有足够 VRAM 跑 Flux Dev 的用户。需要装 `ArcherFMY/Diffusion360_ComfyUI`。

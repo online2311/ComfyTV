@@ -521,6 +521,12 @@ class ShotImagesStage(io.ComfyNode):
             except (ValueError, TypeError):
                 shots = []
 
+        if not shots:
+            raise RuntimeError(
+                "ShotImagesStage: storyboard has no shots — run Storyboard first "
+                "or connect a COMFYTV_STORYBOARD whose JSON has a shots array"
+            )
+
         runner = RUNNER_REGISTRY.by_label(workflow, 'shot-images')
         if runner is None:
             raise StageRunnerMissing(
@@ -531,14 +537,22 @@ class ShotImagesStage(io.ComfyNode):
         shared_refs = _autogrow_values(images)
         out_images: list[dict] = []
         any_real = False
+        last_error: Exception | None = None
+        skipped_empty = 0
 
         for i, shot in enumerate(shots):
+            _check_interrupted()
+            if not isinstance(shot, dict):
+                skipped_empty += 1
+                continue
             shot_no = shot.get("shot_no", str(i + 1))
             prompt = str(shot.get("prompt") or shot.get("image_prompt") or "").strip()
             _emit_progress(cls, i, len(shots),
                            text=f"shot {i + 1}/{len(shots)}: {prompt[:40]}")
             shot_payload = None
-            if prompt:
+            if not prompt:
+                skipped_empty += 1
+            else:
                 try:
                     shot_payload = await invoke_runner(
                         kind='shot-images',
@@ -552,10 +566,14 @@ class ShotImagesStage(io.ComfyNode):
                         },
                         custom_params=custom_params,
                     )
-                except StageNotImplemented:
+                except StageNotImplemented as e:
+                    last_error = e
                     shot_payload = None
                 except Exception as e:
+                    if _is_processing_interrupt(e):
+                        raise
                     _log.warning("[ComfyTV/shot-images] shot %s failed: %s", shot_no, e)
+                    last_error = e
                     shot_payload = None
 
             if shot_payload:
@@ -569,12 +587,21 @@ class ShotImagesStage(io.ComfyNode):
                             "prompt":    prompt,
                             "image_url": img.get("image_url"),
                         })
-                except (ValueError, TypeError):
-                    pass
+                except (ValueError, TypeError) as e:
+                    last_error = e
 
         _emit_progress(cls, len(shots), len(shots), text="done")
 
         if not any_real or not out_images:
+            if last_error is not None:
+                raise RuntimeError(
+                    f"ShotImagesStage: workflow {workflow!r} returned no shots: {last_error}"
+                ) from last_error
+            if skipped_empty:
+                raise RuntimeError(
+                    "ShotImagesStage: none of the "
+                    f"{len(shots)} shots had a prompt or image_prompt"
+                )
             raise RuntimeError(
                 f"ShotImagesStage: workflow {workflow!r} returned no shots")
         payload = json.dumps({"images": out_images})

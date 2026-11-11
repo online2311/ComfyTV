@@ -19,4 +19,7 @@
 
 ## 当前内置
 
-无。当前 Shot Images 下拉里的选项都来自 `image/` 里声明了多 kind 的工作流。
+- `local-z-image-turbo` — Z-Image Turbo,每镜一张(`batch_size` 固定为 1)。
+- `flux-schnell` — Flux Schnell fp8,每镜一张。
+
+`image/` 里的工作流仍可以在 config 里写 `kinds: ["image", "shot-images"]` 同时出现在这个下拉框。每一镜拿到的是 stage 上那一组共享参考图和 stage 种子,镜头自己不带参考图或种子。
