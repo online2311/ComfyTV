@@ -6,14 +6,14 @@ ComfyUI is mocked. Nothing in these tests opens a socket or calls
 
 from __future__ import annotations
 
+import asyncio
 import logging
+import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
-from sqlalchemy import select
-
-from sqlalchemy import inspect
+from sqlalchemy import inspect, select
 
 from ComfyTV.api.queue_state import queue_is_empty
 from ComfyTV.db import ExecutorJoinToken
@@ -385,6 +385,83 @@ class TestHealthAndDrain:
             for _method, url in fake.calls
         )
 
+    async def test_url_change_during_probe_drops_the_old_result(self, reset_db):
+        from ComfyTV import storage
+
+        created = _register(storage)
+        clock = Clock()
+
+        class Racing(FakeComfy):
+            async def __call__(self, method, url):
+                if url.endswith("/system_stats"):
+                    storage.update_executor(created["id"], {
+                        "base_url": "http://100.64.0.50:8188",
+                    })
+                return await super().__call__(method, url)
+
+        row = (await (await self._checker(Racing(), clock)).check_all())[0]
+        assert row["base_url"] == "http://100.64.0.50:8188"
+        assert row["health"] == "unknown"
+        assert row["idle"] is False
+        assert row["idle_since"] is None
+        assert row["accepts_work"] is False
+
+    async def test_rejoin_same_url_clears_the_previous_idle_stretch(self, reset_db):
+        from ComfyTV import storage
+
+        storage.join_executor(
+            token=storage.issue_join_token(), name="pod-a",
+            base_url="http://100.64.0.8:8188", gpu_class="rtx5090-32g",
+        )
+        clock = Clock()
+        idle = (await (await self._checker(FakeComfy(), clock)).check_all())[0]
+        assert idle["idle"] is True
+        again = storage.join_executor(
+            token=storage.issue_join_token(), name="pod-a",
+            base_url="http://100.64.0.8:8188", gpu_class="rtx5090-32g",
+        )
+        assert again["id"] == idle["id"]
+        assert again["health"] == "unknown"
+        assert again["idle"] is False
+        assert again["idle_since"] is None
+        assert again["accepts_work"] is False
+
+    async def test_reenabling_waits_for_a_fresh_probe(self, reset_db):
+        from ComfyTV import storage
+
+        created = _register(storage)
+        clock = Clock()
+        idle = (await (await self._checker(FakeComfy(), clock)).check_all())[0]
+        assert idle["idle_since"] is not None
+        storage.update_executor(created["id"], {"enabled": False})
+        opened = storage.update_executor(created["id"], {"enabled": True})
+        assert opened["enabled"] is True
+        assert opened["health"] == "unknown"
+        assert opened["idle"] is False
+        assert opened["idle_since"] is None
+        assert opened["accepts_work"] is False
+
+    async def test_a_slow_host_does_not_hold_up_the_others(self, reset_db):
+        from ComfyTV import storage
+        from ComfyTV.api.executor_health import ExecutorHealthChecker
+
+        _register(storage, name="spark", base_url="http://100.64.0.2:8188")
+        _register(
+            storage, name="pod", kind="ephemeral",
+            base_url="http://100.64.0.3:8188", gpu_class="rtx5090-32g",
+        )
+
+        class Slow(FakeComfy):
+            async def __call__(self, method, url):
+                if url.endswith("/queue"):
+                    await asyncio.sleep(0.4)
+                return await super().__call__(method, url)
+
+        started = time.monotonic()
+        rows = await ExecutorHealthChecker(fetch=Slow(), clock=Clock()).check_all()
+        assert time.monotonic() - started < 0.7
+        assert {row["health"] for row in rows} == {"reachable"}
+
     async def test_queue_http_error_is_not_idle(self, reset_db):
         from ComfyTV import storage
 
@@ -488,6 +565,68 @@ class TestHealthAndDrain:
             assert "/free" not in text
             assert "interrupt_processing" not in text
             assert TOKEN not in text
+
+
+class TestLocalAddressAndChat:
+    def test_generated_local_follows_the_process_port(self, reset_db, monkeypatch):
+        import server
+        from ComfyTV import storage
+
+        monkeypatch.setattr(server.PromptServer.instance, "port", 8188, raising=False)
+        local = storage.list_executors(ensure_default=True)[0]
+        storage.record_observation(
+            local["id"], observed_url=local["base_url"],
+            generation=local["obs_generation"], health="reachable",
+            running_count=0, pending_count=0, queue_known=True, queue_empty=True,
+            gpu=None, error=None,
+            now=datetime(2026, 11, 11, tzinfo=timezone.utc),
+        )
+        other = _register(storage, name="sidecar", base_url="http://127.0.0.1:9000")
+        monkeypatch.setattr(server.PromptServer.instance, "port", 8190, raising=False)
+        storage.list_executors(ensure_default=True)
+        refreshed = storage.get_executor(local["id"])
+        assert refreshed["base_url"] == "http://127.0.0.1:8190"
+        assert refreshed["health"] == "unknown"
+        assert refreshed["accepts_work"] is False
+        assert storage.get_executor(other["id"])["base_url"] == "http://127.0.0.1:9000"
+
+        storage.update_executor(local["id"], {"base_url": "http://100.64.0.2:8188"})
+        monkeypatch.setattr(server.PromptServer.instance, "port", 8200, raising=False)
+        storage.list_executors(ensure_default=True)
+        assert storage.get_executor(local["id"])["base_url"] == "http://100.64.0.2:8188"
+
+    def test_join_token_is_redacted_before_chat_history(self, reset_db, monkeypatch):
+        import json
+        import server
+        from ComfyTV import storage
+        from ComfyTV.api.bot_turns import _Store, _broadcast
+        from ComfyTV.bot.providers import BotEvent, TurnHandle
+        from ComfyTV.bot.turns import TurnState, apply_event
+
+        raw = {"action": "join", "join_token": TOKEN, "name": "pod-a"}
+        state = TurnState(TurnHandle(), "chat", "msg")
+        payload = apply_event(state, BotEvent(
+            t="tool_use", name="executors", input=raw, id="tu-1",
+        ))
+        sent = []
+        monkeypatch.setattr(
+            server.PromptServer.instance, "send_sync",
+            lambda event, data, sid=None: sent.append(data),
+        )
+        _broadcast(payload.pop("event"), payload)
+        assert TOKEN not in json.dumps(sent)
+        assert sent[0]["input"]["join_token"] == "[redacted]"
+        assert sent[0]["input"]["name"] == "pod-a"
+
+        chat = storage.create_bot_chat(provider="fake-test")
+        message = storage.create_bot_message(
+            chat_id=chat["id"], role="assistant", content="[]", status="streaming",
+        )
+        _Store.update_message(chat["id"], message["id"], blocks=state.blocks)
+        saved = storage.list_bot_messages(chat["id"])[0]["content"]
+        assert TOKEN not in saved
+        assert "[redacted]" in saved
+        assert raw["join_token"] == TOKEN
 
 
 class TestHttpAndMcp:

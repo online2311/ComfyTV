@@ -157,8 +157,11 @@ def _stopped(calls) -> list:
 
 
 def _admit(storage, row, running=0, pending=0):
+    current = storage.get_executor(row["id"]) or row
     return storage.record_observation(
-        row["id"],
+        current["id"],
+        observed_url=current["base_url"],
+        generation=int(current.get("obs_generation") or 0),
         health="reachable",
         running_count=running,
         pending_count=pending,

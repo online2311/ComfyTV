@@ -333,6 +333,7 @@ class Executor(Base):
     running_count:    Mapped[int] = mapped_column(Integer, default=0)
     pending_count:    Mapped[int] = mapped_column(Integer, default=0)
     queue_known:      Mapped[bool] = mapped_column(Boolean, default=False)
+    obs_generation:   Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     idle_since:       Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     gpu_json:         Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     provider_json:    Mapped[Optional[str]] = mapped_column(Text, nullable=True)
@@ -632,6 +633,16 @@ def _migrate_additive_columns(engine) -> None:
                     "NOT NULL DEFAULT 0"
                 ))
             logging.info("[ComfyTV] migrated: comfytv_assets + is_hidden")
+
+        if insp.has_table("comfytv_executors"):
+            exec_cols = {c["name"] for c in insp.get_columns("comfytv_executors")}
+            if "obs_generation" not in exec_cols:
+                with engine.begin() as conn:
+                    conn.execute(text(
+                        "ALTER TABLE comfytv_executors ADD COLUMN obs_generation "
+                        "INTEGER NOT NULL DEFAULT 0"
+                    ))
+                logging.info("[ComfyTV] migrated: comfytv_executors + obs_generation")
     except Exception as e:
         logging.warning("[ComfyTV] additive migration failed: %s", e)
 

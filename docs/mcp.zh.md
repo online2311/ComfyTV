@@ -120,7 +120,7 @@ url = "http://127.0.0.1:8188/comfytv/mcp"
 
 **多机。**`servers` 列出配置的机器和实时负载;`set_stage {server: <id>}` 把某节点的运行路由过去,结果落回本机。
 
-**执行器登记。**`executors` 是控制器上的 GPU 主机表(常驻 DGX,或用一次性 token 在启动时 join 的临时 pod)。token 配在控制器上,库里只留哈希。只有 ComfyUI `/queue` 的 running 和 pending 都空,主机才是 `idle`,`idle_since` 记下这段空闲从何时开始。禁用、排空、还没探测到、不可达,或已达到 `max_concurrency`(默认 1)时,`accepts_work` 为 false。这些接口不调用 `/interrupt` 或 `/free`。
+**执行器登记。**`executors` 是控制器上的 GPU 主机表(常驻 DGX,或用一次性 token 在启动时 join 的临时 pod)。token 配在控制器上,库里只留哈希。开机 join 走 `POST /comfytv/executors/join`;聊天工具调用里的 `join_token` 会在写入记录前被抹掉。只有 ComfyUI `/queue` 的 running 和 pending 都空,主机才是 `idle`,`idle_since` 记下这段空闲从何时开始。禁用、排空、还没探测到、不可达,或已达到 `max_concurrency`(默认 1)时,`accepts_work` 为 false。这些接口不调用 `/interrupt` 或 `/free`。
 
 **调度器。**`scheduler` 只读 shot × stage 队列。一个工作单元带上 `(project, shot)` 和可选的 `gpu_class`。同一镜头的首帧、视频和口型停在同一个 class 上,并优先用已经接过这个镜头的执行器;那台忙时,同 class 的另一台可以接。不会悄悄换到别的 class,没有合适的就继续排队。每次提交前都会重新 GET 那台机器的 `/queue`,running 和 pending 都空(含别人提交的 prompt)才 POST 一条。只有默认的本机执行器时,无头任务仍走进程内队列。取消远程任务时,还在 pending 的只删除自己的 prompt;已经在跑的标成 cancel-requested,跑完后丢掉产出。超时用远程连接、读取、轮询和任务时限;`scheduler-max-retries` 限制不可达之后的重试次数。POST 之前先记下 attempt id,响应丢了也不会提交第二次。
 

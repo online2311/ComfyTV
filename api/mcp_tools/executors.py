@@ -97,8 +97,11 @@ TOOLS: dict[str, dict] = {
         "description": (
             "GPU executor registry for this controller. action='list' or 'get' "
             "reads hosts. 'register', 'update', 'drain', and 'remove' manage "
-            "them. 'join' is how an ephemeral executor registers itself at boot "
-            "with a one-time join token; the token is not returned. "
+            "them. An ephemeral executor joins at boot with "
+            "POST /comfytv/executors/join. Do not put that token in a chat "
+            "tool call; a join_token is redacted before the transcript is "
+            "saved. 'join' remains for a caller outside chat and does not "
+            "return the token. "
             "accepts_work is false while disabled, draining, unseen, "
             "unreachable, or while running+pending has reached max_concurrency "
             "(default 1). idle is true only when the latest probe saw an empty "

@@ -13,7 +13,45 @@ from ._common import spawn
 _log = logging.getLogger(__name__)
 
 
+def _redact_join_token(raw):
+    """Return a copy when a tool call carries a join token.
+
+    The caller's dict is left intact so the join itself still receives the
+    secret. Chat history and the websocket see ``[redacted]``.
+    """
+    if not isinstance(raw, dict):
+        return raw
+    secret = raw.get("join_token")
+    if not isinstance(secret, str) or not secret:
+        return raw
+    cleaned = dict(raw)
+    cleaned["join_token"] = "[redacted]"
+    return cleaned
+
+
+def _redact_blocks(blocks: list) -> list:
+    changed = False
+    out = []
+    for block in blocks:
+        if (
+            isinstance(block, dict)
+            and block.get("type") == "tool_use"
+            and isinstance(block.get("input"), dict)
+            and isinstance(block["input"].get("join_token"), str)
+            and block["input"]["join_token"]
+        ):
+            out.append({**block, "input": _redact_join_token(block["input"])})
+            changed = True
+        else:
+            out.append(block)
+    return out if changed else blocks
+
+
 def _broadcast(event: str, payload: dict) -> None:
+    if event == "turn_tool_use":
+        cleaned = _redact_join_token(payload.get("input"))
+        if cleaned is not payload.get("input"):
+            payload = {**payload, "input": cleaned}
     try:
         PromptServer.instance.send_sync("comfytv-bot", {"event": event, **payload})
     except Exception:
@@ -127,7 +165,7 @@ class _Store:
     @staticmethod
     def update_message(chat_id: str, message_id: str, **fields) -> dict | None:
         if "blocks" in fields:
-            fields["content"] = json.dumps(fields.pop("blocks"))
+            fields["content"] = json.dumps(_redact_blocks(fields.pop("blocks")))
         return storage.update_bot_message(message_id, **fields)
 
     @staticmethod

@@ -264,6 +264,7 @@ def _to_dict(row: Executor) -> dict:
         "running_count": int(row.running_count or 0),
         "pending_count": int(row.pending_count or 0),
         "queue_known": bool(row.queue_known),
+        "obs_generation": int(row.obs_generation or 0),
         "idle": _is_idle(row),
         "idle_since": _iso(row.idle_since),
         "gpu": gpu if isinstance(gpu, dict) else None,
@@ -308,14 +309,28 @@ def get_executor(executor_id: str) -> Optional[dict]:
 def ensure_default_executor() -> Optional[dict]:
     """Seed the in-process ComfyUI when the registry is empty.
 
-    An existing row is left alone, so registering GPU hosts does not invent a
-    second default. Deleting the last row and listing again restores ``local``,
-    which is the host the headless worker already submits to.
+    An existing non-default row is left alone. The generated loopback default
+    follows this process's port, so a restart on another port does not keep
+    probing the old listener. A default whose URL is no longer loopback was
+    retargeted by the operator and stays where they put it.
     """
     absorb_configured_join_token()
+    desired = local_comfy_base_url()
     with db.get_session() as s:
-        if s.execute(select(func.count()).select_from(Executor)).scalar():
-            return None
+        rows = _ordered(s)
+        if rows:
+            default = next((row for row in rows if row.is_default), None)
+            if (
+                default is not None
+                and _loopback(default.base_url)
+                and default.base_url != desired
+            ):
+                default.base_url = desired
+                _clear_observation(default)
+                default.updated_at = _now()
+                s.commit()
+                return _to_dict(default)
+            return _to_dict(default) if default is not None else None
         row = Executor(
             id=uuid.uuid4().hex,
             name="local",
@@ -413,8 +428,26 @@ def _identity(**fields) -> dict:
     }
 
 
+def _clear_observation(row: Executor) -> None:
+    """Drop cached health. Bumps the generation so an in-flight probe cannot write it back."""
+    row.health = "unknown"
+    row.health_error = None
+    row.queue_known = False
+    row.running_count = 0
+    row.pending_count = 0
+    row.idle_since = None
+    row.last_seen = None
+    row.gpu_json = None
+    row.obs_generation = int(row.obs_generation or 0) + 1
+
+
+def _loopback(url: str) -> bool:
+    host = (urlsplit(url).hostname or "").strip("[]").lower()
+    return host in {"127.0.0.1", "localhost", "::1"}
+
+
 def _apply_identity(row: Executor, fields: dict) -> None:
-    url_changed = row.base_url != fields["base_url"]
+    url_changed = bool(row.base_url) and row.base_url != fields["base_url"]
     row.name = fields["name"]
     row.kind = fields["kind"]
     row.base_url = fields["base_url"]
@@ -424,14 +457,7 @@ def _apply_identity(row: Executor, fields: dict) -> None:
     row.max_concurrency = fields["max_concurrency"]
     row.provider_json = json.dumps(fields["provider"], ensure_ascii=False)
     if url_changed:
-        row.health = "unknown"
-        row.health_error = None
-        row.queue_known = False
-        row.running_count = 0
-        row.pending_count = 0
-        row.idle_since = None
-        row.last_seen = None
-        row.gpu_json = None
+        _clear_observation(row)
 
 
 def update_executor(executor_id: str, changes: dict) -> Optional[dict]:
@@ -467,9 +493,13 @@ def update_executor(executor_id: str, changes: dict) -> Optional[dict]:
             ).scalar_one_or_none()
             if taken is not None:
                 raise ExecutorConflict()
+        was_enabled = bool(row.enabled)
         _apply_identity(row, fields)
         if "enabled" in changes:
-            row.enabled = _flag(changes["enabled"], "enabled")
+            enabled = _flag(changes["enabled"], "enabled")
+            if enabled and not was_enabled:
+                _clear_observation(row)
+            row.enabled = enabled
         if "draining" in changes:
             row.draining = _flag(changes["draining"], "draining")
         row.updated_at = _now()
@@ -549,6 +579,7 @@ def join_executor(
             row = existing
             row.enabled = True
             _apply_identity(row, fields)
+            _clear_observation(row)
         try:
             s.commit()
         except IntegrityError:
@@ -561,6 +592,8 @@ def join_executor(
 def record_observation(
     executor_id: str,
     *,
+    observed_url: str,
+    generation: int,
     health: str,
     running_count: int,
     pending_count: int,
@@ -570,13 +603,20 @@ def record_observation(
     error: Optional[str],
     now: datetime,
 ) -> Optional[dict]:
-    """Write one probe. Idle starts only when the shared empty check passed."""
+    """Write one probe. Idle starts only when the shared empty check passed.
+
+    A probe that started against an older URL or generation is dropped. That
+    covers a base_url change, a rejoin, or a re-enable that landed while the
+    HTTP calls were still in flight.
+    """
     if health not in ("reachable", "unreachable"):
         raise ValueError("health must be reachable or unreachable")
     with db.get_session() as s:
         row = s.get(Executor, executor_id)
         if row is None:
             return None
+        if row.base_url != observed_url or int(row.obs_generation or 0) != int(generation):
+            return _to_dict(row)
         previous_health = row.health
         previous_idle = _is_idle(row)
         row.health = health

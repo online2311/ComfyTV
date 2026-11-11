@@ -22,6 +22,7 @@ _log = logging.getLogger(__name__)
 
 HEALTH_INTERVAL_S = 15.0
 _PROBE_TIMEOUT_S = 4.0
+_PROBE_CONCURRENCY = 8
 
 
 class ProbeError(Exception):
@@ -124,19 +125,34 @@ class ExecutorHealthChecker:
     async def check_all(self) -> list[dict]:
         rows = storage.list_executors(ensure_default=True)
         if self._fetch is not None:
-            return [await self._check_one(self._fetch, row) for row in rows]
+            return await self._check_rows(self._fetch, rows)
         timeout = aiohttp.ClientTimeout(total=_PROBE_TIMEOUT_S)
         async with aiohttp.ClientSession(timeout=timeout) as session:
             async def fetch(method: str, url: str):
                 return await _http_get(session, method, url)
-            return [await self._check_one(fetch, row) for row in rows]
+            return await self._check_rows(fetch, rows)
+
+    async def _check_rows(self, fetch, rows: list[dict]) -> list[dict]:
+        sem = asyncio.Semaphore(_PROBE_CONCURRENCY)
+
+        async def one(row: dict) -> dict:
+            if not row.get("enabled", True):
+                return row
+            async with sem:
+                return await self._check_one(fetch, row)
+
+        return list(await asyncio.gather(*(one(row) for row in rows)))
 
     async def _check_one(self, fetch, row: dict) -> dict:
-        if not row.get("enabled", True):
-            return row
-        observation = await self._probe(fetch, row["base_url"])
+        observed_url = row["base_url"]
+        generation = int(row.get("obs_generation") or 0)
+        observation = await self._probe(fetch, observed_url)
         updated = storage.record_observation(
-            row["id"], now=self._clock(), **observation,
+            row["id"],
+            observed_url=observed_url,
+            generation=generation,
+            now=self._clock(),
+            **observation,
         )
         return updated or row
 
