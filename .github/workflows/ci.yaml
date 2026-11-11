@@ -74,8 +74,15 @@ jobs:
         with:
           python-version: '3.11'
 
+      # apt-get update on the runner can stall the job. Install from the image
+      # index, and refresh that index only when the install cannot proceed.
       - name: Install ffmpeg
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+        timeout-minutes: 10
+        run: |
+          if ! sudo apt-get install -y -o Acquire::Retries=3 ffmpeg; then
+            sudo apt-get update -o Acquire::Retries=3
+            sudo apt-get install -y -o Acquire::Retries=3 ffmpeg
+          fi
 
       - name: Install test deps
         run: |
