@@ -30,7 +30,9 @@ from .fx_spec import (
     parse_fx_chain, parse_fx_spec,
 )
 from .meta import STAGE_META, _KIND_TO_OUTPUT_TYPE  # noqa: F401 (re-export)
-from .progress import _emit_progress, _fake_run_ticks
+from .progress import (
+    _check_interrupted, _emit_progress, _fake_run_ticks, _is_processing_interrupt,
+)
 from .emit import (
     _persist, _stage_emit, _stage_emit_auto,
     _input_file_url, _pick_image_from_batch,
@@ -82,7 +84,8 @@ __all__ = [
     "_fx_identity", "pack_fx_video", "unpack_fx_video", "fx_video_url",
     "bake_fx_video",
     "parse_fx_chain", "parse_fx_spec",
-    "_emit_progress", "_fake_run_ticks", "_persist", "_stage_emit_auto",
+    "_emit_progress", "_check_interrupted", "_is_processing_interrupt",
+    "_fake_run_ticks", "_persist", "_stage_emit_auto",
     "_stage_emit", "_input_file_url", "_pick_image_from_batch",
     "run_stage_workflow", "invoke_runner", "_standard_stage_inputs",
     "StageError", "StageRunnerMissing", "StageNotImplemented", "StageEmptyOutput",

@@ -1,6 +1,8 @@
 import logging
 import time
 
+import comfy.model_management as model_management
+
 
 def _emit_progress(cls, value: int, total: int, text: str = "") -> None:
     try:
@@ -24,9 +26,16 @@ def _emit_progress(cls, value: int, total: int, text: str = "") -> None:
         logging.warning("[ComfyTV] progress emit failed: %s", e)
 
 
+def _check_interrupted() -> None:
+    model_management.throw_exception_if_processing_interrupted()
+
+
+def _is_processing_interrupt(exc: BaseException) -> bool:
+    return type(exc).__name__ == "InterruptProcessingException"
+
+
 def _fake_run_ticks(cls, steps: int = 4, delay_s: float = 0.12) -> None:
-    import comfy.model_management
     for i in range(steps):
-        comfy.model_management.throw_exception_if_processing_interrupted()
+        _check_interrupted()
         _emit_progress(cls, i, steps, text=f"step {i + 1}/{steps}")
         time.sleep(delay_s)

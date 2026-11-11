@@ -50,6 +50,28 @@ def last_execution_error(executor) -> dict | None:
     return None
 
 
+def execution_was_interrupted(executor) -> bool:
+    for event, _data in getattr(executor, 'status_messages', None) or []:
+        if event == 'execution_interrupted':
+            return True
+    return False
+
+
+def raise_if_nested_failed(executor, sub_prompt_id: str) -> None:
+    """Turn a failed nested prompt into the same signal the outer run expects.
+
+    ComfyUI clears the interrupt flag before the nested executor returns, and
+    records the cancel as ``execution_interrupted``. Wrapping that as
+    ``NestedWorkflowError`` lets a multi-shot stage swallow it and keep going.
+    """
+    if getattr(executor, 'success', False):
+        return
+    if execution_was_interrupted(executor):
+        from comfy.model_management import InterruptProcessingException
+        raise InterruptProcessingException()
+    raise NestedWorkflowError(sub_prompt_id, last_execution_error(executor))
+
+
 def _get_nested_executor():
     global _NESTED_EXECUTOR
     if _NESTED_EXECUTOR is not None:
@@ -187,8 +209,7 @@ async def _run_subprompt(sub_prompt: dict, sub_prompt_id: str,
             if outer_registry is not None:
                 _progress_mod.global_progress_registry = outer_registry
 
-        if not executor.success:
-            raise NestedWorkflowError(sub_prompt_id, last_execution_error(executor))
+        raise_if_nested_failed(executor, sub_prompt_id)
         return executor
 
 

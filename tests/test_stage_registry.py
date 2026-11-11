@@ -55,5 +55,7 @@ def test_catalog_lists_only_registered_stages_with_runnable_flag(registered):
 async def test_add_stage_rejects_pending_catalog_entries():
     from ComfyTV.api.mcp_tools.stages import _normalize_stage_class
     with pytest.raises(ValueError, match="unknown stage class"):
-        _normalize_stage_class("ComfyTV.StoryboardStage")
+        _normalize_stage_class("ComfyTV.TimelineVideoStage")
     assert _normalize_stage_class("ImageStage") == "ComfyTV.ImageStage"
+    assert _normalize_stage_class("ComfyTV.StoryboardStage") == "ComfyTV.StoryboardStage"
+    assert _normalize_stage_class("ShotImagesStage") == "ComfyTV.ShotImagesStage"

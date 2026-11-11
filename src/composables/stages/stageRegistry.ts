@@ -490,6 +490,7 @@ export const RICH_STAGE_MIN_HEIGHTS: Record<string, number> = {
   'ComfyTV.ClickTrackStage':          600,
   'ComfyTV.ChordAccompStage':         680,
   'ComfyTV.MuseReverbStage':          680,
+  'ComfyTV.StoryboardStage':          560,
 }
 
 export const RICH_STAGE_MIN_WIDTHS: Record<string, number> = {
@@ -498,6 +499,7 @@ export const RICH_STAGE_MIN_WIDTHS: Record<string, number> = {
   'ComfyTV.BlenderSceneStage': 960,
   'ComfyTV.LayerEditorStage': 960,
   'ComfyTV.StoryboardEditorStage': 1080,
+  'ComfyTV.StoryboardStage': 420,
 }
 
 export const STAGE_CARD_PROPS: Record<string, Record<string, boolean>> = {

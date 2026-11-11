@@ -425,6 +425,17 @@ describe('spawnFollowUpStage panorama handlers', () => {
   })
 })
 
+describe('spawnFollowUpStage storyboard handlers', () => {
+  it('gen-shots spawns Shot Images on the storyboard socket', () => {
+    inputsByClass['ComfyTV.ShotImagesStage'] = ['storyboard', 'images.image0']
+    const src = makeNode()
+    spawnFollowUpStage(src, 'storyboard', 'gen-shots')
+    expect((window as any).LiteGraph.createNode)
+      .toHaveBeenCalledWith('ComfyTV.ShotImagesStage')
+    expect(src.connect).toHaveBeenCalledWith(0, created[0], 0)
+  })
+})
+
 describe('relight handler', () => {
   it('spawns relight plus image stage and wires slots when present', () => {
     const src = makeNode()

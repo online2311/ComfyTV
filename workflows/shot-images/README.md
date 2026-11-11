@@ -19,4 +19,7 @@ To add your own workflow see [docs/custom-workflows.md](../../docs/custom-workfl
 
 ## What's here today
 
-Nothing. Current Shot Images dropdown entries come from `image/`-folder workflows whose config declares the extra kind.
+- `local-z-image-turbo` — Z-Image Turbo, one image per shot (`batch_size` fixed at 1).
+- `flux-schnell` — Flux Schnell fp8, one image per shot.
+
+Workflows under `image/` can still opt into this dropdown with `kinds: ["image", "shot-images"]`. Every shot receives the stage's shared reference images and the stage seed; a shot does not carry its own.
