@@ -41976,10 +41976,10 @@ function sortedArray(values, stride, order2) {
   }
   return result;
 }
-function flattenJSON(jsonKeys, times, values, valuePropertyName) {
-  let i = 1, key = jsonKeys[0];
+function flattenJSON(jsonKeys2, times, values, valuePropertyName) {
+  let i = 1, key = jsonKeys2[0];
   while (key !== void 0 && key[valuePropertyName] === void 0) {
-    key = jsonKeys[i++];
+    key = jsonKeys2[i++];
   }
   if (key === void 0) return;
   let value = key[valuePropertyName];
@@ -41991,7 +41991,7 @@ function flattenJSON(jsonKeys, times, values, valuePropertyName) {
         times.push(key.time);
         values.push(...value);
       }
-      key = jsonKeys[i++];
+      key = jsonKeys2[i++];
     } while (key !== void 0);
   } else if (value.toArray !== void 0) {
     do {
@@ -42000,7 +42000,7 @@ function flattenJSON(jsonKeys, times, values, valuePropertyName) {
         times.push(key.time);
         value.toArray(values, values.length);
       }
-      key = jsonKeys[i++];
+      key = jsonKeys2[i++];
     } while (key !== void 0);
   } else {
     do {
@@ -42009,7 +42009,7 @@ function flattenJSON(jsonKeys, times, values, valuePropertyName) {
         times.push(key.time);
         values.push(value);
       }
-      key = jsonKeys[i++];
+      key = jsonKeys2[i++];
     } while (key !== void 0);
   }
 }
@@ -59817,7 +59817,7 @@ class ArrayStream {
 }
 let sparkPromise = null;
 function loadSpark() {
-  return sparkPromise ?? (sparkPromise = import("./spark.module-_xJPTK00.mjs"));
+  return sparkPromise ?? (sparkPromise = import("./spark.module-CkIoB25O.mjs"));
 }
 const MESH_MODEL_EXTENSIONS = [".glb", ".gltf", ".fbx", ".obj", ".stl", ".dae"];
 const SPLAT_MODEL_EXTENSIONS = [".spz", ".splat", ".ksplat"];
@@ -62682,13 +62682,13 @@ const messages = {
 };
 const pentradoActions$1 = { "capture": "Capture", "captureHint": "Composite the layers and send to the node output", "saveToLibraryHint": "Export as PSD to the asset library" };
 const dialog$1 = { "confirm": "OK", "cancel": "Cancel", "close": "Close" };
-const v2$1 = { "meta": { "fps": "{n} fps", "silent": "no audio", "mono": "mono", "stereo": "stereo", "channels": "{n} ch", "frames": "{n} frames", "genTime": "Generated in {t}" }, "genopt": { "resolution": "Resolution", "ratio": "Aspect ratio", "count": "Count" }, "panelCollapse": "Collapse the panel — keeps a one-line summary and Run", "panelExpand": "Expand the panel", "imageStageTitle": "Image · ImageStage", "pickerTitle": "Pick · Image Picker", "cropTitle": "Crop · Edit", "ed": { "rotate": "Rotate · Edit", "mirror": "Mirror · Edit", "grade": "Color Grade · Edit", "compare": "Compare · Edit", "gridSplit": "Grid Split · Edit", "imageConcat": "Image Concat · Edit", "wired": "wired", "empty": "empty" }, "stageHint": "Connect references, press ↑ to generate", "pickerHint": "Connect an upstream batch, click to pick", "cropHint": "Connect an upstream image to start cropping", "batchCount": "{n}", "batchPos": "{i}/{n}", "refsCount": "{n} refs", "poolCount": "{n} in pool", "clear": "Clear", "linkWorkflow": "Link workflow", "videoColorTitle": "Color · Video FX", "videoCurvesTitle": "Curves · Video FX", "fxChainTitle": "FX Chain · Render", "renderChain": "Render chain", "outputLabel": "Output", "livePreview": "Live", "fxChainHint": "Connect an upstream video to preview the chain", "scene3dTitle": "3D Scene · Editor", "relightTitle": "Relight · Light ball", "applying": "Applying…", "appliedLive": "Applied · live downstream", "dragToApply": "Drag the box to apply", "loaderHint": "Drop a file here, or click to upload", "loaderEmpty": "Nothing loaded", "assetLoaderHint": "Click to pick from the asset library", "assetLoaderEmpty": "No asset selected", "params": "Params", "generatorHint": "Press ↑ to generate", "livePreviewLocalOnly": "Sampling preview is only available for local runs", "change": "Change", "upload": "Upload", "renameHint": "Double-click to rename", "removeItem": "Remove", "moreActions": "More", "fx": { "lut": "LUT · Grade", "selectiveColor": "Selective Color · Grade", "cdl": "CDL · Grade", "histogramEq": "Histogram EQ · Grade", "awb": "Auto White Balance · Grade", "pseudocolor": "Pseudocolor · Grade", "hueCorrect": "Hue Correct · Grade", "select0r": "Select0r · Grade", "keyer": "Keyer · Key", "pik": "PIK · Key", "despill": "Despill · Key", "colorSuppress": "Color Suppress · Key", "matteMorph": "Matte Morph · Key", "shapeMask": "Shape Mask · Key", "lensDistort": "Lens Distort · Optics", "chromaticAberration": "Chromatic Aberration · Optics", "lensFlare": "Lens Flare · Optics", "glow": "Glow · Optics", "godRays": "God Rays · Optics", "blurSharpen": "Blur & Sharpen · Restore", "denoise": "Denoise · Restore", "deinterlace": "Deinterlace · Restore", "posterize": "Posterize · Look", "oldFilm": "Old Film · Look", "artFx": "Art FX · Look", "glitch": "Glitch · Look", "kaleidoscope": "Kaleidoscope · Look", "waveWarp": "Wave Warp · Look", "strobe": "Strobe · Look", "feedback": "Feedback · Look", "regrain": "Regrain · Look", "stylize": "Quick Looks · Look", "chromaShift": "Chroma Shift · Look", "transform": "Transform · Geo", "video360": "360 Video · Geo", "card3d": "Card 3D · Geo", "particles": "Particles · FX", "water": "Water · FX", "lightGraffiti": "Light Graffiti · FX", "trim": "Trim · Cut", "vcrop": "Crop · Cut", "vsplit": "Split · Cut", "concat": "Concat · Cut", "speed": "Speed · Cut", "rotate": "Rotate & Flip · Cut", "volume": "Volume · Cut", "muxAudio": "Mux Audio · Cut", "resize": "Resize · Cut", "frames": "Frames · Cut", "extractFrame": "Extract Frame · Cut", "timeRemap": "Time Remap · Cut", "sequence": "Sequence · Cut", "sceneDetect": "Scene Detect · Cut", "chromaKey": "Chroma Key · Comp", "composite": "Composite · Comp", "cornerPin": "Corner Pin · Comp", "rotoMask": "Roto Mask · Comp", "keyMix": "Key Mix · Comp", "matteMonitor": "Matte Monitor · Comp", "maskPropagate": "Mask Propagate · Comp", "paintStroke": "Paint Stroke · Comp", "stmap": "STMap · Comp", "stmapGen": "STMap Gen · Comp", "zDefocus": "Z Defocus · Comp", "frameBlend": "Frame Blend · Comp", "transition": "Transition · Blend", "lumaWipe": "Luma Wipe · Blend", "stabilize": "Stabilize · Restore", "stabilizePro": "Stabilize Pro · Restore", "stabilize360": "360 Stabilize · Restore", "interpolate": "Interpolate · Restore", "faceBlur": "Face Blur · Restore", "spotRemover": "Spot Remover · Restore", "scopes": "Scopes · Monitor", "contactSheet": "Contact Sheet · Monitor", "audioMeter": "Audio Meter · Monitor", "title": "Title · Text", "subtitle": "Subtitle · Text", "annotate": "Annotate · Text", "kenBurns": "Ken Burns · FX", "slitScan": "Slit Scan · FX" }, "rich": { "score": "Score · Music", "scoreEditor": "Score Editor · Music", "midiEditor": "MIDI Editor · Music", "expression": "Expression · Anim", "motionTrack": "Motion Track · Anim", "pattern": "Pattern · Gen", "panorama": "Panorama · 360", "panoView": "Current View · 360", "panoMulti": "Multi View · 360", "storyboard": "Storyboard · Story", "storyboardEditor": "Storyboard Studio · Story", "layerEditor": "Layer Editor · Image", "material": "Material · 3D", "modelLoader": "Load Model · 3D", "meshPrimitive": "Primitive · 3D", "meshOp": "Mesh Ops · 3D", "meshBake": "Bake Maps · 3D", "meshBoolean": "Boolean · 3D", "lineArt": "Line Art · Image", "poster": "Poster · Image", "splitPart": "Split Parts · Image", "erase": "Erase · Paint", "inpaint": "Inpaint · Paint", "outpaint": "Outpaint · Paint", "multiangle": "Multi-angle · Image", "director": "Director · Cut" }, "afx": { "dynamics": "Compressor · Dyn", "loudness": "Loudness · Dyn", "duck": "Ducking · Dyn", "eq": "EQ · Tone", "saturate": "Saturate · Tone", "modulation": "Modulation · Tone", "echo": "Echo · Tone", "stereo": "Stereo Field · Tone", "timePitch": "Time & Pitch · Tone", "denoise": "Denoise · Restore", "noiseReduction": "Spectral Gate · Restore", "repair": "Repair · Restore", "convolve": "Convolve IR · Space", "deconvolve": "Deconvolve · Space", "museReverb": "Reverb · Space", "mix": "Mixer · Mix", "crossfade": "Crossfade · Mix", "stemSplit": "Stem Split · Mix", "demuxAudio": "Audio Track · Mix", "demuxVideo": "Silent Video · Mix", "clip": "Trim · Cut", "split": "Split · Cut", "analyze": "Analyze · Meter", "mir": "Music Info · Meter", "visualize": "Visualize · Meter", "segmentExport": "Segments · Meter", "reactive": "Reactive Keys · Meter", "sweep": "Sweep · Synth", "sf2": "SoundFont · Synth", "clickTrack": "Click Track · Synth", "chordAccomp": "Chords · Synth", "scoreToMidi": "Score Player · Synth", "demuxAudioHint": "Extract the audio track from the video", "demuxVideoHint": "Strip the audio, keep the picture" }, "customParams": { "title": "Workflow params", "add": "Add", "addHint": "Attach a parameter exposed by the bound workflow", "remove": "Remove parameter" }, "custom": { "title": "Custom Stage", "expose": "Expose I/O", "hint": "Pick a workflow, then choose which of its inputs and outputs this card exposes", "noWorkflow": "Pick a workflow first", "inputs": "Inputs", "outputs": "Outputs", "exposed": "Exposed", "search": "Search nodes…", "noCandidates": "This workflow has no exposable {what}", "linked": "Wired", "unlinked": "Not wired", "required": "Required", "optional": "Optional", "label": "Label", "batch": "Batch", "save": "Save", "cancel": "Cancel", "saving": "Saving…", "saved": "Saved", "loadFailed": "Could not load workflow: {detail}", "saveFailed": "Save failed: {detail}", "needsOutput": "Pick at least one output", "kinds": { "image": "image", "images": "image batch", "video": "video", "audio": "audio", "model": "3D model", "text": "text", "param": "param" }, "summary": "{inputs} inputs · {outputs} outputs", "moveUp": "Move up", "asPrompt": "Feed from the card's main prompt ({'@'} references work there)", "viaRef": "From asset reference", "saveAs": "Save as…", "saveAsHint": "Save these choices as a separate configuration of the same workflow", "saveAsPrompt": "Name of the new configuration", "asRandom": "Draw a fresh random value on every run (seed)", "randomEachRun": "random on every run", "moveDown": "Move down" }, "ctl": { "duration": "Duration (s)", "generateAudio": "Generate audio", "lyrics": "Lyrics", "bpm": "BPM", "timeSignature": "Time signature", "keyScale": "Key", "language": "Language", "voice": "Voice", "speed": "Speed", "referenceText": "Reference transcript", "variantCount": "Variant count" }, "toolbar": { "hd": "HD", "expand": "Expand", "angles": "Angles", "relight": "Relight", "redraw": "Redraw", "erase": "Erase", "cutout": "Cutout", "grid": "Grid split", "panorama": "Panorama", "crop": "Crop", "download": "Download" } };
+const v2$1 = { "meta": { "fps": "{n} fps", "silent": "no audio", "mono": "mono", "stereo": "stereo", "channels": "{n} ch", "frames": "{n} frames", "genTime": "Generated in {t}" }, "genopt": { "resolution": "Resolution", "ratio": "Aspect ratio", "count": "Count" }, "panelCollapse": "Collapse the panel — keeps a one-line summary and Run", "panelExpand": "Expand the panel", "imageStageTitle": "Image · ImageStage", "pickerTitle": "Pick · Image Picker", "cropTitle": "Crop · Edit", "ed": { "rotate": "Rotate · Edit", "mirror": "Mirror · Edit", "grade": "Color Grade · Edit", "compare": "Compare · Edit", "gridSplit": "Grid Split · Edit", "imageConcat": "Image Concat · Edit", "wired": "wired", "empty": "empty" }, "stageHint": "Connect references, press ↑ to generate", "pickerHint": "Connect an upstream batch, click to pick", "cropHint": "Connect an upstream image to start cropping", "batchCount": "{n}", "batchPos": "{i}/{n}", "refsCount": "{n} refs", "poolCount": "{n} in pool", "clear": "Clear", "linkWorkflow": "Link workflow", "videoColorTitle": "Color · Video FX", "videoCurvesTitle": "Curves · Video FX", "fxChainTitle": "FX Chain · Render", "renderChain": "Render chain", "outputLabel": "Output", "livePreview": "Live", "fxChainHint": "Connect an upstream video to preview the chain", "scene3dTitle": "3D Scene · Editor", "relightTitle": "Relight · Light ball", "applying": "Applying…", "appliedLive": "Applied · live downstream", "dragToApply": "Drag the box to apply", "loaderHint": "Drop a file here, or click to upload", "loaderEmpty": "Nothing loaded", "assetLoaderHint": "Click to pick from the asset library", "assetLoaderEmpty": "No asset selected", "params": "Params", "generatorHint": "Press ↑ to generate", "livePreviewLocalOnly": "Sampling preview is only available for local runs", "change": "Change", "upload": "Upload", "renameHint": "Double-click to rename", "removeItem": "Remove", "moreActions": "More", "fx": { "lut": "LUT · Grade", "selectiveColor": "Selective Color · Grade", "cdl": "CDL · Grade", "histogramEq": "Histogram EQ · Grade", "awb": "Auto White Balance · Grade", "pseudocolor": "Pseudocolor · Grade", "hueCorrect": "Hue Correct · Grade", "select0r": "Select0r · Grade", "keyer": "Keyer · Key", "pik": "PIK · Key", "despill": "Despill · Key", "colorSuppress": "Color Suppress · Key", "matteMorph": "Matte Morph · Key", "shapeMask": "Shape Mask · Key", "lensDistort": "Lens Distort · Optics", "chromaticAberration": "Chromatic Aberration · Optics", "lensFlare": "Lens Flare · Optics", "glow": "Glow · Optics", "godRays": "God Rays · Optics", "blurSharpen": "Blur & Sharpen · Restore", "denoise": "Denoise · Restore", "deinterlace": "Deinterlace · Restore", "posterize": "Posterize · Look", "oldFilm": "Old Film · Look", "artFx": "Art FX · Look", "glitch": "Glitch · Look", "kaleidoscope": "Kaleidoscope · Look", "waveWarp": "Wave Warp · Look", "strobe": "Strobe · Look", "feedback": "Feedback · Look", "regrain": "Regrain · Look", "stylize": "Quick Looks · Look", "chromaShift": "Chroma Shift · Look", "transform": "Transform · Geo", "video360": "360 Video · Geo", "card3d": "Card 3D · Geo", "particles": "Particles · FX", "water": "Water · FX", "lightGraffiti": "Light Graffiti · FX", "trim": "Trim · Cut", "vcrop": "Crop · Cut", "vsplit": "Split · Cut", "concat": "Concat · Cut", "speed": "Speed · Cut", "rotate": "Rotate & Flip · Cut", "volume": "Volume · Cut", "muxAudio": "Mux Audio · Cut", "resize": "Resize · Cut", "frames": "Frames · Cut", "extractFrame": "Extract Frame · Cut", "timeRemap": "Time Remap · Cut", "sequence": "Sequence · Cut", "sceneDetect": "Scene Detect · Cut", "chromaKey": "Chroma Key · Comp", "composite": "Composite · Comp", "cornerPin": "Corner Pin · Comp", "rotoMask": "Roto Mask · Comp", "keyMix": "Key Mix · Comp", "matteMonitor": "Matte Monitor · Comp", "maskPropagate": "Mask Propagate · Comp", "paintStroke": "Paint Stroke · Comp", "stmap": "STMap · Comp", "stmapGen": "STMap Gen · Comp", "zDefocus": "Z Defocus · Comp", "frameBlend": "Frame Blend · Comp", "transition": "Transition · Blend", "lumaWipe": "Luma Wipe · Blend", "stabilize": "Stabilize · Restore", "stabilizePro": "Stabilize Pro · Restore", "stabilize360": "360 Stabilize · Restore", "interpolate": "Interpolate · Restore", "faceBlur": "Face Blur · Restore", "spotRemover": "Spot Remover · Restore", "scopes": "Scopes · Monitor", "contactSheet": "Contact Sheet · Monitor", "audioMeter": "Audio Meter · Monitor", "title": "Title · Text", "subtitle": "Subtitle · Text", "annotate": "Annotate · Text", "kenBurns": "Ken Burns · FX", "slitScan": "Slit Scan · FX" }, "rich": { "score": "Score · Music", "scoreEditor": "Score Editor · Music", "midiEditor": "MIDI Editor · Music", "expression": "Expression · Anim", "motionTrack": "Motion Track · Anim", "pattern": "Pattern · Gen", "panorama": "Panorama · 360", "panoView": "Current View · 360", "panoMulti": "Multi View · 360", "storyboard": "Storyboard · Story", "storyboardEditor": "Storyboard Studio · Story", "layerEditor": "Layer Editor · Image", "material": "Material · 3D", "modelLoader": "Load Model · 3D", "meshPrimitive": "Primitive · 3D", "meshOp": "Mesh Ops · 3D", "meshBake": "Bake Maps · 3D", "meshBoolean": "Boolean · 3D", "lineArt": "Line Art · Image", "poster": "Poster · Image", "splitPart": "Split Parts · Image", "erase": "Erase · Paint", "inpaint": "Inpaint · Paint", "outpaint": "Outpaint · Paint", "multiangle": "Multi-angle · Image", "director": "Director · Cut" }, "afx": { "dynamics": "Compressor · Dyn", "loudness": "Loudness · Dyn", "duck": "Ducking · Dyn", "eq": "EQ · Tone", "saturate": "Saturate · Tone", "modulation": "Modulation · Tone", "echo": "Echo · Tone", "stereo": "Stereo Field · Tone", "timePitch": "Time & Pitch · Tone", "denoise": "Denoise · Restore", "noiseReduction": "Spectral Gate · Restore", "repair": "Repair · Restore", "convolve": "Convolve IR · Space", "deconvolve": "Deconvolve · Space", "museReverb": "Reverb · Space", "mix": "Mixer · Mix", "crossfade": "Crossfade · Mix", "stemSplit": "Stem Split · Mix", "demuxAudio": "Audio Track · Mix", "demuxVideo": "Silent Video · Mix", "clip": "Trim · Cut", "split": "Split · Cut", "analyze": "Analyze · Meter", "mir": "Music Info · Meter", "visualize": "Visualize · Meter", "segmentExport": "Segments · Meter", "reactive": "Reactive Keys · Meter", "sweep": "Sweep · Synth", "sf2": "SoundFont · Synth", "clickTrack": "Click Track · Synth", "chordAccomp": "Chords · Synth", "scoreToMidi": "Score Player · Synth", "demuxAudioHint": "Extract the audio track from the video", "demuxVideoHint": "Strip the audio, keep the picture" }, "customParams": { "title": "Workflow params", "add": "Add", "addHint": "Attach a parameter exposed by the bound workflow", "remove": "Remove parameter" }, "custom": { "title": "Custom Stage", "expose": "Expose I/O", "hint": "Pick a workflow, then choose which of its inputs and outputs this card exposes", "noWorkflow": "Pick a workflow first", "inputs": "Inputs", "outputs": "Outputs", "exposed": "Exposed", "search": "Search nodes…", "noCandidates": "This workflow has no exposable {what}", "linked": "Wired", "unlinked": "Not wired", "required": "Required", "optional": "Optional", "label": "Label", "batch": "Batch", "save": "Save", "cancel": "Cancel", "saving": "Saving…", "saved": "Saved", "loadFailed": "Could not load workflow: {detail}", "saveFailed": "Save failed: {detail}", "needsOutput": "Pick at least one output", "kinds": { "image": "image", "images": "image batch", "video": "video", "audio": "audio", "model": "3D model", "text": "text", "param": "param" }, "summary": "{inputs} inputs · {outputs} outputs", "moveUp": "Move up", "asPrompt": "Feed from the card's main prompt ({'@'} references work there)", "viaRef": "From asset reference", "saveAs": "Save as…", "saveAsHint": "Save these choices as a separate configuration of the same workflow", "saveAsPrompt": "Name of the new configuration", "asRandom": "Draw a fresh random value on every run (seed)", "randomEachRun": "random on every run", "moveDown": "Move down" }, "ctl": { "duration": "Duration (s)", "generateAudio": "Generate audio", "lyrics": "Lyrics", "bpm": "BPM", "timeSignature": "Time signature", "keyScale": "Key", "language": "Language", "voice": "Voice", "speed": "Speed", "referenceText": "Reference transcript", "variantCount": "Variant count", "seed": "Seed" }, "toolbar": { "hd": "HD", "expand": "Expand", "angles": "Angles", "relight": "Relight", "redraw": "Redraw", "erase": "Erase", "cutout": "Cutout", "grid": "Grid split", "panorama": "Panorama", "crop": "Crop", "download": "Download" } };
 const workflow$1 = { "uploadButton": "⬆ Upload workflow", "imported": 'Imported "{label}"', "importFailed": "Workflow import failed", "notJson": "That file isn't valid JSON", "linkButton": "🔗 Link workflow" };
 const stage$1 = { "run": "Run", "rerun": "Re-run", "running": "Running…", "cancel": "Cancel", "preparingWorkflow": "Preparing workflow…", "noWorkflowShort": "No workflow installed — use Upload / Link", "noWorkflowInstalled": "No {kind} workflow is installed — import one with the card's Upload / Link buttons, or under ComfyTV → Stages in the sidebar.", "promptNotBound": `"{label}" has no input bound to Stage prompt, so the card's prompt is ignored. In ComfyTV → Workflow, bind your prompt node's text to "Stage prompt".`, "outputDurationHint": "Generation time", "section": { "context": "Context", "pool": "Pool", "output": "Output ({type})", "actions": "Actions" }, "pool": { "clear": "Clear", "clearHint": "Empty the picker pool and reset the selection", "confirmClear": "Clear pool?", "confirm": "Yes", "cancel": "No", "modeAppend": "Mode: Append", "modeReplace": "Mode: Replace", "modeHint": "How new run results enter the pool (click to switch). Append: keep existing items and add new ones on top. Replace: keep only the latest batch. Identical images are kept once — the pool dedupes by image." }, "empty": { "no_output": "no output yet", "generating": "generating…", "pending_upstream": "upstream pending", "unsupported_type": "unsupported type {type}" }, "source": { "upstream": "← upstream", "pending": "… waiting" }, "disconnect": "Disconnect", "starting": "starting…", "runByKind": { "text": "Generate Text", "image": "Generate Image", "image-batch": "Generate Images", "video": "Generate Video", "audio": "Generate Audio", "panorama": "Generate Panorama", "storyboard": "Generate Storyboard", "model": "Generate 3D Model", "material": "Generate Material" }, "action": { "viewFull": "View full size", "download": "Download", "copyText": "Copy text", "editText": "Edit text (downstream stages use it on their next run)", "restoreText": "Restore the generated text", "textEdited": "Edited", "editTextFailed": "Could not save the text", "saveTextAsset": "Save to asset library", "renderMarkdown": "Render as Markdown", "showRawText": "Show raw text", "addTag": "Save to library / tag", "removeFromPicker": "Remove from picker", "close": "Close", "loadAsset": "Load as asset node", "prev": "Previous", "next": "Next", "pick": "Select this track" }, "preparingWorkflowDetail": "Hang on — converting workflow to api JSON. Try Run again in a moment." };
 const error$1 = { "dismiss": "Dismiss", "cancelled": "Cancelled", "upstreamNotReady": "Upstream not ready", "upstreamNotReadyDetail": "Upstream not ready: {list}. Run those stage(s) first so they produce a snapshot, then Run this stage again.", "refMissing": "Reference no longer available", "refMissingDetail": "{list}: the asset was removed from the library or its file is gone. Remove it from the reference strip and add it again, then Run.", "droppedFromQueue": "Removed from the queue before it ran — the queue was cleared or the prompt was deleted.", "workerDied": "Backend stopped without sending a result. The prompt worker likely died (CUDA OOM during cleanup is the usual cause). Restart ComfyUI to recover." };
 const eagle$1 = { "title": "Eagle Library", "refresh": "Refresh", "search": "Search name or tags…", "loading": "Loading…", "empty": "No items", "loadMore": "Load more", "disabledHint": "Eagle integration is disabled. Turn on “Enable Eagle integration” in Settings and pin the ComfyTV .library path.", "pendingBanner": "{n} item(s) queued for Eagle (waiting for the pinned library to open)", "flushNow": "Send now", "flushing": "Sending…", "mode": { "api": "Online", "disk": "Read-only", "offline": "Offline", "disabled": "Disabled" }, "hint": { "disk": "Eagle is closed or has another library open: reading the library from disk (read-only). Sends are queued and flushed automatically once the pinned library opens.", "offline": "Eagle unreachable: the app is not running and the pinned library path does not exist. Check the library path in Settings." }, "folder": { "all": "All folders" }, "ai": { "label": "AI", "tooltip": "AI semantic search (needs Eagle's AI Search plugin): search by meaning, not by name" }, "similar": { "action": "Find similar", "banner": "Items similar to “{name}”", "clear": "Clear", "failed": "Similar search failed" }, "import": { "action": "Import into Assets", "done": "Imported “{name}”", "existed": "“{name}” is already in Assets", "failed": "Import failed" }, "send": { "action": "Send to Eagle", "sent": "Sent to Eagle: {name}", "queued": "Eagle not ready — queued ({n} pending)", "failed": "Send failed" }, "flush": { "done": "Flushed {n} item(s) to Eagle", "failed": "{n} item(s) failed to flush" } };
 const sidebar$1 = { "tab": { "workflow": "Workflow", "assets": "Assets", "eagle": "Eagle", "entries": "Entries", "params": "Stages", "presets": "Presets", "resources": "Resources", "servers": "Servers", "collab": "Collab", "settings": "Settings" } };
-const settings$1 = { "title": "Settings", "hint": "Defaults come from comfytv.properties in the ComfyTV directory. Values saved here are stored in the database and take precedence.", "modelRoutes": { "desktop-account": "Desktop account", "api-key": "API key" }, "loading": "Loading…", "save": "Save", "saving": "Saving…", "search": "Search settings…", "noMatch": "No settings match", "experimental": "Experimental", "reset": "Reset to default", "on": "On", "off": "Off", "status": { "checking": "Checking…", "online": "Connected", "offline": "Offline" }, "blender": { "section": "Blender bridge" }, "general": { "section": "General" }, "backup": { "section": "Database backup", "now": "Back up now", "running": "Backing up…", "ok": "Backup written to {path}", "failed": "Backup failed: {error}" }, "fields": { "enable-v2": { "label": "Enable ComfyTV V2 nodes", "desc": "EXPERIMENTAL — expect rough edges. Renders migrated stages with the new content-first V2 shells. Requires ComfyUI's own Node 2.0 (Vue nodes) setting to be enabled first. Refresh the page after changing." }, "v2-lod-scale": { "label": "Poster mode below zoom", "desc": "Below this canvas zoom, V2 cards collapse to a thumbnail with a play/open button; panels come back once you zoom in past it again.", "options": { "30": "30%", "42": "42%", "50": "50%", "60": "60%" } }, "v2-lod-fill": { "label": "Poster backdrop", "desc": "What fills the card around a letterboxed thumbnail: the checkerboard used by image previews, or a dimmed copy of the same picture stretched to fill.", "options": { "checker": "Checkerboard", "image": "Same picture, dimmed" } }, "auto-picker": { "label": "Auto-attach picker on run", "desc": "When an Image, Image Edit or Video stage runs with nothing connected to its output, add a Picker stage after it automatically." }, "drop-files-as-loaders": { "label": "Drop media files as asset loaders", "desc": "Images, videos and audio dropped onto empty canvas are imported into the asset library and placed as ComfyTV asset loader nodes, instead of ComfyUI loading them (a PNG no longer opens the workflow saved in it). Drops onto a node and other files are left to ComfyUI." }, "enable-db-backup": { "label": "Automatic backup on startup", "desc": "Back up the ComfyTV data directory (database + workflows) every time the server starts, before any migration runs." }, "db-backup-max-count": { "label": "Max backups to keep", "desc": "When the number of snapshots exceeds this, the oldest ones are deleted." }, "db-backup-path": { "label": "Backup location", "desc": "Leave empty to use the db-backup folder inside the ComfyTV directory. Snapshots are timestamped folders like 20260805-093000/comfytv.", "placeholder": "e.g. D:\\backups\\comfytv" }, "enable-mcp": { "label": "Enable MCP server", "desc": "Expose the ComfyTV MCP endpoint (/comfytv/mcp) so agents can read and drive the canvas. Off by default." }, "enable-bot": { "label": "Enable ComfyTV Bot", "desc": "Show the embedded bot sidebar and its chat API. Requires the MCP server to be enabled." }, "bot-model-claude-code": { "label": "Claude Code model", "desc": "Model passed to claude --model for bot turns. Accepts an alias (sonnet, opus, haiku) or a full model id. Blank = the CLI's own default.", "placeholder": "CLI default" }, "bot-model-codex": { "label": "Codex model", "desc": "Model passed to codex -m for bot turns. Blank = the CLI's own default.", "placeholder": "CLI default" }, "bot-model-qwen-code": { "label": "Qwen Code model", "desc": "Model passed to qwen -m for bot turns. Blank = the model selected in qwen's own settings.", "placeholder": "CLI default" }, "bot-model-local-llm": { "label": "Local LLM model", "desc": "Model id on the local endpoint. Blank = the first model the endpoint reports.", "placeholder": "first available" }, "bot-model-comfyui-llm": { "label": "ComfyUI LLM model", "desc": "EXPERIMENTAL — a toy provider, not meant for real use; pick Local LLM or one of the CLI providers instead. Text-encoder checkpoint from models/text_encoders used for bot turns (Qwen3 or Gemma family). Blank = the first generation-capable checkpoint found. Runs inside ComfyUI itself — no external server needed.", "placeholder": "first available" }, "bot-comfyui-llm-thinking": { "label": "ComfyUI LLM thinking", "desc": "EXPERIMENTAL — only affects the toy ComfyUI LLM provider. Let Qwen3 models reason in a hidden <think> block before answering. Noticeably smarter tool use, at the cost of extra generation time per turn." }, "bot-local-llm-url": { "label": "Local LLM endpoint", "desc": "OpenAI-compatible base URL of a local model server (LM Studio, llama.cpp llama-server, vLLM, Ollama…). The Local LLM provider stays unavailable until this is set. Keyless local endpoints only — no API keys are ever stored.", "placeholder": "http://127.0.0.1:1234/v1" }, "bot-enable-comfy-mcp": { "label": "Mount comfy-mcp", "desc": "Also mount the official comfy-mcp server (read-only tool set: node catalog, workflow validation, model/template search) in bot sessions. Claude Code and Qwen Code only — Codex, DeepSeek Harness, Local LLM and ComfyUI LLM stay comfytv-only." }, "bot-comfy-mcp-command": { "label": "comfy-mcp command", "desc": "Command that launches the comfy-mcp stdio server. Blank = find comfy-mcp on PATH.", "placeholder": "comfy-mcp" }, "bot-always-allow-runs": { "label": "Always allow bot runs", "desc": "Run stages immediately without an approval card (the default). Disable this to let chats switched to Ask mode pause for your approval before each run." }, "bot-model-deepseek-harness": { "label": "DeepSeek Harness model", "desc": "The model also picks who pays: the desktop account or the API key. Blank = the first desktop-account model; it never falls back to the API key.", "placeholder": "Desktop account default" }, "bot-hermes-ssh-host": { "label": "Hermes SSH host", "desc": "Run Hermes on another machine over SSH (a host alias or user@host; key login only). ComfyTV opens a reverse tunnel so Hermes can reach this canvas. Blank = run the local hermes command.", "placeholder": "spark" }, "bot-hermes-profile": { "label": "Hermes profile", "desc": "The Hermes profile ComfyTV runs (hermes -p <name>). Use a profile made for ComfyTV, with no sudo password and a docker terminal backend — see the bot docs. Blank = Hermes's default profile.", "placeholder": "comfytv" }, "bot-model-hermes": { "label": "Hermes model", "desc": "Blank = the model configured in Hermes itself.", "placeholder": "Hermes default" }, "enable-skills": { "label": "Enable Agent Skills", "desc": "Serve installed skills to agents over MCP (skill tool + prompts) and to the embedded bot." }, "enable-collab": { "label": "Enable collaboration", "desc": "EXPERIMENTAL — do not rely on this in production. Real-time multi-user presence and co-editing over the local network. When off, no collaboration code runs at all (no session, no websocket, no UI). Reload open pages after changing this." }, "enable-eagle": { "label": "Enable Eagle integration", "desc": "Connect the local Eagle (eagle.cool) library to ComfyTV: an Eagle panel appears in the sidebar and assets can be sent to Eagle. Requires the Eagle desktop app." }, "eagle-api-url": { "label": "Eagle API URL", "desc": "Address of Eagle's local API, default port 41595. Local access only, no token needed.", "placeholder": "http://127.0.0.1:41595" }, "eagle-library-path": { "label": "Pinned library path", "desc": "The .library directory dedicated to ComfyTV. Sends only happen while Eagle has this library open (queued otherwise); browsing falls back to reading the directory from disk. Empty = follow whatever library Eagle has open (not recommended).", "placeholder": "e.g. Y:\\Eagle\\ComfyTV.library" }, "eagle-send-folder": { "label": "Send target folder", "desc": "Eagle folder that manually sent items are filed into; created automatically if missing. Empty = library root. Auto-archive uses per-project folders instead." }, "eagle-auto-send": { "label": "Auto-archive outputs to Eagle", "desc": "Automatically archive every stage output (image/video/audio) into Eagle: filed into a per-project folder, annotation carries the full generation params (prompt/model/…), tagged with the project name. Uses the queue — piles up while Eagle is closed, never blocks generation." }, "blender-bridge-url": { "label": "Blender bridge URL", "desc": "EXPERIMENTAL — expect rough edges. Address of the blender-web bridge that the Blender Scene / Camera / Animation stages talk to. Start it with blender-for-comfytv.bat; the stages stay unavailable until it responds. Default port 7684, local only.", "placeholder": "http://127.0.0.1:7684" } }, "agent": { "section": "Agent & MCP" }, "eagle": { "section": "Eagle Integration" }, "collab": { "section": "Collaboration" } };
+const settings$1 = { "title": "Settings", "hint": "Defaults come from comfytv.properties in the ComfyTV directory. Values saved here are stored in the database and take precedence.", "modelRoutes": { "desktop-account": "Desktop account", "api-key": "API key" }, "loading": "Loading…", "save": "Save", "saving": "Saving…", "search": "Search settings…", "noMatch": "No settings match", "experimental": "Experimental", "reset": "Reset to default", "on": "On", "off": "Off", "status": { "checking": "Checking…", "online": "Connected", "offline": "Offline" }, "blender": { "section": "Blender bridge" }, "general": { "section": "General" }, "backup": { "section": "Database backup", "now": "Back up now", "running": "Backing up…", "ok": "Backup written to {path}", "failed": "Backup failed: {error}" }, "fields": { "enable-v2": { "label": "Enable ComfyTV V2 nodes", "desc": "EXPERIMENTAL — expect rough edges. Renders migrated stages with the new content-first V2 shells. Requires ComfyUI's own Node 2.0 (Vue nodes) setting to be enabled first. Refresh the page after changing." }, "v2-lod-scale": { "label": "Poster mode below zoom", "desc": "Below this canvas zoom, V2 cards collapse to a thumbnail with a play/open button; panels come back once you zoom in past it again.", "options": { "30": "30%", "42": "42%", "50": "50%", "60": "60%" } }, "v2-lod-fill": { "label": "Poster backdrop", "desc": "What fills the card around a letterboxed thumbnail: the checkerboard used by image previews, or a dimmed copy of the same picture stretched to fill.", "options": { "checker": "Checkerboard", "image": "Same picture, dimmed" } }, "auto-picker": { "label": "Auto-attach picker on run", "desc": "When an Image, Image Edit or Video stage runs with nothing connected to its output, add a Picker stage after it automatically." }, "drop-files-as-loaders": { "label": "Drop media files as asset loaders", "desc": "Images, videos and audio dropped onto empty canvas are imported into the asset library and placed as ComfyTV asset loader nodes, instead of ComfyUI loading them (a PNG no longer opens the workflow saved in it). Drops onto a node and other files are left to ComfyUI." }, "enable-db-backup": { "label": "Automatic backup on startup", "desc": "Back up the ComfyTV data directory (database + workflows) every time the server starts, before any migration runs." }, "db-backup-max-count": { "label": "Max backups to keep", "desc": "When the number of snapshots exceeds this, the oldest ones are deleted." }, "db-backup-path": { "label": "Backup location", "desc": "Leave empty to use the db-backup folder inside the ComfyTV directory. Snapshots are timestamped folders like 20260805-093000/comfytv.", "placeholder": "e.g. D:\\backups\\comfytv" }, "enable-mcp": { "label": "Enable MCP server", "desc": "Expose the ComfyTV MCP endpoint (/comfytv/mcp) so agents can read and drive the canvas. Off by default." }, "headless-auto-resume": { "label": "Auto-resume headless queue on startup", "desc": "Off by default. On startup the headless queue re-attaches to a prompt still in ComfyUI's queue and collects outputs from history, but it does not submit again. Turn this on to also re-queue a job ComfyUI has no record of. resume_queue always does that resubmit when you ask." }, "enable-bot": { "label": "Enable ComfyTV Bot", "desc": "Show the embedded bot sidebar and its chat API. Requires the MCP server to be enabled." }, "bot-model-claude-code": { "label": "Claude Code model", "desc": "Model passed to claude --model for bot turns. Accepts an alias (sonnet, opus, haiku) or a full model id. Blank = the CLI's own default.", "placeholder": "CLI default" }, "bot-model-codex": { "label": "Codex model", "desc": "Model passed to codex -m for bot turns. Blank = the CLI's own default.", "placeholder": "CLI default" }, "bot-model-qwen-code": { "label": "Qwen Code model", "desc": "Model passed to qwen -m for bot turns. Blank = the model selected in qwen's own settings.", "placeholder": "CLI default" }, "bot-model-local-llm": { "label": "Local LLM model", "desc": "Model id on the local endpoint. Blank = the first model the endpoint reports.", "placeholder": "first available" }, "bot-model-comfyui-llm": { "label": "ComfyUI LLM model", "desc": "EXPERIMENTAL — a toy provider, not meant for real use; pick Local LLM or one of the CLI providers instead. Text-encoder checkpoint from models/text_encoders used for bot turns (Qwen3 or Gemma family). Blank = the first generation-capable checkpoint found. Runs inside ComfyUI itself — no external server needed.", "placeholder": "first available" }, "bot-comfyui-llm-thinking": { "label": "ComfyUI LLM thinking", "desc": "EXPERIMENTAL — only affects the toy ComfyUI LLM provider. Let Qwen3 models reason in a hidden <think> block before answering. Noticeably smarter tool use, at the cost of extra generation time per turn." }, "bot-local-llm-url": { "label": "Local LLM endpoint", "desc": "OpenAI-compatible base URL of a local model server (LM Studio, llama.cpp llama-server, vLLM, Ollama…). The Local LLM provider stays unavailable until this is set. Keyless local endpoints only — no API keys are ever stored.", "placeholder": "http://127.0.0.1:1234/v1" }, "bot-enable-comfy-mcp": { "label": "Mount comfy-mcp", "desc": "Also mount the official comfy-mcp server (read-only tool set: node catalog, workflow validation, model/template search) in bot sessions. Claude Code and Qwen Code only — Codex, DeepSeek Harness, Local LLM and ComfyUI LLM stay comfytv-only." }, "bot-comfy-mcp-command": { "label": "comfy-mcp command", "desc": "Command that launches the comfy-mcp stdio server. Blank = find comfy-mcp on PATH.", "placeholder": "comfy-mcp" }, "bot-always-allow-runs": { "label": "Always allow bot runs", "desc": "Run stages immediately without an approval card (the default). Disable this to let chats switched to Ask mode pause for your approval before each run." }, "bot-model-deepseek-harness": { "label": "DeepSeek Harness model", "desc": "The model also picks who pays: the desktop account or the API key. Blank = the first desktop-account model; it never falls back to the API key.", "placeholder": "Desktop account default" }, "bot-hermes-ssh-host": { "label": "Hermes SSH host", "desc": "Run Hermes on another machine over SSH (a host alias or user@host; key login only). ComfyTV opens a reverse tunnel so Hermes can reach this canvas. Blank = run the local hermes command.", "placeholder": "spark" }, "bot-hermes-profile": { "label": "Hermes profile", "desc": "The Hermes profile ComfyTV runs (hermes -p <name>). Use a profile made for ComfyTV, with no sudo password and a docker terminal backend — see the bot docs. Blank = Hermes's default profile.", "placeholder": "comfytv" }, "bot-model-hermes": { "label": "Hermes model", "desc": "Blank = the model configured in Hermes itself.", "placeholder": "Hermes default" }, "enable-skills": { "label": "Enable Agent Skills", "desc": "Serve installed skills to agents over MCP (skill tool + prompts) and to the embedded bot." }, "enable-collab": { "label": "Enable collaboration", "desc": "EXPERIMENTAL — do not rely on this in production. Real-time multi-user presence and co-editing over the local network. When off, no collaboration code runs at all (no session, no websocket, no UI). Reload open pages after changing this." }, "enable-eagle": { "label": "Enable Eagle integration", "desc": "Connect the local Eagle (eagle.cool) library to ComfyTV: an Eagle panel appears in the sidebar and assets can be sent to Eagle. Requires the Eagle desktop app." }, "eagle-api-url": { "label": "Eagle API URL", "desc": "Address of Eagle's local API, default port 41595. Local access only, no token needed.", "placeholder": "http://127.0.0.1:41595" }, "eagle-library-path": { "label": "Pinned library path", "desc": "The .library directory dedicated to ComfyTV. Sends only happen while Eagle has this library open (queued otherwise); browsing falls back to reading the directory from disk. Empty = follow whatever library Eagle has open (not recommended).", "placeholder": "e.g. Y:\\Eagle\\ComfyTV.library" }, "eagle-send-folder": { "label": "Send target folder", "desc": "Eagle folder that manually sent items are filed into; created automatically if missing. Empty = library root. Auto-archive uses per-project folders instead." }, "eagle-auto-send": { "label": "Auto-archive outputs to Eagle", "desc": "Automatically archive every stage output (image/video/audio) into Eagle: filed into a per-project folder, annotation carries the full generation params (prompt/model/…), tagged with the project name. Uses the queue — piles up while Eagle is closed, never blocks generation." }, "blender-bridge-url": { "label": "Blender bridge URL", "desc": "EXPERIMENTAL — expect rough edges. Address of the blender-web bridge that the Blender Scene / Camera / Animation stages talk to. Start it with blender-for-comfytv.bat; the stages stay unavailable until it responds. Default port 7684, local only.", "placeholder": "http://127.0.0.1:7684" } }, "agent": { "section": "Agent & MCP" }, "eagle": { "section": "Eagle Integration" }, "collab": { "section": "Collaboration" } };
 const servers$1 = { "title": "ComfyUI Servers", "add": "Add", "addTooltip": "Register another ComfyUI instance on your network so stages can run on it", "empty": "No remote servers configured. Stages run on this machine. Add a server to unlock the per-stage server dropdown and run stages on several machines in parallel.", "edit": "Edit", "delete": "Delete", "deleteConfirm": 'Delete server "{label}"? Stages currently pointed at it will fall back to running locally.', "enable": "Enable", "disable": "Disable", "local": "Local (this machine)", "runOn": "Run on", "form": { "label": "Name", "labelPlaceholder": "e.g. GPU rig upstairs", "host": "Host / IP", "port": "Port", "create": "Add server", "save": "Save", "cancel": "Cancel", "saveFailed": "Save failed — is the name already in use?" }, "test": { "action": "Test connection", "testing": "Testing…", "ok": "Connected", "failed": "Connection failed" }, "job": { "started": "Running on {label}", "failed": "Remote run failed", "cancelled": "Remote run cancelled", "fallbackLocal": "Selected server is gone or disabled — this stage will run locally." }, "status": { "online": "Online", "offline": "Offline", "unknown": "Checking…", "idle": "Idle", "queueShort": "Q {n}", "queueDetail": "{running} running, {pending} pending", "fromComfyTV": "{n} from ComfyTV" }, "caps": { "badge": "ComfyTV v{version}", "comfyOnly": "ComfyUI only — ComfyTV not installed", "missingNodes": "{n} nodes missing", "missingTitle": "Nodes missing on this remote — upgrade its ComfyTV:" }, "preflight": { "blockedTitle": "Remote run blocked", "warnTitle": "Remote resource check", "runAnyway": "Run anyway", "noComfyTV": `Remote "{label}" doesn't have ComfyTV installed — install ComfyTV there or run locally.`, "missingNode": 'Remote "{label}" is missing node {node} — upgrade its ComfyTV.', "missingResource": 'Remote "{label}" is missing resource {file} — run anyway?', "resourceMismatch": 'Resource {file} has different content on remote "{label}" — run anyway?' } };
 const stageManager$1 = { "title": "Stage Manager", "refresh": "Refresh list", "import": "Import", "rescan": "Rescan", "rescanTooltip": "Scan the workflow library on disk (comfytv/workflows/ in the ComfyUI user directory) for new, changed, or removed files — no backend restart needed", "rescanFound": "Found {n} new workflow(s)", "rescanNone": "No new workflows found", "rescanNoneDetail": "Make sure the file is a .json inside comfytv/workflows/<kind>/ in the ComfyUI user directory (preset and .api.json sidecars don't count).", "rescanFailed": "Rescan failed", "setDefault": "Set as default", "unsetDefault": "Unset default", "defaultSet": "{label} is now the default workflow for this stage", "defaultCleared": "{label} is no longer the default — the first listed workflow is used", "defaultFailed": "Could not change the default workflow", "setFavorite": "Add to favorites", "unsetFavorite": "Remove from favorites (also unsets default)", "favoriteFailed": "Could not change favorites", "hide": "Hide from stage node", "unhide": "Show on stage node", "hiddenSet": "{label} is now hidden from the workflow dropdown on stage nodes", "hiddenCleared": "{label} is shown in the workflow dropdown again", "hiddenFailed": "Could not change workflow visibility", "section": { "workflows": "Workflows", "params": "Parameters" }, "emptyWorkflows": "No workflows registered for this stage yet — import one here, or drop a .json into comfytv/workflows/<kind>/ in the ComfyUI user directory and hit Rescan.", "hint": "Workflows listed here are picked from the workflow dropdown on the matching stage node on the canvas.", "badge": { "linked": "linked", "linkedHint": "Linked from ComfyUI's native workflow folder (not managed by ComfyTV)", "fileMissing": "file missing", "notGui": "not GUI format", "notGuiHint": "Missing a top-level nodes array — open it in ComfyUI and re-save normally, not with Save (API Format)", "noApi": "API not generated", "noApiHint": "The API prompt is generated automatically the first time this workflow runs — normal for a freshly imported workflow.", "new": "new", "newHint": "Discovered in the most recent scan (startup or rescan)", "builtin": "built-in", "builtinHint": "Ships with ComfyTV (tracked in git). Workflows without this badge were imported or dropped in by a user.", "default": "default", "defaultHint": "Newly added stage nodes of this kind start with this workflow selected. Setting a default also favorites it and lists it first in the stage dropdown. If it is deleted or unlinked, the first listed workflow is used instead.", "favorite": "favorite", "favoriteHint": "Listed near the top of the stage dropdown, separated from other workflows by a line.", "hidden": "hidden", "hiddenHint": "Not offered in the workflow dropdown on stage nodes. Nodes that already selected it keep working." } };
 const assets$1 = { "title": "Asset Library", "empty": "No assets yet — add images, video, or audio to reuse them across projects.", "emptyCategory": "No assets in this category yet.", "add": "Add media", "addTooltip": "Upload images, video, or audio into the library (or drag & drop them onto this panel)", "uploading": "Uploading {done}/{total}…", "uploadFailed": "Upload failed: {detail}", "dropHint": "Drop files to add them to the library", "search": "Search assets", "noResults": "No assets match your search.", "scanFolder": "Scan media folder", "scanFolderHint": "Drop large files into this folder — they are adopted on scan without uploading", "view": { "settings": "Display settings", "list": "List view", "grid": "Grid view" }, "media": { "all": "All types", "image": "Images", "video": "Video", "audio": "Audio", "model": "3D models", "text": "Text" }, "category": { "all": "All", "none": "Uncategorized", "new": "New category", "newPrompt": "New category name:", "rename": "Rename category", "renamePrompt": "Category name:", "delete": "Delete category", "deleteConfirm": "Delete this category? It is removed from all assets; the assets and files on disk stay." }, "card": { "rename": "Rename", "renamePrompt": "Asset name:", "delete": "Remove from library", "deleteConfirm": "Remove this asset from the library? The file on disk stays.", "tags": "Edit tags", "loadNode": "Add as node to canvas", "makeProxy": "Generate preview proxy", "more": "More options", "playPreview": "Play", "pausePreview": "Pause", "fileMissing": "File missing", "fileMissingHint": "The file on disk was deleted; the library entry remains — re-import it or remove the asset" }, "tagPopover": { "empty": "No categories yet.", "create": "New category" }, "select": { "enter": "Select assets (Ctrl+click also works)", "exit": "Exit selection", "all": "Select all shown", "missing": "Select only the shown assets whose file is missing ({count})", "count": "{count} selected", "tags": "Edit tags of selected", "loadNodes": "Add selected as nodes to canvas", "remove": "Remove selected from library", "removeConfirm": "Remove {count} assets from the library? The files on disk stay." } };
@@ -62702,7 +62702,7 @@ const promptAssets$1 = { "addTooltip": "Insert an image asset from the library �
 const validator$1 = { "kind": { "image": "image", "video": "video", "audio": "audio", "text": "text", "model": "3D model" }, "unused": `"{label}" doesn't consume {kind} input — this connection will be ignored at run time.`, "extra": '"{label}" only consumes {max} {kind} input(s) — this extra connection will be ignored at run time.', "needImage": '"{label}" requires an image — add a reference with ＋ on the card, or wire one in.', "needImageN": '"{label}" needs image {n} — add a reference with ＋ or wire one in ({ready}/{total} ready).', "needInput": '"{label}" requires a {kind} input — wire one into this slot.', "needInputN": '"{label}" requires {needed} {kind} inputs — wire one into this slot ({wired}/{needed} wired so far).' };
 const bindTo$1 = { "useValue": "(use this value)", "prompt": "Stage prompt", "width": "Stage width", "height": "Stage height", "length": "Stage video length", "upstream": { "image": "Upstream image", "video": "Upstream video", "audio": "Upstream audio", "text": "Upstream text", "model": "Upstream 3D model" }, "maskedImage": "Upstream image + painted mask (alpha)", "option": { "seed": "Stage seed", "batch_size": "Stage batch size", "duration_s": "Stage duration (s)", "generate_audio": "Stage generate audio", "lyrics": "Stage lyrics", "bpm": "Stage BPM", "timesignature": "Stage time signature", "keyscale": "Stage key / scale", "voice": "Stage voice / speaker", "language": "Stage language", "speed": "Stage speaking speed", "reference_text": "Stage reference transcript", "max_length": "Stage LLM max output length", "scale": "Stage scale", "pad_left": "Stage pad left", "pad_top": "Stage pad top", "pad_right": "Stage pad right", "pad_bottom": "Stage pad bottom", "feathering": "Stage feathering", "mask_data": "Stage mask (painter output)" } };
 const configSidebar$1 = { "title": "Workflow Config", "empty": "Select a stage node on the canvas to edit its workflow config. Imported workflows are picked from the node's workflow dropdown — see the Stages tab for the full list.", "noWorkflowPicked": "This stage's workflow combo is empty — pick one first.", "loading": "Loading…", "noExposedWidgets": "This workflow has no editable widgets, or hasn't been prepared yet — pick it on any stage first so the browser can analyze it.", "pickWorkflowFirst": "Pick this workflow on any stage first to populate widget metadata (the browser-side graphToPrompt has to run).", "customExposed": "Exposed by the card as", "customExposedPrompt": "main prompt", "customOutputsHint": "Outputs are chosen in the card's Expose I/O panel.", "bindTo": "Bind to:", "exportPreset": "Export preset.json", "exportPresetTooltip": "Download the current bindings as a *_preset.json file. Drop it next to the workflow JSON in workflows/<kind>/ to ship these defaults to other users.", "exportPresetFailed": "Export failed: {detail}", "resetToPreset": "↻ Reset to shipped preset", "resetToPresetTooltip": "Wipe all bindings + meta for this workflow and re-apply its shipped _preset.json from disk. Your own edits will be lost.", "resetToPresetConfirm": "Reset all bindings for this workflow to the shipped preset? Your edits will be lost.", "resetToPresetFailed": "Reset failed: {detail}", "conversionMayHaveFailed": "ComfyTV may have failed to convert this workflow. Export an API-format JSON from ComfyUI (Save (API Format)) and upload it here — name it as the matching .api.json next to the workflow.", "uploadApi": "Upload API JSON", "uploadApiTooltip": "Attach a Save (API Format) export to this workflow. It's stored as <name>.api.json next to the workflow and used directly, skipping conversion.", "uploadApiOk": "API prompt saved ({n} nodes) — workflow ready.", "uploadApiFailed": "Upload failed: {detail}", "uploadApiNotJson": "Not valid JSON.", "reconvertApi": "Regenerate API", "reconvertApiTooltip": "Convert the workflow file to an API prompt again. Use it after updating ComfyUI, ComfyTV or custom nodes when this workflow fails to run.", "reconvertApiOk": "API prompt regenerated ({n} nodes).", "reconvertApiFailed": "Regenerate failed: {detail}", "resultNode": "Node", "resultAutoDetect": "(auto-detect)", "resultHintAuto": "Auto-detected from save / preview nodes. Pick a node to override which one produces this stage's output.", "resultHintSet": "This node's output is used as the stage result.", "resultType": { "label": "As", "text": "Text / value (slot 0)", "file": "Saved file (image / video / audio)", "batch": "Saved image batch" }, "bindingRequired": "Required", "outputs": "Outputs", "useNodeOutput": "(use node output)", "outputsTakenOver": "All outputs are bound to the stage — these values are not used.", "mentionStyle": { "label": "Refs", "natural": "Natural text (image 1)", "minimaxTags": "<Picture n> tags (MiniMax H3)", "qwenTags": "<image n> tags (Qwen Image 2.1)", "flux3Tags": "<ref_image n> tags (FLUX.3, zero-based)", "hint": "How image mentions in the stage prompt are rendered for this workflow's model." }, "section": { "widgets": "Widgets", "notes": "Workflow notes", "description": "Description", "result": "Result", "properties": "Workflow properties" }, "linkedSource": "Linked from ComfyUI", "linkedSourceHint": "This workflow lives in ComfyUI's own library. Edit it there and save — changes sync automatically.", "linkBroken": "Link broken", "linkBrokenHint": "The source workflow is missing from ComfyUI's library (moved, renamed, or deleted). Re-create it or unlink.", "unlink": "Unlink", "unlinkConfirm": 'Unlink "{label}"? The ComfyUI workflow file is kept — only the ComfyTV reference is removed.', "unlinkFailed": "Unlink failed: {detail}", "searchNodes": "Search nodes…", "groupAll": "All", "groupUngrouped": "Ungrouped", "noMatchingNodes": "No nodes match the current filter." };
-const project$1 = { "label": "Current Project", "shared_suffix": "(shared)", "id_prefix": "id:", "refresh": "Refresh project list", "create": "New project", "delete": "Delete this project (files on disk stay)", "delete_confirm": "Delete this project? DB rows will be cleared; files on disk stay.", "create_prompt": "New project name:", "create_default": "Project {n}", "status": { "refreshing": "refreshing…", "refresh_failed": "refresh failed", "create_failed": "create failed", "deleted": "deleted", "delete_failed": "delete failed", "load_failed": "Failed to load project list" } };
+const project$2 = { "label": "Current Project", "shared_suffix": "(shared)", "id_prefix": "id:", "refresh": "Refresh project list", "create": "New project", "delete": "Delete this project (files on disk stay)", "delete_confirm": "Delete this project? DB rows will be cleared; files on disk stay.", "create_prompt": "New project name:", "create_default": "Project {n}", "status": { "refreshing": "refreshing…", "refresh_failed": "refresh failed", "create_failed": "create failed", "deleted": "deleted", "delete_failed": "delete failed", "load_failed": "Failed to load project list" } };
 const execution$1 = { "running": "running: node #{nodeId}", "queued": "queued" };
 const actions$1 = { "image": { "edit": { "label": "Edit Image", "tooltip": "Edits that change size or need rich UI (HD / outpaint / inpaint / erase / cutout / crop)" }, "panorama": { "label": "Panorama", "tooltip": "Turn this image into a panorama and explore viewpoints" }, "multiangle": { "label": "Multi-angle", "tooltip": "Re-render this image from a different camera angle" }, "relight": { "label": "Relight", "tooltip": "Spawn a Relight light-source node plus an image stage preset to the relight workflow — place 3D lights or pick a reference image, then run the image stage" }, "material": { "label": "Material", "tooltip": "Spawn a Material node wired to this image — Run estimates PBR parameters (color, roughness, transparency…) from the picture via a local VLM" }, "preset": { "label": "Presets", "tooltip": "Size-preserving, no-rich-UI preset transforms (multi-view / grid / scene progression)" } }, "video": { "extend": { "label": "Extend", "tooltip": "Extract this clip's last frame and spawn a new VideoStage using it as the I2V start frame — write a prompt for the continuation" }, "change": { "label": "Edit Video", "tooltip": "Modify an existing video: clip / HD / subtitle erase / audio separation" } }, "audio": { "change": { "label": "Edit Audio", "tooltip": "Process this audio: trim / dynamics / EQ / denoise / mix / analysis" } }, "text": { "refine": { "label": "Refine", "tooltip": "Continue rewriting in a new TextStage" } }, "panorama": { "view-current": { "label": "Current View", "tooltip": "Extract the current viewport as a single image" }, "view-four": { "label": "4 Views", "tooltip": "Extract 4 viewpoints as an image batch" }, "view-twelve": { "label": "12 Views", "tooltip": "Extract 12 viewpoints as an image batch" } }, "storyboard": { "gen-shots": { "label": "Generate Shot Images", "tooltip": "Spawn a Shot Images stage wired to this storyboard — iterates the shot list and renders one image per shot" } }, "model": { "product-shot": { "label": "Product Shot", "tooltip": "Spawn an image-edit stage preset to Qwen Edit 2511, wired to this 3D capture — keeps the subject's colors and materials while turning the render into a studio product photo; edit the prompt to taste" } } };
 const stagePresets$1 = { "custom": "Custom", "save": "Save preset", "saveTitle": "Save preset", "nameLabel": "Preset name", "delete": "Delete preset", "deleteTitle": "Delete preset", "deleteConfirm": 'Delete preset "{name}"?', "renameTitle": "Rename preset", "reset": "Reset to defaults", "builtin": "Built-in preset", "saveFailed": "Failed to save preset", "nameReserved": "This name is reserved by a built-in preset", "panel": { "title": "Stage Presets", "empty": "No presets yet. Use the save button on a stage node to create one.", "rename": "Rename preset" } };
@@ -62728,7 +62728,7 @@ const videoCrop$1 = { "play": "Play", "cropping": "Cropping…", "cropped": "Vid
 const imageCrop$1 = { "noInputImage": "No input image — connect an image upstream", "cropPreviewAlt": "Crop preview", "loading": "Loading…", "ratio": "Ratio", "custom": "Custom", "lockRatio": "Lock aspect ratio", "unlockRatio": "Unlock aspect ratio", "applying": "Applying crop…", "applied": "Crop applied — ready for downstream", "adjustToApply": "Drag the rectangle or pick a ratio to apply" };
 const panorama$1 = { "empty": "No panorama yet — upload an HDRI / equirect image or click Run with an upstream image", "uploading": "Uploading…", "upload": "Upload panorama", "clearUpload": "Clear upload", "clearUploadTooltip": "Drop the manual source — Run will then derive from upstream again", "manualSourceBadge": "manual", "loadError": "Failed to load panorama" };
 const imageCompare$1 = { "before": "Before", "after": "After", "noImages": "Connect two images to compare (A / B)" };
-const storyboard$1 = { "shots": "Shots", "addShot": "Add shot", "empty": "No shots yet — Run to generate from the premise, or add shots manually", "moveUp": "Move up", "moveDown": "Move down", "remove": "Remove shot", "regenerate": "Regenerate this shot via the LLM (keeps the rest)", "noRef": "no reference", "uploadRef": "Upload reference image", "clearRef": "Clear reference", "addRef": "Add reference", "removeRef": "Remove this reference", "refsCount": "{n}/8 refs", "seed": "Seed", "seedAuto": "stage", "seedHint": "Leave empty to use the stage seed", "promptPlaceholder": "Describe this shot…", "cols": { "scene_purpose": "Purpose", "character": "Character", "character_desc": "Character notes", "shot_size": "Shot size", "action": "Action", "emotion": "Emotion", "scene_tags": "Scene", "lighting": "Lighting", "sfx": "SFX", "dialogue": "Dialogue", "image_prompt": "Image prompt", "motion_prompt": "Motion prompt" }, "regenerateFailed": "Regenerate shot failed" };
+const storyboard$1 = { "shots": "Shots", "addShot": "Add shot", "empty": "No shots yet — Run to generate from the premise, or add shots manually", "moveUp": "Move up", "moveDown": "Move down", "remove": "Remove shot", "regenerate": "Regenerate this shot via the LLM (keeps the rest)", "noRef": "no reference", "uploadRef": "Upload reference image", "clearRef": "Clear reference", "addRef": "Add reference", "removeRef": "Remove this reference", "refsCount": "{n}/9 refs", "pictureSlot": "<Picture {n}>", "seed": "Seed", "seedAuto": "stage", "seedHint": "Leave empty to use the stage seed", "promptPlaceholder": "Describe this shot…", "cols": { "scene_purpose": "Purpose", "character": "Character", "character_desc": "Character notes", "shot_size": "Shot size", "action": "Action", "emotion": "Emotion", "scene_tags": "Scene", "lighting": "Lighting", "sfx": "SFX", "dialogue": "Dialogue", "image_prompt": "Image prompt", "motion_prompt": "Motion prompt" }, "regenerateFailed": "Regenerate shot failed", "importJson": "Import shots.json", "importFailed": "Could not import that JSON — it needs a shots array", "fields": "Shot fields", "assetRefs": "Asset references", "dialogueLines": "Dialogue", "speaker": "Speaker", "fieldKey": "Field", "fieldValue": "Value", "removeField": "Remove field" };
 const storyboardEditor$1 = { "boards": "Boards", "addBoard": "Add board", "deleteBoard": "Delete board", "moveLeft": "Move left", "moveRight": "Move right", "importUpstream": "Import shots", "imported": "Imported {count} shots", "noUpstreamData": "Upstream storyboard is empty — run the Storyboard node first", "play": "Play animatic", "stop": "Stop", "onionPrev": "Onion skin: previous board", "onionNext": "Onion skin: next board", "newShot": "New shot", "duration": "Duration", "defaultDuration": "Default", "tabBoard": "Board", "tabLayers": "Layers", "refImage": "Reference image", "noRef": "No reference", "uploadRef": "Upload", "clearRef": "Clear", "addRefToCanvas": "Add to canvas", "fields": { "scenePurpose": "Description", "dialogue": "Dialogue", "action": "Action", "notes": "Notes", "character": "Character", "shotSize": "Shot size", "imagePrompt": "Image prompt", "motionPrompt": "Motion prompt" }, "importScript": "Import script", "exportAnimatic": "Export animatic", "exportPdf": "Export PDF", "animaticReady": "Animatic rendered - video output is ready for downstream", "animaticFailed": "Animatic export failed", "pdfFailed": "PDF export failed", "psdFailed": "PSD export failed", "exportPsdHint": "Export all boards as Photoshop artboards in one PSD", "exportPsdAnim": "Anim PSD", "exportPsdAnimHint": "Export boards as a Photoshop frame animation PSD", "noScenesFound": "No scenes found in the script (Fountain format; use an {'@'} prefix for character names)", "importImages": "Import images", "importUpstreamImages": "Import batch", "duplicateBoard": "Duplicate board (D)", "dragDuration": "Drag left/right to adjust duration", "suggestDurationHint": "Duration estimated from the dialogue - click to apply", "guideCenter": "Center guide", "guideThirds": "Rule-of-thirds guide", "guideGrid": "Grid guide", "flipH": "Flip board horizontally (Shift+H)", "flipV": "Flip board vertically (Shift+V)", "captions": "Captions (C) - overlay dialogue in playback and exports", "loop": "Loop playback", "gifReady": "GIF rendered - download started", "gifFailed": "GIF export failed", "zipEmpty": "No board images to bundle", "hotkeysHint": ", . boards · N new · D duplicate · P play · O onion · / new shot" };
 const timeline$1 = { "keyframes": "Keyframes", "connectImages": "Connect images upstream to use as shots", "addSegment": "Add as a shot", "clickKeyframe": "Click a keyframe above to add a shot", "addAudio": "Add audio track", "noAudio": "Connect audio upstream to add a track", "segmentPrompt": "Shot prompt", "promptPlaceholder": "What happens in this shot…", "length": "Length", "fps": "FPS", "shots": "shots" };
 const director$1 = { "clips": "Clips", "addClip": "Add clip", "empty": "Click + to add the first clip", "chain": "Chain", "chainTooltip": "Feed each clip's last frame into the next clip as an image reference", "chainMode": { "off": "off", "prepend": "prepend frame", "replace": "replace refs" }, "clipPrompt": "Clip prompt", "workflow": "Workflow", "sharedRefsHint": "The reference pool for the whole piece. In each clip's prompt, {'@'} the ones that clip should use; a clip with no {'@'} mentions sends the whole pool automatically.", "kind": { "image": "image", "video": "video", "audio": "audio" }, "refNotConsumed": `"{workflow}" doesn't consume {kind} references — they will be ignored at run time`, "refOverLimit": "This workflow consumes at most {n} of these — extra ones will be ignored", "transition": "Transition in", "transitionTooltip": "How this clip blends from the previous one", "workflowDefault": "(default workflow)", "promptPlaceholder": "What happens in this clip…", "duration": "Duration (s)", "rerunClip": "Regenerate this clip now — other clips reuse their cached results", "enabled": "On", "deleteClip": "Delete clip", "duplicateClip": "Duplicate clip", "cached": "Cached — will not regenerate", "generated": "Generated this run", "previewClip": "Preview this clip", "clipPreview": "Clip preview", "play": "Play preview", "pause": "Pause", "playDisabled": "Nothing to preview yet — run the director first", "filmPreview": "Film preview", "clipsPreview": "Rough cut (per-clip, film not assembled yet)" };
@@ -62799,7 +62799,7 @@ const en = {
   validator: validator$1,
   bindTo: bindTo$1,
   configSidebar: configSidebar$1,
-  project: project$1,
+  project: project$2,
   execution: execution$1,
   actions: actions$1,
   stagePresets: stagePresets$1,
@@ -62876,13 +62876,13 @@ const en = {
 };
 const pentradoActions = { "capture": "截图输出", "captureHint": "合成图层并输出到节点", "saveToLibraryHint": "导出 PSD 到资产库" };
 const dialog = { "confirm": "确定", "cancel": "取消", "close": "关闭" };
-const v2 = { "meta": { "fps": "{n} fps", "silent": "无音轨", "mono": "单声道", "stereo": "立体声", "channels": "{n} 声道", "frames": "{n} 帧", "genTime": "生成耗时 {t}" }, "genopt": { "resolution": "清晰度", "ratio": "比例", "count": "生成数量" }, "panelCollapse": "收起面板——只保留一行信息和运行按钮", "panelExpand": "展开面板", "imageStageTitle": "图像阶段 · 生成", "pickerTitle": "图片选择器 · 挑选", "cropTitle": "裁剪 · 编辑", "ed": { "rotate": "旋转 · 编辑", "mirror": "镜像 · 编辑", "grade": "调色 · 编辑", "compare": "对比 · 编辑", "gridSplit": "宫格切分 · 编辑", "imageConcat": "图片拼接 · 编辑", "wired": "已接入", "empty": "未接入" }, "stageHint": "连入参考，点 ↑ 生成", "pickerHint": "连入上游批次，点选一张", "cropHint": "连入上游图片开始裁剪", "batchCount": "{n}张", "batchPos": "{i}/{n}张", "refsCount": "{n} 个引用", "poolCount": "池内 {n} 张", "clear": "清空", "linkWorkflow": "关联工作流", "videoColorTitle": "调色 · Video FX", "videoCurvesTitle": "曲线 · Video FX", "fxChainTitle": "FX 链 · 出片", "renderChain": "渲染整链", "outputLabel": "成片", "livePreview": "实时", "fxChainHint": "连入上游视频即可预览整链", "scene3dTitle": "3D 场景 · 编辑台", "relightTitle": "打光 · 光球", "applying": "应用中…", "appliedLive": "已应用 · 下游实时", "dragToApply": "拖框即应用", "loaderHint": "拖入文件，或点击上传", "loaderEmpty": "未加载内容", "assetLoaderHint": "点击从资产库选择", "assetLoaderEmpty": "未选择资产", "params": "参数", "generatorHint": "点 ↑ 生成", "livePreviewLocalOnly": "采样预览仅支持本地运行", "change": "更换", "upload": "上传", "renameHint": "双击重命名", "removeItem": "移除", "moreActions": "更多", "fx": { "lut": "LUT · 调色", "selectiveColor": "选择性色彩 · 调色", "cdl": "CDL · 调色", "histogramEq": "直方图均衡 · 调色", "awb": "自动白平衡 · 调色", "pseudocolor": "伪彩色 · 调色", "hueCorrect": "色相修正 · 调色", "select0r": "二级校色 · 调色", "keyer": "键控 · 抠像", "pik": "IBK 键控 · 抠像", "despill": "去溢色 · 抠像", "colorSuppress": "色彩抑制 · 抠像", "matteMorph": "遮罩形态 · 抠像", "shapeMask": "形状遮罩 · 抠像", "lensDistort": "镜头畸变 · 光学", "chromaticAberration": "镜头色差 · 光学", "lensFlare": "镜头光晕 · 光学", "glow": "辉光 · 光学", "godRays": "体积光 · 光学", "blurSharpen": "模糊与锐化 · 修复", "denoise": "降噪 · 修复", "deinterlace": "去隔行 · 修复", "posterize": "色调分离 · 风格", "oldFilm": "老电影 · 风格", "artFx": "艺术画风 · 风格", "glitch": "故障艺术 · 风格", "kaleidoscope": "万花筒 · 风格", "waveWarp": "波纹扭曲 · 风格", "strobe": "频闪 · 风格", "feedback": "拖影反馈 · 风格", "regrain": "胶片颗粒 · 风格", "stylize": "快速滤镜 · 风格", "chromaShift": "通道错位 · 风格", "transform": "变换 · 几何", "video360": "360 全景 · 几何", "card3d": "3D 卡片 · 几何", "particles": "粒子 · 特效", "water": "水面 · 特效", "lightGraffiti": "光绘 · 特效", "trim": "修剪 · 剪辑", "vcrop": "画面裁切 · 剪辑", "vsplit": "分割 · 剪辑", "concat": "拼接 · 剪辑", "speed": "变速 · 剪辑", "rotate": "旋转翻转 · 剪辑", "volume": "音量 · 剪辑", "muxAudio": "合成音轨 · 剪辑", "resize": "缩放 · 剪辑", "frames": "逐帧抽取 · 剪辑", "extractFrame": "抽帧 · 剪辑", "timeRemap": "时间重映射 · 剪辑", "sequence": "片段序列 · 剪辑", "sceneDetect": "场景检测 · 剪辑", "chromaKey": "色度抠像 · 合成", "composite": "叠加合成 · 合成", "cornerPin": "四角定位 · 合成", "rotoMask": "手绘遮罩 · 合成", "keyMix": "键混合 · 合成", "matteMonitor": "遮罩监视 · 合成", "maskPropagate": "遮罩追踪 · 合成", "paintStroke": "笔迹绘制 · 合成", "stmap": "UV 重映射 · 合成", "stmapGen": "STMap 生成 · 合成", "zDefocus": "深度散景 · 合成", "frameBlend": "帧混合 · 合成", "transition": "交叉转场 · 转场", "lumaWipe": "亮度擦除 · 转场", "stabilize": "视频稳定 · 修复", "stabilizePro": "专业稳定 · 修复", "stabilize360": "360 稳定 · 修复", "interpolate": "补帧 · 修复", "faceBlur": "人脸打码 · 修复", "spotRemover": "污点移除 · 修复", "scopes": "示波器 · 监看", "contactSheet": "审片宫格 · 监看", "audioMeter": "电平表 · 监看", "title": "标题 · 图文", "subtitle": "字幕 · 图文", "annotate": "标注 · 图文", "kenBurns": "静照运镜 · 特效", "slitScan": "狭缝扫描 · 特效" }, "rich": { "score": "乐谱 · 音乐", "scoreEditor": "打谱器 · 音乐", "midiEditor": "MIDI 编辑 · 音乐", "expression": "表达式 · 动画", "motionTrack": "运动跟踪 · 动画", "pattern": "图案发生 · 生成", "panorama": "全景 · 360", "panoView": "当前视角 · 360", "panoMulti": "多视角 · 360", "storyboard": "故事板 · 叙事", "storyboardEditor": "故事板工作台 · 叙事", "layerEditor": "图层编辑器 · 图像", "material": "材质球 · 3D", "modelLoader": "加载模型 · 3D", "meshPrimitive": "基元 · 3D", "meshOp": "网格加工 · 3D", "meshBake": "烘焙贴图 · 3D", "meshBoolean": "布尔 · 3D", "lineArt": "线稿 · 图像", "poster": "排版 · 图像", "splitPart": "部件分割 · 图像", "erase": "擦除 · 涂抹", "inpaint": "局部重绘 · 涂抹", "outpaint": "扩图 · 涂抹", "multiangle": "多角度 · 图像", "director": "导演台 · 剪辑" }, "afx": { "dynamics": "压缩器 · 动态", "loudness": "响度 · 动态", "duck": "闪避 · 动态", "eq": "均衡器 · 音色", "saturate": "饱和 · 音色", "modulation": "调制 · 音色", "echo": "回声 · 音色", "stereo": "声场 · 音色", "timePitch": "变速变调 · 音色", "denoise": "降噪 · 修复", "noiseReduction": "谱门控 · 修复", "repair": "修复工具 · 修复", "convolve": "卷积混响 · 空间", "deconvolve": "逆卷积 · 空间", "museReverb": "算法混响 · 空间", "mix": "调音台 · 混音", "crossfade": "交叉淡化 · 混音", "stemSplit": "分轨 · 混音", "demuxAudio": "抽出音轨 · 混音", "demuxVideo": "抽出画面 · 混音", "clip": "修剪 · 剪辑", "split": "分割 · 剪辑", "analyze": "分析 · 监测", "mir": "乐理探测 · 监测", "visualize": "频谱图 · 监测", "segmentExport": "分段导出 · 监测", "reactive": "节奏打点 · 监测", "sweep": "扫频 · 合成", "sf2": "音源渲染 · 合成", "clickTrack": "节拍轨 · 合成", "chordAccomp": "和弦伴奏 · 合成", "scoreToMidi": "乐谱演奏 · 合成", "demuxAudioHint": "从视频中抽出音轨", "demuxVideoHint": "去掉声音，只留画面" }, "customParams": { "title": "工作流参数", "add": "添加", "addHint": "挂载绑定工作流暴露的自定义参数", "remove": "移除参数" }, "custom": { "title": "自定义节点", "expose": "暴露输入输出", "hint": "先选工作流，再选择这张卡片要暴露的输入和输出", "noWorkflow": "请先选择工作流", "inputs": "输入", "outputs": "输出", "exposed": "已暴露", "search": "搜索节点…", "noCandidates": "这个工作流没有可暴露的{what}", "linked": "已连接", "unlinked": "未连接", "required": "必填", "optional": "可选", "label": "名称", "batch": "批量", "save": "保存", "cancel": "取消", "saving": "保存中…", "saved": "已保存", "loadFailed": "工作流加载失败：{detail}", "saveFailed": "保存失败：{detail}", "needsOutput": "至少选择一个输出", "kinds": { "image": "图像", "images": "图像批次", "video": "视频", "audio": "音频", "model": "3D 模型", "text": "文本", "param": "参数" }, "summary": "{inputs} 个输入 · {outputs} 个输出", "moveUp": "上移", "asPrompt": "由卡片主提示词驱动（支持 {'@'} 引用）", "viaRef": "来自资产引用", "saveAs": "另存为…", "saveAsHint": "把这组选择另存为同一工作流的一份新配置", "saveAsPrompt": "新配置名称", "asRandom": "每次运行随机取值（用于 seed）", "randomEachRun": "每次运行随机", "moveDown": "下移" }, "ctl": { "duration": "时长（秒）", "generateAudio": "生成伴音", "lyrics": "歌词", "bpm": "BPM", "timeSignature": "拍号", "keyScale": "调式", "language": "语言", "voice": "音色", "speed": "语速", "referenceText": "参考文本", "variantCount": "变体数量" }, "toolbar": { "hd": "高清", "expand": "扩图", "angles": "多角度", "relight": "打光", "redraw": "重绘", "erase": "擦除", "cutout": "抠图", "grid": "宫格切分", "panorama": "全景", "crop": "裁剪", "download": "下载" } };
+const v2 = { "meta": { "fps": "{n} fps", "silent": "无音轨", "mono": "单声道", "stereo": "立体声", "channels": "{n} 声道", "frames": "{n} 帧", "genTime": "生成耗时 {t}" }, "genopt": { "resolution": "清晰度", "ratio": "比例", "count": "生成数量" }, "panelCollapse": "收起面板——只保留一行信息和运行按钮", "panelExpand": "展开面板", "imageStageTitle": "图像阶段 · 生成", "pickerTitle": "图片选择器 · 挑选", "cropTitle": "裁剪 · 编辑", "ed": { "rotate": "旋转 · 编辑", "mirror": "镜像 · 编辑", "grade": "调色 · 编辑", "compare": "对比 · 编辑", "gridSplit": "宫格切分 · 编辑", "imageConcat": "图片拼接 · 编辑", "wired": "已接入", "empty": "未接入" }, "stageHint": "连入参考，点 ↑ 生成", "pickerHint": "连入上游批次，点选一张", "cropHint": "连入上游图片开始裁剪", "batchCount": "{n}张", "batchPos": "{i}/{n}张", "refsCount": "{n} 个引用", "poolCount": "池内 {n} 张", "clear": "清空", "linkWorkflow": "关联工作流", "videoColorTitle": "调色 · Video FX", "videoCurvesTitle": "曲线 · Video FX", "fxChainTitle": "FX 链 · 出片", "renderChain": "渲染整链", "outputLabel": "成片", "livePreview": "实时", "fxChainHint": "连入上游视频即可预览整链", "scene3dTitle": "3D 场景 · 编辑台", "relightTitle": "打光 · 光球", "applying": "应用中…", "appliedLive": "已应用 · 下游实时", "dragToApply": "拖框即应用", "loaderHint": "拖入文件，或点击上传", "loaderEmpty": "未加载内容", "assetLoaderHint": "点击从资产库选择", "assetLoaderEmpty": "未选择资产", "params": "参数", "generatorHint": "点 ↑ 生成", "livePreviewLocalOnly": "采样预览仅支持本地运行", "change": "更换", "upload": "上传", "renameHint": "双击重命名", "removeItem": "移除", "moreActions": "更多", "fx": { "lut": "LUT · 调色", "selectiveColor": "选择性色彩 · 调色", "cdl": "CDL · 调色", "histogramEq": "直方图均衡 · 调色", "awb": "自动白平衡 · 调色", "pseudocolor": "伪彩色 · 调色", "hueCorrect": "色相修正 · 调色", "select0r": "二级校色 · 调色", "keyer": "键控 · 抠像", "pik": "IBK 键控 · 抠像", "despill": "去溢色 · 抠像", "colorSuppress": "色彩抑制 · 抠像", "matteMorph": "遮罩形态 · 抠像", "shapeMask": "形状遮罩 · 抠像", "lensDistort": "镜头畸变 · 光学", "chromaticAberration": "镜头色差 · 光学", "lensFlare": "镜头光晕 · 光学", "glow": "辉光 · 光学", "godRays": "体积光 · 光学", "blurSharpen": "模糊与锐化 · 修复", "denoise": "降噪 · 修复", "deinterlace": "去隔行 · 修复", "posterize": "色调分离 · 风格", "oldFilm": "老电影 · 风格", "artFx": "艺术画风 · 风格", "glitch": "故障艺术 · 风格", "kaleidoscope": "万花筒 · 风格", "waveWarp": "波纹扭曲 · 风格", "strobe": "频闪 · 风格", "feedback": "拖影反馈 · 风格", "regrain": "胶片颗粒 · 风格", "stylize": "快速滤镜 · 风格", "chromaShift": "通道错位 · 风格", "transform": "变换 · 几何", "video360": "360 全景 · 几何", "card3d": "3D 卡片 · 几何", "particles": "粒子 · 特效", "water": "水面 · 特效", "lightGraffiti": "光绘 · 特效", "trim": "修剪 · 剪辑", "vcrop": "画面裁切 · 剪辑", "vsplit": "分割 · 剪辑", "concat": "拼接 · 剪辑", "speed": "变速 · 剪辑", "rotate": "旋转翻转 · 剪辑", "volume": "音量 · 剪辑", "muxAudio": "合成音轨 · 剪辑", "resize": "缩放 · 剪辑", "frames": "逐帧抽取 · 剪辑", "extractFrame": "抽帧 · 剪辑", "timeRemap": "时间重映射 · 剪辑", "sequence": "片段序列 · 剪辑", "sceneDetect": "场景检测 · 剪辑", "chromaKey": "色度抠像 · 合成", "composite": "叠加合成 · 合成", "cornerPin": "四角定位 · 合成", "rotoMask": "手绘遮罩 · 合成", "keyMix": "键混合 · 合成", "matteMonitor": "遮罩监视 · 合成", "maskPropagate": "遮罩追踪 · 合成", "paintStroke": "笔迹绘制 · 合成", "stmap": "UV 重映射 · 合成", "stmapGen": "STMap 生成 · 合成", "zDefocus": "深度散景 · 合成", "frameBlend": "帧混合 · 合成", "transition": "交叉转场 · 转场", "lumaWipe": "亮度擦除 · 转场", "stabilize": "视频稳定 · 修复", "stabilizePro": "专业稳定 · 修复", "stabilize360": "360 稳定 · 修复", "interpolate": "补帧 · 修复", "faceBlur": "人脸打码 · 修复", "spotRemover": "污点移除 · 修复", "scopes": "示波器 · 监看", "contactSheet": "审片宫格 · 监看", "audioMeter": "电平表 · 监看", "title": "标题 · 图文", "subtitle": "字幕 · 图文", "annotate": "标注 · 图文", "kenBurns": "静照运镜 · 特效", "slitScan": "狭缝扫描 · 特效" }, "rich": { "score": "乐谱 · 音乐", "scoreEditor": "打谱器 · 音乐", "midiEditor": "MIDI 编辑 · 音乐", "expression": "表达式 · 动画", "motionTrack": "运动跟踪 · 动画", "pattern": "图案发生 · 生成", "panorama": "全景 · 360", "panoView": "当前视角 · 360", "panoMulti": "多视角 · 360", "storyboard": "故事板 · 叙事", "storyboardEditor": "故事板工作台 · 叙事", "layerEditor": "图层编辑器 · 图像", "material": "材质球 · 3D", "modelLoader": "加载模型 · 3D", "meshPrimitive": "基元 · 3D", "meshOp": "网格加工 · 3D", "meshBake": "烘焙贴图 · 3D", "meshBoolean": "布尔 · 3D", "lineArt": "线稿 · 图像", "poster": "排版 · 图像", "splitPart": "部件分割 · 图像", "erase": "擦除 · 涂抹", "inpaint": "局部重绘 · 涂抹", "outpaint": "扩图 · 涂抹", "multiangle": "多角度 · 图像", "director": "导演台 · 剪辑" }, "afx": { "dynamics": "压缩器 · 动态", "loudness": "响度 · 动态", "duck": "闪避 · 动态", "eq": "均衡器 · 音色", "saturate": "饱和 · 音色", "modulation": "调制 · 音色", "echo": "回声 · 音色", "stereo": "声场 · 音色", "timePitch": "变速变调 · 音色", "denoise": "降噪 · 修复", "noiseReduction": "谱门控 · 修复", "repair": "修复工具 · 修复", "convolve": "卷积混响 · 空间", "deconvolve": "逆卷积 · 空间", "museReverb": "算法混响 · 空间", "mix": "调音台 · 混音", "crossfade": "交叉淡化 · 混音", "stemSplit": "分轨 · 混音", "demuxAudio": "抽出音轨 · 混音", "demuxVideo": "抽出画面 · 混音", "clip": "修剪 · 剪辑", "split": "分割 · 剪辑", "analyze": "分析 · 监测", "mir": "乐理探测 · 监测", "visualize": "频谱图 · 监测", "segmentExport": "分段导出 · 监测", "reactive": "节奏打点 · 监测", "sweep": "扫频 · 合成", "sf2": "音源渲染 · 合成", "clickTrack": "节拍轨 · 合成", "chordAccomp": "和弦伴奏 · 合成", "scoreToMidi": "乐谱演奏 · 合成", "demuxAudioHint": "从视频中抽出音轨", "demuxVideoHint": "去掉声音，只留画面" }, "customParams": { "title": "工作流参数", "add": "添加", "addHint": "挂载绑定工作流暴露的自定义参数", "remove": "移除参数" }, "custom": { "title": "自定义节点", "expose": "暴露输入输出", "hint": "先选工作流，再选择这张卡片要暴露的输入和输出", "noWorkflow": "请先选择工作流", "inputs": "输入", "outputs": "输出", "exposed": "已暴露", "search": "搜索节点…", "noCandidates": "这个工作流没有可暴露的{what}", "linked": "已连接", "unlinked": "未连接", "required": "必填", "optional": "可选", "label": "名称", "batch": "批量", "save": "保存", "cancel": "取消", "saving": "保存中…", "saved": "已保存", "loadFailed": "工作流加载失败：{detail}", "saveFailed": "保存失败：{detail}", "needsOutput": "至少选择一个输出", "kinds": { "image": "图像", "images": "图像批次", "video": "视频", "audio": "音频", "model": "3D 模型", "text": "文本", "param": "参数" }, "summary": "{inputs} 个输入 · {outputs} 个输出", "moveUp": "上移", "asPrompt": "由卡片主提示词驱动（支持 {'@'} 引用）", "viaRef": "来自资产引用", "saveAs": "另存为…", "saveAsHint": "把这组选择另存为同一工作流的一份新配置", "saveAsPrompt": "新配置名称", "asRandom": "每次运行随机取值（用于 seed）", "randomEachRun": "每次运行随机", "moveDown": "下移" }, "ctl": { "duration": "时长（秒）", "generateAudio": "生成伴音", "lyrics": "歌词", "bpm": "BPM", "timeSignature": "拍号", "keyScale": "调式", "language": "语言", "voice": "音色", "speed": "语速", "referenceText": "参考文本", "variantCount": "变体数量", "seed": "种子" }, "toolbar": { "hd": "高清", "expand": "扩图", "angles": "多角度", "relight": "打光", "redraw": "重绘", "erase": "擦除", "cutout": "抠图", "grid": "宫格切分", "panorama": "全景", "crop": "裁剪", "download": "下载" } };
 const workflow = { "uploadButton": "⬆ 上传工作流", "imported": "已导入「{label}」", "importFailed": "工作流导入失败", "notJson": "该文件不是合法 JSON", "linkButton": "🔗 链接工作流" };
 const stage = { "run": "运行", "rerun": "重新运行", "running": "运行中…", "cancel": "取消", "preparingWorkflow": "准备工作流中…", "noWorkflowShort": "没有可用工作流 — 请上传 / 链接", "noWorkflowInstalled": "没有可用的 {kind} 工作流 — 用卡片上的「关联工作流」按钮导入一个，或到侧栏 ComfyTV → 阶段管理里添加。", "promptNotBound": "「{label}」没有绑定阶段提示词，卡片上的提示词不会生效。到侧栏 ComfyTV → 工作流，把提示词节点的 text 绑定到「阶段提示词」。", "outputDurationHint": "生成耗时", "section": { "context": "上游输入", "pool": "图片池", "output": "输出 ({type})", "actions": "动作" }, "pool": { "clear": "清除", "clearHint": "清空图片池并重置选择", "confirmClear": "确认清空？", "confirm": "是", "cancel": "否", "modeAppend": "模式:追加", "modeReplace": "模式:覆盖", "modeHint": "新结果进池方式(点击切换)。追加:保留已有并把新结果放到最前;覆盖:每次运行只保留最新一批。相同图片只保留一份(按图片去重)。" }, "empty": { "no_output": "暂无输出", "generating": "生成中…", "pending_upstream": "上游待运行", "unsupported_type": "不支持的类型 {type}" }, "source": { "upstream": "← 上游", "pending": "… 等待中" }, "disconnect": "断开此连接", "starting": "启动中…", "runByKind": { "text": "生成文本", "image": "生成图片", "image-batch": "生成图片", "video": "生成视频", "audio": "生成音频", "panorama": "生成全景图", "storyboard": "生成分镜", "model": "生成3D模型", "material": "生成材质" }, "action": { "viewFull": "查看大图", "download": "下载", "copyText": "复制文本", "editText": "编辑文本（下游下次运行时使用改后的内容）", "restoreText": "还原为生成的原文", "textEdited": "已编辑", "editTextFailed": "保存文本失败", "saveTextAsset": "存入资产库", "renderMarkdown": "渲染 Markdown", "showRawText": "显示原文", "addTag": "存入资产库 / 打标签", "removeFromPicker": "从选择器移除", "close": "关闭", "loadAsset": "作为资产节点加载", "prev": "上一张", "next": "下一张", "pick": "选用这条" }, "preparingWorkflowDetail": "稍等 — 正在把工作流转换成 api JSON。稍后再点运行。" };
 const error = { "dismiss": "清除", "cancelled": "已取消", "upstreamNotReady": "上游未就绪", "upstreamNotReadyDetail": "上游未就绪:{list}。请先运行这些阶段生成快照,然后再运行此阶段。", "refMissing": "参考素材已失效", "refMissingDetail": "{list} 对应的资产已从资产库移除，或文件已丢失。从参考区移除后重新添加，再运行。", "droppedFromQueue": "尚未运行就被移出队列 — 队列被清空或该任务被删除。", "workerDied": "后端未返回结果就停止了。prompt worker 可能已崩溃(通常是清理阶段 CUDA OOM)。重启 ComfyUI 后恢复。" };
 const eagle = { "title": "Eagle 素材库", "refresh": "刷新", "search": "搜索名称或标签…", "loading": "加载中…", "empty": "没有条目", "loadMore": "加载更多", "disabledHint": "Eagle 集成未启用。到「设置」页打开「启用 Eagle 集成」,并钉死 ComfyTV 专用的 .library 路径。", "pendingBanner": "有 {n} 条待发送到 Eagle(等待打开钉死的库)", "flushNow": "立即补发", "flushing": "补发中…", "mode": { "api": "在线", "disk": "只读", "offline": "离线", "disabled": "未启用" }, "hint": { "disk": "Eagle 未运行或打开了别的库:正在直接读取磁盘上的库(只读)。发送会排队,等库打开后自动补发。", "offline": "找不到 Eagle:应用未运行,钉死的库路径也不可达。检查设置里的库路径。" }, "folder": { "all": "全部文件夹" }, "ai": { "label": "AI", "tooltip": "AI 语义搜索(需要 Eagle 的 AI Search 插件):按含义搜图而非按名称" }, "similar": { "action": "找相似", "banner": "与「{name}」相似的条目", "clear": "清除", "failed": "相似搜索失败" }, "import": { "action": "导入到资产库", "done": "已导入「{name}」", "existed": "「{name}」已在资产库", "failed": "导入失败" }, "send": { "action": "发送到 Eagle", "sent": "已发送到 Eagle:{name}", "queued": "Eagle 未就绪,已排队({n} 条待发)", "failed": "发送失败" }, "flush": { "done": "已补发 {n} 条到 Eagle", "failed": "{n} 条补发失败" } };
 const sidebar = { "tab": { "workflow": "工作流", "assets": "资产库", "eagle": "Eagle", "entries": "条目", "params": "阶段管理", "presets": "预设", "resources": "资源", "servers": "服务器", "collab": "协作", "settings": "设置" } };
-const settings = { "title": "设置", "hint": "默认值来自 ComfyTV 目录下的 comfytv.properties。此处保存的值写入数据库,并优先生效。", "modelRoutes": { "desktop-account": "桌面账号", "api-key": "API Key" }, "loading": "加载中…", "save": "保存", "saving": "保存中…", "search": "搜索设置…", "noMatch": "没有匹配的设置项", "experimental": "实验性", "reset": "恢复默认", "on": "开", "off": "关", "status": { "checking": "检测中…", "online": "已连接", "offline": "未连接" }, "blender": { "section": "Blender 桥接" }, "general": { "section": "通用" }, "backup": { "section": "数据库备份", "now": "立即备份", "running": "备份中…", "ok": "备份已写入 {path}", "failed": "备份失败:{error}" }, "fields": { "enable-v2": { "label": "启用 ComfyTV V2 节点", "desc": "实验性功能，可能存在不稳定行为。已迁移的阶段节点以内容导向的 V2 外壳渲染。必须先在 ComfyUI 本体设置中开启 Nodes 2.0（Vue 节点模式）。修改后需刷新页面。" }, "v2-lod-scale": { "label": "海报图模式阈值", "desc": "画布缩放低于此值时，V2 卡片收起为缩略图并显示播放/放大按钮；放大越过阈值后面板恢复。", "options": { "30": "30%", "42": "42%", "50": "50%", "60": "60%" } }, "v2-lod-fill": { "label": "海报图底", "desc": "缩略图留白部分用什么填充：图片预览同款棋盘格，或同一张画面压暗后铺满整卡。", "options": { "checker": "棋盘格", "image": "同图压暗铺满" } }, "auto-picker": { "label": "运行时自动接挑选节点", "desc": "图像、图像编辑或视频阶段运行时，如果输出端还没有连线，自动在后面接一个图片 / 视频选择器。" }, "drop-files-as-loaders": { "label": "拖入媒体文件生成资产加载节点", "desc": "图片、视频、音频拖到画布空白处时，导入资产库并生成 ComfyTV 资产加载节点，而不是交给 ComfyUI 加载（PNG 里保存的工作流不会再被打开）。拖到节点上的和其他类型的文件仍由 ComfyUI 处理。" }, "enable-db-backup": { "label": "启动时自动备份", "desc": "每次服务器启动时(在任何迁移执行之前)备份 ComfyTV 数据目录(数据库 + 工作流)。" }, "db-backup-max-count": { "label": "最大备份数量", "desc": "快照数量超过该值时,自动删除最旧的备份。" }, "db-backup-path": { "label": "备份位置", "desc": "留空则使用 ComfyTV 目录下的 db-backup 文件夹。快照以时间戳命名,如 20260805-093000/comfytv。", "placeholder": "如 D:\\backups\\comfytv" }, "enable-mcp": { "label": "启用 MCP 服务", "desc": "开放 ComfyTV 的 MCP 端点(/comfytv/mcp),允许 agent 读取并操作画布。默认关闭。" }, "enable-bot": { "label": "启用 ComfyTV Bot", "desc": "显示内嵌 Bot 侧边栏及其聊天接口。前置条件:先启用 MCP 服务。" }, "bot-model-claude-code": { "label": "Claude Code 模型", "desc": "Bot 回合传给 claude --model 的模型,支持别名(sonnet、opus、haiku)或完整模型 id。留空 = CLI 自己的默认。", "placeholder": "CLI 默认" }, "bot-model-codex": { "label": "Codex 模型", "desc": "Bot 回合传给 codex -m 的模型。留空 = CLI 自己的默认。", "placeholder": "CLI 默认" }, "bot-model-qwen-code": { "label": "Qwen Code 模型", "desc": "Bot 回合传给 qwen -m 的模型。留空 = 用 qwen 自己设置里选的模型。", "placeholder": "CLI 默认" }, "bot-model-local-llm": { "label": "Local LLM 模型", "desc": "本地端点上的模型 id。留空 = 用端点报告的第一个模型。", "placeholder": "自动取第一个" }, "bot-model-comfyui-llm": { "label": "ComfyUI LLM 模型", "desc": "实验性 — 玩具性质的 provider,一般情况不要用,请改用 Local LLM 或 CLI 类 provider。Bot 回合使用的 models/text_encoders 里的文本编码器权重(Qwen3 或 Gemma 系)。留空 = 自动取第一个可生成的权重。推理跑在 ComfyUI 本体内 — 无需外部服务。", "placeholder": "自动取第一个" }, "bot-comfyui-llm-thinking": { "label": "ComfyUI LLM 思考模式", "desc": "实验性 — 只对玩具性质的 ComfyUI LLM provider 生效。让 Qwen3 系模型先在隐藏的 <think> 块里推理再回答。工具调用明显更聪明,代价是每轮多花一些生成时间。" }, "bot-local-llm-url": { "label": "Local LLM 端点", "desc": "本地模型服务的 OpenAI 兼容 base URL(LM Studio、llama.cpp 的 llama-server、vLLM、Ollama 等)。不填时 Local LLM provider 不可用。仅限免 key 的本地端点 — 永远不存 API key。", "placeholder": "http://127.0.0.1:1234/v1" }, "bot-enable-comfy-mcp": { "label": "挂载 comfy-mcp", "desc": "在 bot 会话中同时挂载官方 comfy-mcp(只读工具集:节点目录、工作流校验、模型/模板搜索)。仅 Claude Code 和 Qwen Code — Codex、DeepSeek Harness、Local LLM 与 ComfyUI LLM 保持只挂 comfytv。" }, "bot-comfy-mcp-command": { "label": "comfy-mcp 命令", "desc": "启动 comfy-mcp stdio 服务的命令。留空 = 在 PATH 上找 comfy-mcp。", "placeholder": "comfy-mcp" }, "bot-always-allow-runs": { "label": "总是允许 bot 运行", "desc": "不弹运行审批卡,bot 直接执行(默认行为)。关闭后,切到询问模式的会话才会在每次运行前等你批准。" }, "bot-model-deepseek-harness": { "label": "DeepSeek Harness 模型", "desc": "模型同时决定计费方式：桌面账号或 API Key。留空 = 桌面账号下的第一个模型，不会自动改用 API Key。", "placeholder": "桌面账号默认" }, "bot-hermes-ssh-host": { "label": "Hermes SSH 主机", "desc": "通过 SSH 使用另一台机器上的 Hermes(主机别名或 user@host,只支持密钥登录)。ComfyTV 会开一条反向隧道,让 Hermes 能连回这块画布。留空 = 运行本机的 hermes 命令。", "placeholder": "spark" }, "bot-hermes-profile": { "label": "Hermes profile", "desc": "ComfyTV 运行的 Hermes profile(hermes -p <名字>)。请用专门给 ComfyTV 建的 profile:不放 sudo 密码,终端后端用 docker,见 bot 文档。留空 = Hermes 的默认 profile。", "placeholder": "comfytv" }, "bot-model-hermes": { "label": "Hermes 模型", "desc": "留空 = 使用 Hermes 自己配置的模型。", "placeholder": "Hermes 默认" }, "enable-skills": { "label": "启用 Agent Skills", "desc": "把已安装的技能通过 MCP(skill 工具 + prompts)提供给外部 agent 和内嵌 bot。" }, "enable-collab": { "label": "启用多人协作", "desc": "实验性功能——请勿在生产环境依赖。局域网内的实时多人 presence 与共同编辑。关闭时协作代码完全不运行（无会话、无 WebSocket、无 UI）。修改后需刷新已打开的页面。" }, "enable-eagle": { "label": "启用 Eagle 集成", "desc": "把本机的 Eagle(eagle.cool)素材库接入 ComfyTV:侧边栏出现 Eagle 面板,资产可发送到 Eagle。需要 Eagle 桌面应用。" }, "eagle-api-url": { "label": "Eagle API 地址", "desc": "Eagle 本地 API 的地址,默认端口 41595。仅本机访问,不需要 token。", "placeholder": "http://127.0.0.1:41595" }, "eagle-library-path": { "label": "钉死的资源库路径", "desc": "ComfyTV 专用的 .library 目录。发送只在 Eagle 打开该库时进行(否则排队),浏览在 Eagle 关闭或切到别的库时直接读磁盘。留空 = 跟随 Eagle 当前打开的库(不推荐)。", "placeholder": "如 Y:\\Eagle资源库\\ComfyTV资源库.library" }, "eagle-send-folder": { "label": "发送目标文件夹", "desc": "手动发送到 Eagle 时归入的文件夹名,不存在会自动创建。留空 = 库根目录。自动沉淀按项目名分文件夹,不走此设置。" }, "eagle-auto-send": { "label": "产出自动沉淀到 Eagle", "desc": "每个阶段节点的产出(图片/视频/音频)自动归档进 Eagle:按项目名分文件夹,annotation 带完整生成参数(prompt/模型等),tag 带项目名。走排队机制,Eagle 没开时攒着,不阻塞生成。" }, "blender-bridge-url": { "label": "Blender 桥接地址", "desc": "实验性 — 会有毛边。Blender Scene / Camera / Animation 这几个阶段节点连接的 blender-web 桥接服务地址。用 blender-for-comfytv.bat 启动;桥接没响应时这些阶段节点不可用。默认端口 7684,仅限本机。", "placeholder": "http://127.0.0.1:7684" } }, "agent": { "section": "Agent 与 MCP" }, "eagle": { "section": "Eagle 集成" }, "collab": { "section": "多人协作" } };
+const settings = { "title": "设置", "hint": "默认值来自 ComfyTV 目录下的 comfytv.properties。此处保存的值写入数据库,并优先生效。", "modelRoutes": { "desktop-account": "桌面账号", "api-key": "API Key" }, "loading": "加载中…", "save": "保存", "saving": "保存中…", "search": "搜索设置…", "noMatch": "没有匹配的设置项", "experimental": "实验性", "reset": "恢复默认", "on": "开", "off": "关", "status": { "checking": "检测中…", "online": "已连接", "offline": "未连接" }, "blender": { "section": "Blender 桥接" }, "general": { "section": "通用" }, "backup": { "section": "数据库备份", "now": "立即备份", "running": "备份中…", "ok": "备份已写入 {path}", "failed": "备份失败:{error}" }, "fields": { "enable-v2": { "label": "启用 ComfyTV V2 节点", "desc": "实验性功能，可能存在不稳定行为。已迁移的阶段节点以内容导向的 V2 外壳渲染。必须先在 ComfyUI 本体设置中开启 Nodes 2.0（Vue 节点模式）。修改后需刷新页面。" }, "v2-lod-scale": { "label": "海报图模式阈值", "desc": "画布缩放低于此值时，V2 卡片收起为缩略图并显示播放/放大按钮；放大越过阈值后面板恢复。", "options": { "30": "30%", "42": "42%", "50": "50%", "60": "60%" } }, "v2-lod-fill": { "label": "海报图底", "desc": "缩略图留白部分用什么填充：图片预览同款棋盘格，或同一张画面压暗后铺满整卡。", "options": { "checker": "棋盘格", "image": "同图压暗铺满" } }, "auto-picker": { "label": "运行时自动接挑选节点", "desc": "图像、图像编辑或视频阶段运行时，如果输出端还没有连线，自动在后面接一个图片 / 视频选择器。" }, "drop-files-as-loaders": { "label": "拖入媒体文件生成资产加载节点", "desc": "图片、视频、音频拖到画布空白处时，导入资产库并生成 ComfyTV 资产加载节点，而不是交给 ComfyUI 加载（PNG 里保存的工作流不会再被打开）。拖到节点上的和其他类型的文件仍由 ComfyUI 处理。" }, "enable-db-backup": { "label": "启动时自动备份", "desc": "每次服务器启动时(在任何迁移执行之前)备份 ComfyTV 数据目录(数据库 + 工作流)。" }, "db-backup-max-count": { "label": "最大备份数量", "desc": "快照数量超过该值时,自动删除最旧的备份。" }, "db-backup-path": { "label": "备份位置", "desc": "留空则使用 ComfyTV 目录下的 db-backup 文件夹。快照以时间戳命名,如 20260805-093000/comfytv。", "placeholder": "如 D:\\backups\\comfytv" }, "enable-mcp": { "label": "启用 MCP 服务", "desc": "开放 ComfyTV 的 MCP 端点(/comfytv/mcp),允许 agent 读取并操作画布。默认关闭。" }, "headless-auto-resume": { "label": "启动时自动续跑无头队列", "desc": "默认关闭。启动时无头队列会重新挂上仍在 ComfyUI 队列里的任务，并从 history 收回已完成的产出，但不会再次提交。打开后，ComfyUI 已无记录的任务也会重新排队。随时可用 resume_queue 手动续跑。" }, "enable-bot": { "label": "启用 ComfyTV Bot", "desc": "显示内嵌 Bot 侧边栏及其聊天接口。前置条件:先启用 MCP 服务。" }, "bot-model-claude-code": { "label": "Claude Code 模型", "desc": "Bot 回合传给 claude --model 的模型,支持别名(sonnet、opus、haiku)或完整模型 id。留空 = CLI 自己的默认。", "placeholder": "CLI 默认" }, "bot-model-codex": { "label": "Codex 模型", "desc": "Bot 回合传给 codex -m 的模型。留空 = CLI 自己的默认。", "placeholder": "CLI 默认" }, "bot-model-qwen-code": { "label": "Qwen Code 模型", "desc": "Bot 回合传给 qwen -m 的模型。留空 = 用 qwen 自己设置里选的模型。", "placeholder": "CLI 默认" }, "bot-model-local-llm": { "label": "Local LLM 模型", "desc": "本地端点上的模型 id。留空 = 用端点报告的第一个模型。", "placeholder": "自动取第一个" }, "bot-model-comfyui-llm": { "label": "ComfyUI LLM 模型", "desc": "实验性 — 玩具性质的 provider,一般情况不要用,请改用 Local LLM 或 CLI 类 provider。Bot 回合使用的 models/text_encoders 里的文本编码器权重(Qwen3 或 Gemma 系)。留空 = 自动取第一个可生成的权重。推理跑在 ComfyUI 本体内 — 无需外部服务。", "placeholder": "自动取第一个" }, "bot-comfyui-llm-thinking": { "label": "ComfyUI LLM 思考模式", "desc": "实验性 — 只对玩具性质的 ComfyUI LLM provider 生效。让 Qwen3 系模型先在隐藏的 <think> 块里推理再回答。工具调用明显更聪明,代价是每轮多花一些生成时间。" }, "bot-local-llm-url": { "label": "Local LLM 端点", "desc": "本地模型服务的 OpenAI 兼容 base URL(LM Studio、llama.cpp 的 llama-server、vLLM、Ollama 等)。不填时 Local LLM provider 不可用。仅限免 key 的本地端点 — 永远不存 API key。", "placeholder": "http://127.0.0.1:1234/v1" }, "bot-enable-comfy-mcp": { "label": "挂载 comfy-mcp", "desc": "在 bot 会话中同时挂载官方 comfy-mcp(只读工具集:节点目录、工作流校验、模型/模板搜索)。仅 Claude Code 和 Qwen Code — Codex、DeepSeek Harness、Local LLM 与 ComfyUI LLM 保持只挂 comfytv。" }, "bot-comfy-mcp-command": { "label": "comfy-mcp 命令", "desc": "启动 comfy-mcp stdio 服务的命令。留空 = 在 PATH 上找 comfy-mcp。", "placeholder": "comfy-mcp" }, "bot-always-allow-runs": { "label": "总是允许 bot 运行", "desc": "不弹运行审批卡,bot 直接执行(默认行为)。关闭后,切到询问模式的会话才会在每次运行前等你批准。" }, "bot-model-deepseek-harness": { "label": "DeepSeek Harness 模型", "desc": "模型同时决定计费方式：桌面账号或 API Key。留空 = 桌面账号下的第一个模型，不会自动改用 API Key。", "placeholder": "桌面账号默认" }, "bot-hermes-ssh-host": { "label": "Hermes SSH 主机", "desc": "通过 SSH 使用另一台机器上的 Hermes(主机别名或 user@host,只支持密钥登录)。ComfyTV 会开一条反向隧道,让 Hermes 能连回这块画布。留空 = 运行本机的 hermes 命令。", "placeholder": "spark" }, "bot-hermes-profile": { "label": "Hermes profile", "desc": "ComfyTV 运行的 Hermes profile(hermes -p <名字>)。请用专门给 ComfyTV 建的 profile:不放 sudo 密码,终端后端用 docker,见 bot 文档。留空 = Hermes 的默认 profile。", "placeholder": "comfytv" }, "bot-model-hermes": { "label": "Hermes 模型", "desc": "留空 = 使用 Hermes 自己配置的模型。", "placeholder": "Hermes 默认" }, "enable-skills": { "label": "启用 Agent Skills", "desc": "把已安装的技能通过 MCP(skill 工具 + prompts)提供给外部 agent 和内嵌 bot。" }, "enable-collab": { "label": "启用多人协作", "desc": "实验性功能——请勿在生产环境依赖。局域网内的实时多人 presence 与共同编辑。关闭时协作代码完全不运行（无会话、无 WebSocket、无 UI）。修改后需刷新已打开的页面。" }, "enable-eagle": { "label": "启用 Eagle 集成", "desc": "把本机的 Eagle(eagle.cool)素材库接入 ComfyTV:侧边栏出现 Eagle 面板,资产可发送到 Eagle。需要 Eagle 桌面应用。" }, "eagle-api-url": { "label": "Eagle API 地址", "desc": "Eagle 本地 API 的地址,默认端口 41595。仅本机访问,不需要 token。", "placeholder": "http://127.0.0.1:41595" }, "eagle-library-path": { "label": "钉死的资源库路径", "desc": "ComfyTV 专用的 .library 目录。发送只在 Eagle 打开该库时进行(否则排队),浏览在 Eagle 关闭或切到别的库时直接读磁盘。留空 = 跟随 Eagle 当前打开的库(不推荐)。", "placeholder": "如 Y:\\Eagle资源库\\ComfyTV资源库.library" }, "eagle-send-folder": { "label": "发送目标文件夹", "desc": "手动发送到 Eagle 时归入的文件夹名,不存在会自动创建。留空 = 库根目录。自动沉淀按项目名分文件夹,不走此设置。" }, "eagle-auto-send": { "label": "产出自动沉淀到 Eagle", "desc": "每个阶段节点的产出(图片/视频/音频)自动归档进 Eagle:按项目名分文件夹,annotation 带完整生成参数(prompt/模型等),tag 带项目名。走排队机制,Eagle 没开时攒着,不阻塞生成。" }, "blender-bridge-url": { "label": "Blender 桥接地址", "desc": "实验性 — 会有毛边。Blender Scene / Camera / Animation 这几个阶段节点连接的 blender-web 桥接服务地址。用 blender-for-comfytv.bat 启动;桥接没响应时这些阶段节点不可用。默认端口 7684,仅限本机。", "placeholder": "http://127.0.0.1:7684" } }, "agent": { "section": "Agent 与 MCP" }, "eagle": { "section": "Eagle 集成" }, "collab": { "section": "多人协作" } };
 const servers = { "title": "ComfyUI 服务器", "add": "添加", "addTooltip": "登记局域网内的其他 ComfyUI 实例,让 stage 可以在它上面运行", "empty": "还没有配置远程服务器,所有 stage 都在本机运行。添加服务器后,每个 stage 会出现服务器下拉框,可多机并行运行。", "edit": "编辑", "delete": "删除", "deleteConfirm": "删除服务器「{label}」?指向它的 stage 会回退到本机运行。", "enable": "启用", "disable": "停用", "local": "本机 (Local)", "runOn": "运行于", "form": { "label": "名称", "labelPlaceholder": "例如:楼上那台 4090", "host": "主机 / IP", "port": "端口", "create": "添加服务器", "save": "保存", "cancel": "取消", "saveFailed": "保存失败——名称是不是重复了?" }, "test": { "action": "测试连接", "testing": "测试中…", "ok": "连接成功", "failed": "连接失败" }, "job": { "started": "正在 {label} 上运行", "failed": "远程运行失败", "cancelled": "远程运行已取消", "fallbackLocal": "所选服务器已删除或停用——这个 stage 将在本机运行。" }, "status": { "online": "在线", "offline": "离线", "unknown": "检测中…", "idle": "空闲", "queueShort": "队列 {n}", "queueDetail": "{running} 运行中,{pending} 排队", "fromComfyTV": "其中 {n} 来自 ComfyTV" }, "caps": { "badge": "ComfyTV v{version}", "comfyOnly": "仅 ComfyUI（未装 ComfyTV）", "missingNodes": "缺 {n} 个节点", "missingTitle": "远端缺少的节点——请升级远端 ComfyTV：" }, "preflight": { "blockedTitle": "远程运行被拦截", "warnTitle": "远端资源检查", "runAnyway": "仍要运行", "noComfyTV": "远端「{label}」未安装 ComfyTV——请先在远端安装，或改为本机运行。", "missingNode": "远端「{label}」缺少节点 {node}——请升级远端 ComfyTV。", "missingResource": "远端「{label}」缺少资源 {file}，仍要运行吗？", "resourceMismatch": "资源 {file} 在远端「{label}」上内容不一致，仍要运行吗？" } };
 const stageManager = { "title": "阶段管理", "refresh": "刷新列表", "import": "导入", "rescan": "重新扫描", "rescanTooltip": "扫描磁盘上的工作流库（ComfyUI user 目录下的 comfytv/workflows/），发现新增、变更或删除的文件 —— 无需重启后端", "rescanFound": "发现 {n} 个新工作流", "rescanNone": "没有发现新工作流", "rescanNoneDetail": "请确认文件是 .json 且放在 ComfyUI user 目录下的 comfytv/workflows/对应类别目录中（preset 和 .api.json 附属文件不算）。", "rescanFailed": "重新扫描失败", "setDefault": "设为默认", "unsetDefault": "取消默认", "defaultSet": "{label} 已设为该阶段的默认工作流", "defaultCleared": "{label} 已取消默认 —— 将使用列表中的第一个工作流", "defaultFailed": "修改默认工作流失败", "setFavorite": "收藏", "unsetFavorite": "取消收藏（同时取消默认）", "favoriteFailed": "修改收藏失败", "hide": "从阶段节点隐藏", "unhide": "在阶段节点显示", "hiddenSet": "{label} 已从阶段节点的 workflow 下拉框隐藏", "hiddenCleared": "{label} 已重新显示在 workflow 下拉框中", "hiddenFailed": "修改工作流可见性失败", "section": { "workflows": "工作流", "params": "参数" }, "emptyWorkflows": "该阶段下还没有已注册的工作流 —— 点「导入」上传，或把 .json 放入 ComfyUI user 目录下的 comfytv/workflows/对应类别目录后点「重新扫描」。", "hint": "这里列出的工作流，在画布上对应阶段节点的 workflow 下拉框中选用。", "badge": { "linked": "外链", "linkedHint": "链接自 ComfyUI 原生工作流目录（不由 ComfyTV 管理）", "fileMissing": "文件丢失", "notGui": "非 GUI 格式", "notGuiHint": "缺少顶层 nodes 数组 —— 在 ComfyUI 中打开后用普通「保存」重新导出，不要用「保存（API 格式）」", "noApi": "API 未生成", "noApiHint": "首次运行该工作流时会自动生成 API prompt，新导入的工作流出现此标记属于正常。", "new": "新", "newHint": "最近一次扫描（启动或重新扫描）新发现的工作流", "builtin": "内置", "builtinHint": "ComfyTV 自带的工作流（git 跟踪）。没有此标记的是用户导入或手动放入的。", "default": "默认", "defaultHint": "新添加的该类阶段节点会预选此工作流。设为默认时会同时收藏，并排在阶段下拉列表的最前面。若它被删除或取消链接，则回退到列表中的第一个。", "favorite": "收藏", "favoriteHint": "排在阶段下拉列表的靠前位置，与其他工作流之间有分隔线。", "hidden": "已隐藏", "hiddenHint": "不出现在阶段节点的 workflow 下拉框中。已选中它的节点不受影响，仍可正常运行。" } };
 const assets = { "title": "资产库", "empty": "还没有资产 —— 添加图片、视频或音频后可跨项目复用。", "emptyCategory": "这个分类下还没有资产。", "add": "添加素材", "addTooltip": "上传图片、视频或音频到资产库（也可以直接拖拽文件到这个面板）", "uploading": "上传中 {done}/{total}…", "uploadFailed": "上传失败: {detail}", "dropHint": "松开把文件添加到资产库", "search": "搜索资产", "noResults": "没有匹配的资产。", "scanFolder": "扫描素材文件夹", "scanFolderHint": "大文件直接放进这个文件夹,扫描时自动收录,无需上传", "view": { "settings": "显示设置", "list": "列表视图", "grid": "网格视图" }, "media": { "all": "全部类型", "image": "图片", "video": "视频", "audio": "音频", "model": "3D 模型", "text": "文本" }, "category": { "all": "全部", "none": "未分类", "new": "新建分类", "newPrompt": "新分类名称：", "rename": "重命名分类", "renamePrompt": "分类名称：", "delete": "删除分类", "deleteConfirm": "删除这个分类？它会从所有资产上移除；资产和磁盘上的文件保留。" }, "card": { "rename": "重命名", "renamePrompt": "资产名称：", "delete": "从资产库移除", "deleteConfirm": "把这个资产从资产库移除？磁盘上的文件保留。", "tags": "编辑标签", "loadNode": "作为节点添加到画布", "makeProxy": "生成预览代理", "more": "更多操作", "playPreview": "试听", "pausePreview": "暂停", "fileMissing": "文件缺失", "fileMissingHint": "本地文件已被删除，资产条目仍保留；可重新导入或从资产库移除" }, "tagPopover": { "empty": "还没有分类。", "create": "新建分类" }, "select": { "enter": "多选资产（Ctrl+点击也可以）", "exit": "退出多选", "all": "全选当前显示", "missing": "只勾选当前显示中文件缺失的（{count} 个）", "count": "已选 {count} 个", "tags": "编辑所选的标签", "loadNodes": "把所选作为节点添加到画布", "remove": "从资产库移除所选", "removeConfirm": "把这 {count} 个资产从资产库移除？磁盘上的文件保留。" } };
@@ -62896,7 +62896,7 @@ const promptAssets = { "addTooltip": "从资产库插入图片 —— 运行时�
 const validator = { "kind": { "image": "图片", "video": "视频", "audio": "音频", "text": "文本", "model": "3D 模型" }, "unused": "「{label}」不接收{kind}输入 —— 这条连线运行时会被忽略。", "extra": "「{label}」只接收 {max} 个{kind}输入 —— 这条多出来的连线运行时会被忽略。", "needImage": "「{label}」需要一张图片 —— 点卡片上的 ＋ 添加参考图，或连一张图进来。", "needImageN": "「{label}」需要第 {n} 张图片 —— 点 ＋ 添加参考图，或连一张图进来（已就绪 {ready}/{total}）。", "needInput": "「{label}」需要一个{kind}输入 —— 连一个进这个接口。", "needInputN": "「{label}」需要 {needed} 个{kind}输入 —— 连一个进这个接口（已连 {wired}/{needed}）。" };
 const bindTo = { "useValue": "（使用此值）", "prompt": "阶段提示词", "width": "阶段宽度", "height": "阶段高度", "length": "阶段视频帧数", "upstream": { "image": "上游图片", "video": "上游视频", "audio": "上游音频", "text": "上游文本", "model": "上游 3D 模型" }, "maskedImage": "上游图片 + 绘制蒙版（alpha）", "option": { "seed": "阶段种子", "batch_size": "阶段张数", "duration_s": "阶段时长（秒）", "generate_audio": "阶段生成音频", "lyrics": "阶段歌词", "bpm": "阶段 BPM", "timesignature": "阶段拍号", "keyscale": "阶段调性", "voice": "阶段音色", "language": "阶段语言", "speed": "阶段语速", "reference_text": "阶段参考文本", "max_length": "阶段 LLM 最大输出长度", "scale": "阶段放大倍数", "pad_left": "阶段左侧扩展", "pad_top": "阶段顶部扩展", "pad_right": "阶段右侧扩展", "pad_bottom": "阶段底部扩展", "feathering": "阶段羽化", "mask_data": "阶段蒙版（绘制输出）" } };
 const configSidebar = { "title": "工作流配置", "empty": "在画布上选中某个阶段节点以编辑它的工作流配置。导入的工作流在节点的 workflow 下拉框中选用 —— 全部清单见「阶段管理」页。", "noWorkflowPicked": "该阶段还没选工作流 —— 先在下拉里挑一个。", "loading": "加载中…", "noExposedWidgets": "这个工作流没有可编辑的 widget，或者还没准备过 —— 先在画布上任一阶段节点选中它，浏览器侧 graphToPrompt 跑一遍后才有 widget 元数据。", "pickWorkflowFirst": "先在画布上任一阶段节点上选中这个工作流 —— 浏览器侧 graphToPrompt 跑过一遍才有 widget 元数据。", "customExposed": "已由卡片暴露为", "customExposedPrompt": "主提示词", "customOutputsHint": "输出在卡片的“暴露输入输出”面板里选择。", "bindTo": "绑定到：", "exportPreset": "导出 preset.json", "exportPresetTooltip": "把当前绑定导出为 *_preset.json 文件，丢进 workflows/<kind>/ 和工作流 JSON 同目录，其他用户首次启动时会自动应用这套默认。", "exportPresetFailed": "导出失败: {detail}", "resetToPreset": "↻ 重置为内置 preset", "resetToPresetTooltip": "清空该工作流的所有绑定和元数据，重新读取磁盘上的 _preset.json 文件。你自己改过的内容会丢失。", "resetToPresetConfirm": "把这个工作流的所有绑定重置成内置 preset？你自己改过的会丢失。", "resetToPresetFailed": "重置失败: {detail}", "conversionMayHaveFailed": "可能是 ComfyTV 转换失败。请在 ComfyUI 里手动导出一份 API 的 json（Save (API Format)），在这里上传，注意以同名 .api.json 命名。", "uploadApi": "上传 API JSON", "uploadApiTooltip": "把 Save (API Format) 导出的 json 附加到这个工作流。会存成工作流旁边的 <name>.api.json 并直接使用、跳过转换。", "uploadApiOk": "API prompt 已保存（{n} 个节点）——工作流就绪。", "uploadApiFailed": "上传失败: {detail}", "uploadApiNotJson": "不是合法的 JSON。", "reconvertApi": "重新生成 API", "reconvertApiTooltip": "把工作流文件重新转换成 API prompt。升级 ComfyUI、ComfyTV 或自定义节点后这个工作流跑不起来时用。", "reconvertApiOk": "API prompt 已重新生成（{n} 个节点）。", "reconvertApiFailed": "重新生成失败: {detail}", "resultNode": "节点", "resultAutoDetect": "(自动检测)", "resultHintAuto": "默认从 save / preview 节点自动检测。选择一个节点可手动指定由哪个节点产出本阶段的输出。", "resultHintSet": "该节点的输出将作为本阶段的结果。", "resultType": { "label": "类型", "text": "文本 / 值 (slot 0)", "file": "保存的文件 (图片 / 视频 / 音频)", "batch": "保存的图片批次" }, "bindingRequired": "必填", "outputs": "输出", "useNodeOutput": "（使用节点输出）", "outputsTakenOver": "输出已全部绑定到 stage，这些参数不再生效。", "mentionStyle": { "label": "引用", "natural": "自然文本（图1）", "minimaxTags": "<Picture n> 标签（MiniMax H3）", "qwenTags": "<image n> 标签（Qwen Image 2.1）", "flux3Tags": "<ref_image n> 标签（FLUX.3，从 0 开始）", "hint": "提示词里的图片提及在本工作流的模型下如何展开。" }, "section": { "widgets": "Widget 列表", "notes": "工作流笔记", "description": "说明", "result": "结果输出", "properties": "工作流属性" }, "linkedSource": "链接自 ComfyUI", "linkedSourceHint": "该工作流位于 ComfyUI 自带库中。在那里编辑并保存，修改会自动同步。", "linkBroken": "链接已失效", "linkBrokenHint": "ComfyUI 库中的源工作流已缺失（被移动、改名或删除）。请重新创建或解除链接。", "unlink": "解除链接", "unlinkConfirm": "解除「{label}」的链接？ComfyUI 里的工作流文件会保留，仅移除 ComfyTV 的引用。", "unlinkFailed": "解除链接失败：{detail}", "searchNodes": "搜索节点…", "groupAll": "全部", "groupUngrouped": "未分组", "noMatchingNodes": "没有匹配当前筛选的节点。" };
-const project = { "label": "当前项目", "shared_suffix": "(共享)", "id_prefix": "id:", "refresh": "刷新项目列表", "create": "新建项目", "delete": "删除该项目（不会删磁盘文件）", "delete_confirm": "确定删除该项目？数据库会清空，磁盘上的生成文件保留。", "create_prompt": "新项目名称：", "create_default": "项目 {n}", "status": { "refreshing": "刷新中…", "refresh_failed": "刷新失败", "create_failed": "创建失败", "deleted": "已删除", "delete_failed": "删除失败", "load_failed": "加载项目列表失败" } };
+const project$1 = { "label": "当前项目", "shared_suffix": "(共享)", "id_prefix": "id:", "refresh": "刷新项目列表", "create": "新建项目", "delete": "删除该项目（不会删磁盘文件）", "delete_confirm": "确定删除该项目？数据库会清空，磁盘上的生成文件保留。", "create_prompt": "新项目名称：", "create_default": "项目 {n}", "status": { "refreshing": "刷新中…", "refresh_failed": "刷新失败", "create_failed": "创建失败", "deleted": "已删除", "delete_failed": "删除失败", "load_failed": "加载项目列表失败" } };
 const execution = { "running": "运行中：节点 #{nodeId}", "queued": "排队中" };
 const actions = { "image": { "edit": { "label": "修改图片", "tooltip": "改变尺寸或需要交互 UI 的图像编辑（高清 / 扩图 / 重绘 / 擦除 / 抠图 / 裁剪）" }, "panorama": { "label": "全景图", "tooltip": "把当前图变为全景，进入视角操作" }, "multiangle": { "label": "多角度", "tooltip": "从不同相机角度重新渲染该图" }, "relight": { "label": "打光", "tooltip": "生成一个打光光源节点 + 预选打光工作流的图像 stage —— 摆 3D 灯光或选参考图,然后运行图像 stage" }, "material": { "label": "提取材质", "tooltip": "生成一个接好线的材质球节点 —— Run 时用本地视觉模型从图片估计 PBR 参数（颜色/粗糙度/透明度…）" }, "preset": { "label": "预设", "tooltip": "保持尺寸、无需复杂 UI 的预设变换（多视图 / 宫格 / 画面推演 ...）" } }, "video": { "extend": { "label": "延伸", "tooltip": "抽出本段末帧,派生新的视频阶段用作 I2V 起始帧 —— 写个 prompt 描述接下来要发生什么" }, "change": { "label": "修改视频", "tooltip": "对已上传/已生成的视频做修改：剪辑 / 高清 / 去字幕 / 音频分离" } }, "audio": { "change": { "label": "修改音频", "tooltip": "处理这段音频：修剪 / 动态 / 均衡 / 降噪 / 混音 / 分析" } }, "text": { "refine": { "label": "改写", "tooltip": "在新的文本阶段中继续改写" } }, "panorama": { "view-current": { "label": "当前视角截图", "tooltip": "提取当前视角为单张图" }, "view-four": { "label": "四大视角截图", "tooltip": "提取 4 个视角组成图集" }, "view-twelve": { "label": "12 视角截图", "tooltip": "提取 12 个视角组成图集" } }, "storyboard": { "gen-shots": { "label": "生成分镜图", "tooltip": "派生一个 Shot Images 节点接到这个分镜板上 —— 按镜头列表逐个出图" } }, "model": { "product-shot": { "label": "生成产品图", "tooltip": "派生一个预选 Qwen Edit 2511 工作流的图像编辑 stage，接到当前 3D 截图上 —— 保留主体颜色和材质，把渲染图变成摄影棚产品照；提示词可改" } } };
 const stagePresets = { "custom": "自定义", "save": "保存预设", "saveTitle": "保存预设", "nameLabel": "预设名称", "delete": "删除预设", "deleteTitle": "删除预设", "deleteConfirm": "删除预设“{name}”？", "renameTitle": "重命名预设", "reset": "恢复默认", "builtin": "内置预设", "saveFailed": "保存预设失败", "nameReserved": "该名称已被内置预设占用", "panel": { "title": "阶段预设", "empty": "还没有预设。使用 stage 节点上的保存按钮创建。", "rename": "重命名预设" } };
@@ -62922,7 +62922,7 @@ const videoCrop = { "play": "播放", "cropping": "裁剪中…", "cropped": "�
 const imageCrop = { "noInputImage": "无输入图像 — 请上游连接一张图", "cropPreviewAlt": "裁剪预览", "loading": "加载中…", "ratio": "比例", "custom": "自定义", "lockRatio": "锁定纵横比", "unlockRatio": "解锁纵横比", "applying": "应用裁剪中…", "applied": "裁剪已应用 — 下游可直接使用", "adjustToApply": "拖动矩形或选择比例以应用" };
 const panorama = { "empty": "暂无全景图 — 上传 HDRI / 等距柱状投影图，或接入上游图后点 Run", "uploading": "上传中…", "upload": "上传全景图", "clearUpload": "清除上传", "clearUploadTooltip": "丢弃手动来源 — 之后 Run 会重新从上游派生", "manualSourceBadge": "手动", "loadError": "加载全景图失败" };
 const imageCompare = { "before": "之前", "after": "之后", "noImages": "连接两张图进行对比（A / B）" };
-const storyboard = { "shots": "分镜", "addShot": "添加分镜", "empty": "暂无分镜 — 点 Run 从剧本生成，或手动添加", "moveUp": "上移", "moveDown": "下移", "remove": "删除分镜", "regenerate": "用 LLM 重新生成此镜头(其他镜头保持)", "noRef": "无参考图", "uploadRef": "上传参考图", "clearRef": "清除参考图", "addRef": "添加参考图", "removeRef": "移除这张参考图", "refsCount": "参考图 {n}/8", "seed": "种子", "seedAuto": "跟随", "seedHint": "留空则使用阶段上的种子", "promptPlaceholder": "描述这个镜头…", "cols": { "scene_purpose": "画面描述", "character": "角色", "character_desc": "角色描述", "shot_size": "景别", "action": "角色动作", "emotion": "情绪", "scene_tags": "场景标签", "lighting": "光影氛围", "sfx": "音效", "dialogue": "对白", "image_prompt": "分镜提示词", "motion_prompt": "视频运动提示词" }, "regenerateFailed": "重新生成镜头失败" };
+const storyboard = { "shots": "分镜", "addShot": "添加分镜", "empty": "暂无分镜 — 点 Run 从剧本生成，或手动添加", "moveUp": "上移", "moveDown": "下移", "remove": "删除分镜", "regenerate": "用 LLM 重新生成此镜头(其他镜头保持)", "noRef": "无参考图", "uploadRef": "上传参考图", "clearRef": "清除参考图", "addRef": "添加参考图", "removeRef": "移除这张参考图", "refsCount": "参考图 {n}/9", "pictureSlot": "<Picture {n}>", "seed": "种子", "seedAuto": "跟随", "seedHint": "留空则使用阶段上的种子", "promptPlaceholder": "描述这个镜头…", "cols": { "scene_purpose": "画面描述", "character": "角色", "character_desc": "角色描述", "shot_size": "景别", "action": "角色动作", "emotion": "情绪", "scene_tags": "场景标签", "lighting": "光影氛围", "sfx": "音效", "dialogue": "对白", "image_prompt": "分镜提示词", "motion_prompt": "视频运动提示词" }, "regenerateFailed": "重新生成镜头失败", "importJson": "导入 shots.json", "importFailed": "无法导入这份 JSON — 需要包含 shots 数组", "fields": "镜头字段", "assetRefs": "资产引用", "dialogueLines": "对白", "speaker": "说话人", "fieldKey": "字段", "fieldValue": "值", "removeField": "删除字段" };
 const storyboardEditor = { "boards": "画板", "addBoard": "添加画板", "deleteBoard": "删除画板", "moveLeft": "左移", "moveRight": "右移", "importUpstream": "导入上游分镜", "imported": "已导入 {count} 个分镜", "noUpstreamData": "上游分镜为空 — 先运行 Storyboard 节点", "play": "播放动画稿", "stop": "停止", "onionPrev": "洋葱皮：上一板", "onionNext": "洋葱皮：下一板", "newShot": "新镜头", "duration": "时长", "defaultDuration": "默认时长", "tabBoard": "分镜", "tabLayers": "图层", "refImage": "参考图", "noRef": "无参考图", "uploadRef": "上传", "clearRef": "清除", "addRefToCanvas": "加入画布", "fields": { "scenePurpose": "画面描述", "dialogue": "对白", "action": "角色动作", "notes": "备注", "character": "角色", "shotSize": "景别", "imagePrompt": "分镜提示词", "motionPrompt": "视频运动提示词" }, "importScript": "导入剧本", "exportAnimatic": "导出动画稿", "exportPdf": "导出 PDF", "animaticReady": "动画稿已生成 — video 输出可接下游", "animaticFailed": "动画稿导出失败", "pdfFailed": "PDF 导出失败", "psdFailed": "PSD 导出失败", "exportPsdHint": "把所有分镜板导出为一个带画板（Artboard）的 PSD", "exportPsdAnim": "动画 PSD", "exportPsdAnimHint": "把分镜板导出为 Photoshop 帧动画 PSD", "noScenesFound": "剧本里没有识别到场景（支持 Fountain 格式，角色名可用 {'@'} 前缀）", "importImages": "导入图片", "importUpstreamImages": "导入上游图组", "duplicateBoard": "复制画板 (D)", "dragDuration": "左右拖动调整时长", "suggestDurationHint": "按对白长度估算时长，点击应用", "guideCenter": "中心十字线", "guideThirds": "三分线", "guideGrid": "网格", "flipH": "水平翻转整板 (Shift+H)", "flipV": "垂直翻转整板 (Shift+V)", "captions": "字幕 (C) — 播放与导出时叠加对白", "loop": "循环播放", "gifReady": "GIF 已生成并开始下载", "gifFailed": "GIF 导出失败", "zipEmpty": "没有可打包的画板图片", "hotkeysHint": ", . 切板 · N 新板 · D 复制 · P 播放 · O 洋葱皮 · / 新镜头" };
 const timeline = { "keyframes": "关键帧", "connectImages": "上游连接图片作为分镜素材", "addSegment": "添加为分镜", "clickKeyframe": "点击上方关键帧添加分镜", "addAudio": "添加音频轨", "noAudio": "上游连接音频以添加音轨", "segmentPrompt": "分镜提示词", "promptPlaceholder": "这个镜头里发生什么…", "length": "时长", "fps": "帧率", "shots": "镜头" };
 const director = { "clips": "片段", "addClip": "添加片段", "empty": "点击 + 添加第一个片段", "chain": "衔接", "chainTooltip": "把每个片段的末帧作为下一个片段的图片参考", "chainMode": { "off": "关闭", "prepend": "末帧前插", "replace": "末帧替换参考" }, "clipPrompt": "片段提示词", "workflow": "工作流", "sharedRefsHint": "全片的参考资源池。在每个片段的提示词里 {'@'} 该片段要用的参考；一个 {'@'} 都没写的片段会自动使用整个池子。", "kind": { "image": "图片", "video": "视频", "audio": "音频" }, "refNotConsumed": "「{workflow}」不消费{kind}参考——运行时会被忽略", "refOverLimit": "这个工作流最多消费 {n} 个此类参考——多出的会被忽略", "transition": "入场转场", "transitionTooltip": "这个片段从上一个片段过渡进来的方式", "workflowDefault": "（默认工作流）", "promptPlaceholder": "这个片段里发生什么…", "duration": "时长（秒）", "rerunClip": "立即重新生成这一段——其他片段沿用已生成的结果", "enabled": "启用", "deleteClip": "删除片段", "duplicateClip": "复制片段", "cached": "已缓存——不会重新生成", "generated": "本次运行已生成", "previewClip": "预览这个片段", "clipPreview": "片段预览", "play": "播放预览", "pause": "暂停", "playDisabled": "还没有可预览的内容——先运行导演台", "filmPreview": "成片预览", "clipsPreview": "粗剪连播（成片尚未合成）" };
@@ -62993,7 +62993,7 @@ const zh = {
   validator,
   bindTo,
   configSidebar,
-  project,
+  project: project$1,
   execution,
   actions,
   stagePresets,
@@ -87123,7 +87123,7 @@ const _sfc_main$4v = /* @__PURE__ */ defineComponent({
       }
     });
     const AgentPanelRoot = /* @__PURE__ */ defineAsyncComponent({
-      loader: () => import("./AgentPanelRoot-OflQ4XB-.mjs"),
+      loader: () => import("./AgentPanelRoot-BgPYqPqF.mjs"),
       errorComponent: AgentPanelLoadError,
       onError: (error2, _retry, fail) => {
         reportError(error2, { errorType: "agent_panel_load_failure" });
@@ -87862,6 +87862,7 @@ const PARENT = {
   "v2-lod-fill": "enable-v2",
   "enable-bot": "enable-mcp",
   "enable-skills": "enable-mcp",
+  "headless-auto-resume": "enable-mcp",
   "bot-comfy-mcp-command": "bot-enable-comfy-mcp",
   "bot-model-local-llm": "bot-local-llm-url"
 };
@@ -87874,7 +87875,7 @@ const PROBES = {
 };
 function sectionOf(key) {
   if (key === "enable-db-backup" || key.startsWith("db-backup-")) return "backup";
-  if (AGENT_TOGGLE_KEYS.has(key) || key === "enable-skills" || key.startsWith("bot-")) return "agent";
+  if (AGENT_TOGGLE_KEYS.has(key) || key === "enable-skills" || key === "headless-auto-resume" || key.startsWith("bot-")) return "agent";
   if (key === "enable-eagle" || key.startsWith("eagle-")) return "eagle";
   if (key.startsWith("blender-")) return "blender";
   if (key === "enable-collab") return "collab";
@@ -89988,15 +89989,15 @@ const _hoisted_43$3 = { class: "ctv:text-3xs ctv:uppercase ctv:tracking-wide ctv
 const _hoisted_44$3 = { class: "ctv:m-0 ctv:text-2xs ctv:italic ctv:text-muted-foreground/60" };
 const _hoisted_45$3 = { key: 7 };
 const _hoisted_46$3 = { class: "ctv:m-0 ctv:text-xs ctv:whitespace-pre-wrap ctv:text-muted-foreground" };
-const _hoisted_47$2 = { class: "ctv:mt-4 ctv:pt-2.5 ctv:pb-3.5 ctv:px-3 ctv:flex ctv:flex-col ctv:gap-1 ctv:border-t ctv:border-border-subtle" };
-const _hoisted_48$2 = ["disabled", "title"];
-const _hoisted_49$2 = ["disabled", "title"];
-const _hoisted_50$1 = ["disabled", "title"];
-const _hoisted_51$1 = {
+const _hoisted_47$3 = { class: "ctv:mt-4 ctv:pt-2.5 ctv:pb-3.5 ctv:px-3 ctv:flex ctv:flex-col ctv:gap-1 ctv:border-t ctv:border-border-subtle" };
+const _hoisted_48$3 = ["disabled", "title"];
+const _hoisted_49$3 = ["disabled", "title"];
+const _hoisted_50$2 = ["disabled", "title"];
+const _hoisted_51$2 = {
   key: 0,
   class: "ctv:text-xs ctv:text-destructive-background"
 };
-const _hoisted_52 = {
+const _hoisted_52$1 = {
   key: 1,
   class: "ctv:text-xs ctv:text-destructive-background"
 };
@@ -90265,7 +90266,7 @@ const _sfc_main$4n = /* @__PURE__ */ defineComponent({
             }, toDisplayString$1(_ctx.$t("configSidebar.section.description")), 1),
             createBaseVNode("p", _hoisted_46$3, toDisplayString$1(unref(config2).description), 1)
           ])) : createCommentVNode("", true),
-          createBaseVNode("div", _hoisted_47$2, [
+          createBaseVNode("div", _hoisted_47$3, [
             createBaseVNode("button", {
               class: normalizeClass(exportBtn),
               disabled: !unref(config2).has_api || unref(exportBusy),
@@ -90275,7 +90276,7 @@ const _sfc_main$4n = /* @__PURE__ */ defineComponent({
             }, [
               _cache2[12] || (_cache2[12] = createBaseVNode("i", { class: "pi pi-download" }, null, -1)),
               createTextVNode(" " + toDisplayString$1(_ctx.$t("configSidebar.exportPreset")), 1)
-            ], 8, _hoisted_48$2),
+            ], 8, _hoisted_48$3),
             createBaseVNode("button", {
               class: normalizeClass(exportBtn),
               disabled: unref(config2).file_exists === false || unref(openInComfyBusy),
@@ -90285,16 +90286,16 @@ const _sfc_main$4n = /* @__PURE__ */ defineComponent({
             }, [
               _cache2[13] || (_cache2[13] = createBaseVNode("i", { class: "pi pi-external-link" }, null, -1)),
               createTextVNode(" " + toDisplayString$1(_ctx.$t("openInComfy.open")), 1)
-            ], 8, _hoisted_49$2),
+            ], 8, _hoisted_49$3),
             createBaseVNode("button", {
               class: normalizeClass(resetBtn),
               disabled: unref(resetBusy),
               title: _ctx.$t("configSidebar.resetToPresetTooltip"),
               onClick: _cache2[9] || (_cache2[9] = //@ts-ignore
               (...args) => unref(onResetToPreset) && unref(onResetToPreset)(...args))
-            }, toDisplayString$1(_ctx.$t("configSidebar.resetToPreset")), 9, _hoisted_50$1),
-            unref(exportError) ? (openBlock(), createElementBlock("span", _hoisted_51$1, toDisplayString$1(unref(exportError)), 1)) : createCommentVNode("", true),
-            unref(resetError) ? (openBlock(), createElementBlock("span", _hoisted_52, toDisplayString$1(unref(resetError)), 1)) : createCommentVNode("", true)
+            }, toDisplayString$1(_ctx.$t("configSidebar.resetToPreset")), 9, _hoisted_50$2),
+            unref(exportError) ? (openBlock(), createElementBlock("span", _hoisted_51$2, toDisplayString$1(unref(exportError)), 1)) : createCommentVNode("", true),
+            unref(resetError) ? (openBlock(), createElementBlock("span", _hoisted_52$1, toDisplayString$1(unref(resetError)), 1)) : createCommentVNode("", true)
           ])
         ])) : (openBlock(), createElementBlock("div", {
           key: 4,
@@ -92242,6 +92243,7 @@ function commit(node, prev, next) {
 function appendMediaEntry(node, type, entry2) {
   const prev = readMediaTable(node);
   if (prev[type].some((e) => e.key === entry2.key)) return false;
+  if (prev[type].length >= mediaMax(node, type)) return false;
   const next = { ...prev, [type]: [...prev[type], entry2] };
   commit(node, prev, next);
   return true;
@@ -132111,14 +132113,14 @@ const _hoisted_43$2 = {
 const _hoisted_44$2 = ["aria-expanded"];
 const _hoisted_45$2 = { class: "ctv:text-3xs ctv:text-muted-foreground ctv:font-mono ctv:normal-case ctv:tracking-normal" };
 const _hoisted_46$2 = { class: "action-list ctv:flex ctv:flex-wrap ctv:gap-1.5" };
-const _hoisted_47$1 = ["title", "onClick"];
-const _hoisted_48$1 = { class: "ctv:font-semibold" };
-const _hoisted_49$1 = {
+const _hoisted_47$2 = ["title", "onClick"];
+const _hoisted_48$2 = { class: "ctv:font-semibold" };
+const _hoisted_49$2 = {
   key: 0,
   class: "ctv:grid ctv:gap-1 ctv:p-1 ctv:mt-0.5 ctv:rounded-sm ctv:grid-cols-[repeat(auto-fill,minmax(110px,1fr))] ctv:bg-primary-background/5 ctv:border ctv:border-dashed ctv:border-primary-background/30"
 };
-const _hoisted_50 = ["title", "onClick"];
-const _hoisted_51 = { class: "ctv:flex-1" };
+const _hoisted_50$1 = ["title", "onClick"];
+const _hoisted_51$1 = { class: "ctv:flex-1" };
 const textOutputBtn = "ctv:flex ctv:items-center ctv:justify-center ctv:size-5 ctv:p-0 ctv:rounded-sm ctv:text-xs ctv:cursor-pointer ctv:bg-secondary-background ctv:border ctv:border-border-subtle ctv:text-muted-foreground ctv:hover:text-base-foreground ctv:hover:border-primary-background";
 const sectionLabel$1 = "ctv:text-2xs ctv:uppercase ctv:tracking-wide ctv:opacity-60 ctv:mb-[3px]";
 const contextToggle = "ctv:flex ctv:items-center ctv:gap-1.5 ctv:w-full ctv:py-0 ctv:px-0 ctv:bg-transparent ctv:border-0 ctv:cursor-pointer ctv:text-left ctv:[font-family:inherit]";
@@ -132665,17 +132667,17 @@ const _sfc_main$41 = /* @__PURE__ */ defineComponent({
                   name: a2.icon,
                   class: "ctv:text-xs"
                 }, null, 8, ["name"]),
-                createBaseVNode("span", _hoisted_48$1, toDisplayString$1(_ctx.$t(unref(actionLabelKey)(__props.state.kind, a2.id))), 1),
+                createBaseVNode("span", _hoisted_48$2, toDisplayString$1(_ctx.$t(unref(actionLabelKey)(__props.state.kind, a2.id))), 1),
                 ((_a3 = a2.presets) == null ? void 0 : _a3.length) ? (openBlock(), createElementBlock("i", {
                   key: 0,
                   class: normalizeClass(["pi", unref(openActionId) === a2.id ? "pi-chevron-down" : "pi-chevron-right", "ctv:ml-0.5 ctv:text-3xs ctv:opacity-70"])
                 }, null, 2)) : createCommentVNode("", true)
-              ], 10, _hoisted_47$1);
+              ], 10, _hoisted_47$2);
             }), 128))
           ], 512), [
             [vShow, !unref(actionsCollapsed)]
           ]),
-          unref(openPresets).length ? withDirectives((openBlock(), createElementBlock("div", _hoisted_49$1, [
+          unref(openPresets).length ? withDirectives((openBlock(), createElementBlock("div", _hoisted_49$2, [
             (openBlock(true), createElementBlock(Fragment$1, null, renderList(unref(openPresets), (p2) => {
               return openBlock(), createElementBlock("button", {
                 key: p2.id,
@@ -132687,8 +132689,8 @@ const _sfc_main$41 = /* @__PURE__ */ defineComponent({
                   name: p2.icon,
                   class: "ctv:shrink-0 ctv:text-xs"
                 }, null, 8, ["name"]),
-                createBaseVNode("span", _hoisted_51, toDisplayString$1(_ctx.$t(unref(presetLabelKey)(p2.category, p2.id))), 1)
-              ], 8, _hoisted_50);
+                createBaseVNode("span", _hoisted_51$1, toDisplayString$1(_ctx.$t(unref(presetLabelKey)(p2.category, p2.id))), 1)
+              ], 8, _hoisted_50$1);
             }), 128))
           ], 512)), [
             [vShow, !unref(actionsCollapsed)]
@@ -149812,7 +149814,7 @@ async function parseToObject(file) {
     return new OBJLoader2().parse(await file.text());
   }
   if (lower.endsWith(".stl")) {
-    const { STLLoader } = await import("./STLLoader-Bqx6dnyO.mjs");
+    const { STLLoader } = await import("./STLLoader-Dzh4Kapv.mjs");
     const geometry = new STLLoader().parse(await file.arrayBuffer());
     const material = new MeshStandardMaterial({ color: 13421772 });
     const group = new Group();
@@ -149820,7 +149822,7 @@ async function parseToObject(file) {
     return group;
   }
   if (lower.endsWith(".dae")) {
-    const { ColladaLoader } = await import("./ColladaLoader-BVgyHXFK.mjs");
+    const { ColladaLoader } = await import("./ColladaLoader-uKkE6JLq.mjs");
     const collada = new ColladaLoader().parse(await file.text(), "");
     if (!(collada == null ? void 0 : collada.scene)) throw new Error(`failed to parse ${file.name}`);
     return collada.scene;
@@ -156323,7 +156325,300 @@ const _sfc_main$3b = /* @__PURE__ */ defineComponent({
   }
 });
 const OutpaintStageCard = /* @__PURE__ */ _export_sfc(_sfc_main$3b, [["__scopeId", "data-v-a3632c2a"]]);
-const MAX_SHOT_REFS = 8;
+const SHOT_FIELDS = [
+  "shot_id",
+  "scene_id",
+  "order",
+  "beats",
+  "duration_s",
+  "cut_to",
+  "frames",
+  "mode",
+  "shot_size",
+  "angle",
+  "move",
+  "lens",
+  "cam_idx",
+  "purpose",
+  "reveal",
+  "characters",
+  "extras",
+  "location",
+  "props",
+  "start_state",
+  "unique_action",
+  "end_state",
+  "variation_type",
+  "dialogue",
+  "continuity",
+  "first_frame_desc",
+  "last_frame_desc",
+  "motion_desc",
+  "lighting",
+  "audio",
+  "refs",
+  "prompts",
+  "video_plan"
+];
+const LEGACY_FIELDS = [
+  "shot_no",
+  "duration",
+  "scene_purpose",
+  "character",
+  "character_desc",
+  "character_img",
+  "reference_img",
+  "action",
+  "emotion",
+  "scene_tags",
+  "sfx",
+  "prompt",
+  "image_prompt",
+  "motion_prompt",
+  "image_url",
+  "reference_images",
+  "seed"
+];
+const PANEL_FIELDS = [
+  "shot_id",
+  "scene_id",
+  "mode",
+  "variation_type",
+  "angle",
+  "move",
+  "lens",
+  "cam_idx",
+  "reveal",
+  "start_state",
+  "end_state",
+  "first_frame_desc",
+  "last_frame_desc",
+  "cut_to",
+  "frames",
+  "extras"
+];
+const JSON_FIELDS = ["beats", "continuity", "audio", "video_plan"];
+const STANDARD_KEYS = /* @__PURE__ */ new Set([...SHOT_FIELDS, ...LEGACY_FIELDS]);
+function isProductionShot(shot) {
+  if (!shot) return false;
+  if (typeof shot.shot_id === "string") return true;
+  if ("duration_s" in shot) return true;
+  return Array.isArray(shot.dialogue);
+}
+function isRecord(value) {
+  return !!value && typeof value === "object" && !Array.isArray(value);
+}
+function imagePromptOf(raw) {
+  const prompts = raw.prompts;
+  if (isRecord(prompts)) {
+    if (typeof prompts.h3_image === "string" && prompts.h3_image) return prompts.h3_image;
+    if (typeof prompts.krea2 === "string") return prompts.krea2;
+  }
+  return String(raw.image_prompt ?? raw.prompt ?? "");
+}
+function separateKreaPrompt(raw) {
+  const prompts = raw.prompts;
+  if (!isRecord(prompts)) return null;
+  if (typeof prompts.h3_image !== "string" || typeof prompts.krea2 !== "string") return null;
+  return prompts.krea2;
+}
+function durationOf(raw) {
+  if (typeof raw.duration_s === "number" && Number.isFinite(raw.duration_s)) return raw.duration_s;
+  const n = parseInt(String(raw.duration ?? raw.duration_s ?? 3), 10);
+  return Math.max(1, n || 3);
+}
+function characterLabel(raw) {
+  if (Array.isArray(raw.characters)) {
+    return raw.characters.map((row) => isRecord(row) ? String(row.id ?? "") : "").filter(Boolean).join("、");
+  }
+  return String(raw.character ?? "");
+}
+function emotionOf(raw) {
+  if (typeof raw.emotion === "string" && raw.emotion) return raw.emotion;
+  if (Array.isArray(raw.dialogue)) {
+    const parts = raw.dialogue.map((row) => isRecord(row) ? String(row.emotion ?? "") : "").filter(Boolean);
+    if (parts.length) return parts.join("、");
+  }
+  return String(raw.emotion ?? "");
+}
+function sceneTagsOf(raw) {
+  if (typeof raw.scene_tags === "string" && raw.scene_tags) return raw.scene_tags;
+  if (isRecord(raw.location)) {
+    return [raw.location.id, raw.location.camera_card, raw.location.lighting_state].filter((value) => typeof value === "string" && value).join(", ");
+  }
+  return String(raw.scene_tags ?? "");
+}
+function sfxOf(raw) {
+  if (typeof raw.sfx === "string" && raw.sfx) return raw.sfx;
+  if (isRecord(raw.audio)) {
+    const ambience = typeof raw.audio.ambience === "string" ? raw.audio.ambience : "";
+    const effects = Array.isArray(raw.audio.sfx) ? raw.audio.sfx.map((item) => {
+      if (typeof item === "string") return item;
+      return isRecord(item) ? String(item.desc ?? "") : "";
+    }) : [];
+    const joined = [ambience, ...effects].filter(Boolean).join(", ");
+    if (joined) return joined;
+  }
+  return String(raw.sfx ?? "");
+}
+function dialogueText(raw) {
+  if (Array.isArray(raw.dialogue)) {
+    return raw.dialogue.map((row) => {
+      if (!isRecord(row)) return "";
+      const speaker = String(row.speaker ?? "");
+      const text = String(row.text ?? "");
+      return speaker ? `${speaker}: ${text}` : text;
+    }).filter(Boolean).join("\n");
+  }
+  return String(raw.dialogue ?? "");
+}
+function viewFromSource(raw, index2 = 0, refs = []) {
+  const imagePrompt = imagePromptOf(raw);
+  return {
+    shot_no: String(raw.shot_no ?? raw.order ?? index2 + 1),
+    duration: durationOf(raw),
+    image_url: refs[0] ?? null,
+    prompt: imagePrompt,
+    image_prompt: imagePrompt,
+    scene_purpose: String(raw.purpose ?? raw.scene_purpose ?? ""),
+    character: characterLabel(raw),
+    character_desc: String(raw.character_desc ?? ""),
+    shot_size: String(raw.shot_size ?? ""),
+    action: String(raw.unique_action ?? raw.action ?? ""),
+    emotion: emotionOf(raw),
+    scene_tags: sceneTagsOf(raw),
+    lighting: String(raw.lighting ?? ""),
+    sfx: sfxOf(raw),
+    dialogue: dialogueText(raw),
+    motion_prompt: String(raw.motion_desc ?? raw.motion_prompt ?? ""),
+    reference_images: refs,
+    seed: null
+  };
+}
+function writeImagePrompt(source, value) {
+  if (isRecord(source.prompts)) {
+    const prompts = source.prompts;
+    if (typeof prompts.h3_image === "string" || !("krea2" in prompts)) prompts.h3_image = value;
+    else prompts.krea2 = value;
+    return;
+  }
+  source.image_prompt = value;
+  source.prompt = value;
+}
+function applyEditorField(source, key, value) {
+  if (key === "scene_purpose") {
+    if ("purpose" in source || isProductionShot(source) && !("scene_purpose" in source)) source.purpose = value;
+    else source.scene_purpose = value;
+    return;
+  }
+  if (key === "image_prompt" || key === "prompt") {
+    writeImagePrompt(source, String(value ?? ""));
+    return;
+  }
+  if (key === "action") {
+    if ("unique_action" in source || isProductionShot(source) && !("action" in source)) source.unique_action = value;
+    else source.action = value;
+    return;
+  }
+  if (key === "motion_prompt") {
+    if ("motion_desc" in source || isProductionShot(source) && !("motion_prompt" in source)) source.motion_desc = value;
+    else source.motion_prompt = value;
+    return;
+  }
+  if (key === "duration") {
+    const n = parseInt(String(value), 10);
+    if (!Number.isFinite(n)) return;
+    if ("duration_s" in source || isProductionShot(source) && !("duration" in source)) source.duration_s = n;
+    else source.duration = n;
+    return;
+  }
+  if (key === "dialogue" && Array.isArray(source.dialogue)) return;
+  if (key === "character" && Array.isArray(source.characters)) return;
+  source[key] = value;
+}
+function setPromptKey(source, key, value) {
+  if (!isRecord(source.prompts)) source.prompts = {};
+  source.prompts[key] = value;
+}
+function customKeys(source) {
+  return Object.keys(source).filter((key) => !STANDARD_KEYS.has(key) && key !== "id");
+}
+function panelKeys(source) {
+  return PANEL_FIELDS.filter((key) => key in source && !isComplex(source[key]));
+}
+function jsonKeys(source) {
+  return JSON_FIELDS.filter((key) => key in source);
+}
+function isComplex(value) {
+  return Array.isArray(value) || isRecord(value);
+}
+function coerceScalar(previous, text) {
+  if (typeof previous === "number") {
+    const n = Number(text);
+    return Number.isFinite(n) ? n : previous;
+  }
+  if (typeof previous === "boolean") return text === "true";
+  if (previous === null) return text === "" ? null : text;
+  return text;
+}
+function objectRefs(source) {
+  if (!Array.isArray(source.refs)) return null;
+  if (!source.refs.every((row) => isRecord(row))) return null;
+  return source.refs;
+}
+function dialogueRows(source) {
+  if (!Array.isArray(source.dialogue)) return null;
+  if (!source.dialogue.every((row) => isRecord(row))) return null;
+  return source.dialogue;
+}
+function characterRows(source) {
+  if (!Array.isArray(source.characters)) return null;
+  if (!source.characters.every((row) => isRecord(row))) return null;
+  return source.characters;
+}
+function blankProductionSource(order2) {
+  return {
+    shot_id: "",
+    scene_id: "",
+    order: order2,
+    duration_s: 6,
+    mode: "Ref2VA",
+    shot_size: "",
+    angle: "",
+    move: "",
+    purpose: "",
+    characters: [],
+    extras: 0,
+    location: { id: "", camera_card: null, lighting_state: null },
+    props: [],
+    dialogue: [],
+    refs: [],
+    prompts: { krea2: "", h3_image: "" },
+    continuity: { prev: null, next: null, cut_motive: "" },
+    variation_type: "small"
+  };
+}
+const MAX_SHOT_REFS = 9;
+const LEGACY_WRITE_KEYS = [
+  "shot_no",
+  "duration",
+  "prompt",
+  "image_prompt",
+  "scene_purpose",
+  "character",
+  "character_desc",
+  "shot_size",
+  "action",
+  "emotion",
+  "scene_tags",
+  "lighting",
+  "sfx",
+  "dialogue",
+  "motion_prompt",
+  "reference_images",
+  "image_url",
+  "seed"
+];
 function asRefUrl(value) {
   if (value && typeof value === "object") {
     const row = value;
@@ -156346,7 +156641,6 @@ function urlsFrom(raw) {
   for (const item of raw) {
     const url = asRefUrl(item);
     if (url && !out.includes(url)) out.push(url);
-    if (out.length >= MAX_SHOT_REFS) break;
   }
   return out;
 }
@@ -156368,12 +156662,13 @@ function seedOf(raw) {
 function newId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 }
-function blankShot(no) {
+function cloneSource$1(source) {
+  return structuredClone(/* @__PURE__ */ toRaw(source));
+}
+function blankLegacySource(no) {
   return {
-    id: newId(),
     shot_no: String(no),
     duration: 3,
-    image_url: null,
     prompt: "",
     image_prompt: "",
     scene_purpose: "",
@@ -156388,8 +156683,23 @@ function blankShot(no) {
     dialogue: "",
     motion_prompt: "",
     reference_images: [],
+    image_url: null,
     seed: null
   };
+}
+function shotFromSource(source, index2) {
+  const refs = referenceImagesOf(source);
+  return {
+    id: newId(),
+    source,
+    ...viewFromSource(source, index2, refs),
+    seed: seedOf(source.seed)
+  };
+}
+function project(shot, index2) {
+  const refs = referenceImagesOf(shot.source);
+  const view = viewFromSource(shot.source, index2, refs);
+  Object.assign(shot, view, { seed: seedOf(shot.source.seed) });
 }
 function useStoryboardShots(node, state2) {
   const store2 = useStageStore();
@@ -156397,33 +156707,51 @@ function useStoryboardShots(node, state2) {
   const uploadingId = /* @__PURE__ */ ref(null);
   const regeneratingId = /* @__PURE__ */ ref(null);
   const fileInputEl = /* @__PURE__ */ ref(null);
+  const importInputEl = /* @__PURE__ */ ref(null);
+  const customDraft = /* @__PURE__ */ ref({});
+  let envelope = {};
   let pendingUploadShotId = null;
   let pendingAppendRef = false;
   let lastWritten = "";
   let ignoreExternalOutput = false;
   let pendingRunResult = false;
+  function boardIsProduction() {
+    return Boolean(envelope.episode || envelope.series || envelope.target_duration_s) || shots.value.some((shot) => isProductionShot(shot.source));
+  }
+  function serializeShot(shot, index2) {
+    if (isProductionShot(shot.source)) {
+      const out2 = cloneSource$1(shot.source);
+      if ("order" in out2) out2.order = index2 + 1;
+      return out2;
+    }
+    const out = cloneSource$1(shot.source);
+    const view = {
+      shot_no: String(index2 + 1),
+      duration: shot.duration,
+      prompt: shot.prompt,
+      image_prompt: shot.image_prompt,
+      scene_purpose: shot.scene_purpose,
+      character: shot.character,
+      character_desc: shot.character_desc,
+      shot_size: shot.shot_size,
+      action: shot.action,
+      emotion: shot.emotion,
+      scene_tags: shot.scene_tags,
+      lighting: shot.lighting,
+      sfx: shot.sfx,
+      dialogue: shot.dialogue,
+      motion_prompt: shot.motion_prompt,
+      reference_images: shot.reference_images,
+      image_url: shot.reference_images[0] ?? shot.image_url ?? null,
+      seed: shot.seed
+    };
+    for (const key of LEGACY_WRITE_KEYS) out[key] = view[key];
+    return out;
+  }
   function serialize2() {
     return JSON.stringify({
-      shots: shots.value.map((s, i) => ({
-        shot_no: String(i + 1),
-        duration: s.duration,
-        prompt: s.prompt,
-        image_prompt: s.image_prompt,
-        scene_purpose: s.scene_purpose,
-        character: s.character,
-        character_desc: s.character_desc,
-        shot_size: s.shot_size,
-        action: s.action,
-        emotion: s.emotion,
-        scene_tags: s.scene_tags,
-        lighting: s.lighting,
-        sfx: s.sfx,
-        dialogue: s.dialogue,
-        motion_prompt: s.motion_prompt,
-        reference_images: s.reference_images,
-        image_url: s.reference_images[0] ?? s.image_url ?? null,
-        seed: s.seed
-      }))
+      ...envelope,
+      shots: shots.value.map(serializeShot)
     });
   }
   function commit2() {
@@ -156435,33 +156763,16 @@ function useStoryboardShots(node, state2) {
   function loadFromJson(raw) {
     if (!raw) return false;
     try {
-      const p2 = JSON.parse(raw);
-      if (!Array.isArray(p2 == null ? void 0 : p2.shots)) return false;
-      shots.value = p2.shots.map((s, i) => {
-        const dur = Math.max(1, parseInt(String(s.duration ?? 3), 10) || 3);
-        const imgPrompt = String(s.image_prompt ?? s.prompt ?? "");
-        const reference_images = referenceImagesOf(s);
-        return {
-          id: newId(),
-          shot_no: String(s.shot_no ?? i + 1),
-          duration: dur,
-          image_url: reference_images[0] ?? null,
-          reference_images,
-          seed: seedOf(s.seed),
-          prompt: imgPrompt,
-          image_prompt: imgPrompt,
-          scene_purpose: String(s.scene_purpose ?? ""),
-          character: String(s.character ?? ""),
-          character_desc: String(s.character_desc ?? ""),
-          shot_size: String(s.shot_size ?? ""),
-          action: String(s.action ?? ""),
-          emotion: String(s.emotion ?? ""),
-          scene_tags: String(s.scene_tags ?? ""),
-          lighting: String(s.lighting ?? ""),
-          sfx: String(s.sfx ?? ""),
-          dialogue: String(s.dialogue ?? ""),
-          motion_prompt: String(s.motion_prompt ?? "")
-        };
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed == null ? void 0 : parsed.shots)) return false;
+      const nextEnvelope = {};
+      for (const [key, value] of Object.entries(parsed)) {
+        if (key !== "shots") nextEnvelope[key] = value;
+      }
+      envelope = nextEnvelope;
+      shots.value = parsed.shots.map((shot, index2) => {
+        const source = shot && typeof shot === "object" ? structuredClone(shot) : {};
+        return shotFromSource(source, index2);
       });
       return true;
     } catch {
@@ -156478,12 +156789,16 @@ function useStoryboardShots(node, state2) {
       lastWritten = String(state2.output);
     }
   }
+  function blankShot(no) {
+    const source = boardIsProduction() ? blankProductionSource(no) : blankLegacySource(no);
+    return shotFromSource(source, no - 1);
+  }
   function addShot() {
     shots.value.push(blankShot(shots.value.length + 1));
     commit2();
   }
   function removeShot(id) {
-    shots.value = shots.value.filter((s) => s.id !== id);
+    shots.value = shots.value.filter((shot) => shot.id !== id);
     commit2();
   }
   function move(idx, dir) {
@@ -156493,55 +156808,204 @@ function useStoryboardShots(node, state2) {
     [arr[idx], arr[j2]] = [arr[j2], arr[idx]];
     commit2();
   }
+  function findShot(id) {
+    return shots.value.find((shot) => shot.id === id);
+  }
   function setField(id, key, value, mirror2) {
-    const s = shots.value.find((x) => x.id === id);
-    if (!s) return;
-    s[key] = value;
-    if (mirror2) s[mirror2] = value;
+    const shot = findShot(id);
+    if (!shot) return;
+    applyEditorField(shot.source, String(key), value);
+    if (mirror2 && mirror2 !== key) applyEditorField(shot.source, String(mirror2), value);
+    project(shot, shots.value.indexOf(shot));
     commit2();
   }
   function setDuration(id, v) {
-    const s = shots.value.find((x) => x.id === id);
-    if (!s) return;
-    s.duration = Math.max(1, Math.min(60, Math.round(v)));
+    const shot = findShot(id);
+    if (!shot) return;
+    const n = Math.max(1, Math.min(60, Math.round(v)));
+    applyEditorField(shot.source, "duration", n);
+    project(shot, shots.value.indexOf(shot));
     commit2();
   }
-  function syncPrimary(s) {
-    s.image_url = s.reference_images[0] ?? null;
+  function writeRefs(shot) {
+    if (isProductionShot(shot.source)) {
+      if (shot.reference_images.length) shot.source.reference_images = [...shot.reference_images];
+      else delete shot.source.reference_images;
+      if (shot.image_url) shot.source.image_url = shot.image_url;
+      else delete shot.source.image_url;
+      return;
+    }
+    shot.source.reference_images = [...shot.reference_images];
+    shot.source.image_url = shot.image_url;
+  }
+  function syncPrimary(shot) {
+    shot.image_url = shot.reference_images[0] ?? null;
+    writeRefs(shot);
   }
   function setImage(id, url) {
-    const s = shots.value.find((x) => x.id === id);
-    if (!s) return;
-    const tail = s.reference_images.slice(1);
-    s.reference_images = url ? [url, ...tail.filter((item) => item !== url)].slice(0, MAX_SHOT_REFS) : tail;
-    syncPrimary(s);
+    const shot = findShot(id);
+    if (!shot) return;
+    const tail = shot.reference_images.slice(1);
+    const next = url ? [url, ...tail.filter((item) => item !== url)] : tail;
+    if (next.length > MAX_SHOT_REFS && next.length > shot.reference_images.length) return;
+    shot.reference_images = next;
+    syncPrimary(shot);
     commit2();
   }
   function addRef(id, url) {
-    const s = shots.value.find((x) => x.id === id);
-    if (!s) return;
-    if (!url || s.reference_images.includes(url) || s.reference_images.length >= MAX_SHOT_REFS) return;
-    s.reference_images = [...s.reference_images, url];
-    syncPrimary(s);
+    const shot = findShot(id);
+    if (!shot) return;
+    if (!url || shot.reference_images.includes(url) || shot.reference_images.length >= MAX_SHOT_REFS) return;
+    shot.reference_images = [...shot.reference_images, url];
+    syncPrimary(shot);
     commit2();
   }
   function removeRef(id, index2) {
-    const s = shots.value.find((x) => x.id === id);
-    if (!s) return;
-    s.reference_images = s.reference_images.filter((_, i) => i !== index2);
-    syncPrimary(s);
+    const shot = findShot(id);
+    if (!shot) return;
+    shot.reference_images = shot.reference_images.filter((_, i) => i !== index2);
+    syncPrimary(shot);
     commit2();
   }
   function setSeed(id, raw) {
-    const s = shots.value.find((x) => x.id === id);
-    if (!s) return;
-    s.seed = seedOf(raw.trim() === "" ? null : raw);
+    const shot = findShot(id);
+    if (!shot) return;
+    shot.seed = seedOf(raw.trim() === "" ? null : raw);
+    if (isProductionShot(shot.source)) {
+      if (shot.seed === null) delete shot.source.seed;
+      else shot.source.seed = shot.seed;
+    } else {
+      shot.source.seed = shot.seed;
+    }
     commit2();
+  }
+  function setSourceScalar(id, key, text) {
+    const shot = findShot(id);
+    if (!shot || !(key in shot.source)) return;
+    shot.source[key] = coerceScalar(shot.source[key], text);
+    project(shot, shots.value.indexOf(shot));
+    commit2();
+  }
+  function setSourceJson(id, key, text) {
+    const shot = findShot(id);
+    if (!shot) return;
+    try {
+      shot.source[key] = JSON.parse(text);
+    } catch {
+      return;
+    }
+    project(shot, shots.value.indexOf(shot));
+    commit2();
+  }
+  function setDialogueField(id, index2, key, value) {
+    const shot = findShot(id);
+    if (!shot) return;
+    const rows = dialogueRows(shot.source);
+    const line = rows == null ? void 0 : rows[index2];
+    if (!line) return;
+    line[key] = value;
+    project(shot, shots.value.indexOf(shot));
+    commit2();
+  }
+  function setAssetRef(id, index2, key, value) {
+    const shot = findShot(id);
+    if (!shot) return;
+    const rows = objectRefs(shot.source);
+    const row = rows == null ? void 0 : rows[index2];
+    if (!row) return;
+    row[key] = value;
+    commit2();
+  }
+  function setCharacterId(id, index2, value) {
+    const shot = findShot(id);
+    if (!shot) return;
+    const rows = characterRows(shot.source);
+    const row = rows == null ? void 0 : rows[index2];
+    if (!row) return;
+    row.id = value;
+    project(shot, shots.value.indexOf(shot));
+    commit2();
+  }
+  function setLocationId(id, value) {
+    const shot = findShot(id);
+    if (!shot || !shot.source.location || typeof shot.source.location !== "object") return;
+    shot.source.location.id = value;
+    project(shot, shots.value.indexOf(shot));
+    commit2();
+  }
+  function setPropId(id, index2, value) {
+    const shot = findShot(id);
+    if (!shot || !Array.isArray(shot.source.props)) return;
+    const row = shot.source.props[index2];
+    if (!row || typeof row !== "object") return;
+    row.id = value;
+    commit2();
+  }
+  function setKreaPrompt(id, value) {
+    const shot = findShot(id);
+    if (!shot) return;
+    setPromptKey(shot.source, "krea2", value);
+    project(shot, shots.value.indexOf(shot));
+    commit2();
+  }
+  function draftFor(id) {
+    if (!customDraft.value[id]) customDraft.value[id] = { key: "", value: "" };
+    return customDraft.value[id];
+  }
+  function setDraft(id, field, value) {
+    draftFor(id)[field] = value;
+  }
+  function addCustomField(id) {
+    const shot = findShot(id);
+    if (!shot) return;
+    const draft = draftFor(id);
+    const key = draft.key.trim();
+    if (!key || key in shot.source) return;
+    shot.source[key] = draft.value;
+    draft.key = "";
+    draft.value = "";
+    commit2();
+  }
+  function removeCustomField(id, key) {
+    const shot = findShot(id);
+    if (!shot) return;
+    if (!customKeys(shot.source).includes(key)) return;
+    delete shot.source[key];
+    commit2();
+  }
+  function setCustomScalar(id, key, text) {
+    const shot = findShot(id);
+    if (!shot || !customKeys(shot.source).includes(key)) return;
+    shot.source[key] = coerceScalar(shot.source[key], text);
+    commit2();
+  }
+  function importDocument(raw) {
+    if (!loadFromJson(raw)) return false;
+    commit2();
+    return true;
+  }
+  function pickImport() {
+    var _a2;
+    (_a2 = importInputEl.value) == null ? void 0 : _a2.click();
+  }
+  async function onImportPicked(e) {
+    var _a2, _b2, _c, _d;
+    const input = e.target;
+    const file = (_a2 = input.files) == null ? void 0 : _a2[0];
+    input.value = "";
+    if (!file) return;
+    const text = await file.text();
+    if (importDocument(text)) return;
+    (_d = (_c = (_b2 = app$1 == null ? void 0 : app$1.extensionManager) == null ? void 0 : _b2.toast) == null ? void 0 : _c.add) == null ? void 0 : _d.call(_c, {
+      severity: "warn",
+      summary: t("storyboard.importFailed"),
+      life: 5e3
+    });
   }
   async function regenerateShot(shotId, targetNo) {
     var _a2, _b2, _c;
     if (regeneratingId.value) return;
-    const idx = shots.value.findIndex((s) => s.id === shotId);
+    const idx = shots.value.findIndex((shot) => shot.id === shotId);
     if (idx < 0) return;
     regeneratingId.value = shotId;
     try {
@@ -156552,7 +157016,7 @@ function useStoryboardShots(node, state2) {
         workflow: workflow2,
         premise,
         characters,
-        shots: shots.value.map((s) => ({ ...s, shot_no: s.shot_no })),
+        shots: shots.value.map(serializeShot),
         target_shot_no: targetNo
       };
       const resp = await app$1.api.fetchApi("/comfytv/storyboard/regenerate_shot", {
@@ -156567,20 +157031,21 @@ function useStoryboardShots(node, state2) {
       const data = await resp.json();
       if (!(data == null ? void 0 : data.shot)) throw new Error("no shot in response");
       const current = shots.value[idx];
-      const incoming = data.shot;
-      const merged = {
-        ...current,
-        ...incoming,
-        id: current.id,
+      const keep = {
         image_url: current.image_url,
-        reference_images: current.reference_images,
-        seed: current.seed,
-        shot_no: String(targetNo),
-        duration: parseInt(String(incoming.duration ?? current.duration), 10) || current.duration,
-        prompt: String(incoming.image_prompt ?? incoming.prompt ?? current.prompt ?? ""),
-        image_prompt: String(incoming.image_prompt ?? incoming.prompt ?? current.image_prompt ?? "")
+        reference_images: [...current.reference_images],
+        seed: current.seed
       };
-      shots.value[idx] = merged;
+      for (const [key, value] of Object.entries(data.shot)) {
+        if (key === "image_url" || key === "reference_images" || key === "seed" || key === "id" || key === "source") continue;
+        applyEditorField(current.source, key, value);
+      }
+      project(current, idx);
+      current.image_url = keep.image_url;
+      current.reference_images = keep.reference_images;
+      current.seed = keep.seed;
+      current.shot_no = String(targetNo);
+      if (!isProductionShot(current.source)) current.source.shot_no = String(targetNo);
       commit2();
     } catch (err2) {
       console.error("[ComfyTV/storyboard] regenerate failed", err2);
@@ -156629,6 +157094,20 @@ function useStoryboardShots(node, state2) {
   }
   restore();
   ignoreExternalOutput = lastWritten !== "";
+  bindWidgetCallback(node, "storyboard_data", (value) => {
+    const text = String(value ?? "");
+    if (!text || text === lastWritten) return;
+    if (!loadFromJson(text)) return;
+    const json = serialize2();
+    if (json === text) {
+      lastWritten = text;
+    } else {
+      lastWritten = json;
+      writeWidget(node, "storyboard_data", json);
+    }
+    ignoreExternalOutput = true;
+    store2.applyExecutedPayload(state2, { output: [lastWritten] });
+  });
   if (node) {
     const origOnConfigure = node.onConfigure;
     node.onConfigure = function(info) {
@@ -156659,6 +157138,8 @@ function useStoryboardShots(node, state2) {
     uploadingId,
     regeneratingId,
     fileInputEl,
+    importInputEl,
+    customDraft,
     addShot,
     removeShot,
     move,
@@ -156668,6 +157149,21 @@ function useStoryboardShots(node, state2) {
     addRef,
     removeRef,
     setSeed,
+    setSourceScalar,
+    setSourceJson,
+    setDialogueField,
+    setAssetRef,
+    setCharacterId,
+    setLocationId,
+    setPropId,
+    setKreaPrompt,
+    setDraft,
+    addCustomField,
+    removeCustomField,
+    setCustomScalar,
+    importDocument,
+    pickImport,
+    onImportPicked,
     regenerateShot,
     pickFile,
     pickExtra,
@@ -156738,9 +157234,44 @@ const _hoisted_40$1 = ["value", "onInput"];
 const _hoisted_41$1 = ["open"];
 const _hoisted_42$1 = { class: "ctv:cursor-pointer ctv:opacity-75 ctv:select-none ctv:pb-1 ctv:hover:opacity-100" };
 const _hoisted_43$1 = ["value", "onInput"];
-const _hoisted_44$1 = ["open"];
-const _hoisted_45$1 = { class: "ctv:cursor-pointer ctv:opacity-75 ctv:select-none ctv:pb-1 ctv:hover:opacity-100" };
-const _hoisted_46$1 = ["value", "onInput"];
+const _hoisted_44$1 = {
+  key: 0,
+  class: "ctv:flex ctv:flex-col ctv:gap-0.5 ctv:text-2xs"
+};
+const _hoisted_45$1 = ["value", "onInput"];
+const _hoisted_46$1 = ["open"];
+const _hoisted_47$1 = { class: "ctv:cursor-pointer ctv:opacity-75 ctv:select-none ctv:pb-1 ctv:hover:opacity-100" };
+const _hoisted_48$1 = { class: "ctv:flex ctv:flex-col ctv:gap-1 ctv:pt-1" };
+const _hoisted_49$1 = { class: "ctv:opacity-60" };
+const _hoisted_50 = ["value", "onChange"];
+const _hoisted_51 = { class: "ctv:opacity-60" };
+const _hoisted_52 = ["value", "placeholder", "onChange"];
+const _hoisted_53 = ["value", "onChange"];
+const _hoisted_54 = ["value", "onChange"];
+const _hoisted_55 = { class: "ctv:opacity-60" };
+const _hoisted_56 = { class: "ctv:opacity-50" };
+const _hoisted_57 = ["value", "onChange"];
+const _hoisted_58 = {
+  key: 0,
+  class: "ctv:grid ctv:grid-cols-[max-content_1fr] ctv:gap-1.5 ctv:items-center"
+};
+const _hoisted_59 = ["value", "onChange"];
+const _hoisted_60 = ["value", "onChange"];
+const _hoisted_61 = ["value", "onChange"];
+const _hoisted_62 = ["value", "onChange"];
+const _hoisted_63 = { class: "ctv:opacity-60" };
+const _hoisted_64 = ["value", "onChange"];
+const _hoisted_65 = { class: "ctv:opacity-60 ctv:pt-1" };
+const _hoisted_66 = ["title", "onClick"];
+const _hoisted_67 = ["value", "onChange"];
+const _hoisted_68 = ["value", "onChange"];
+const _hoisted_69 = { class: "ctv:grid ctv:grid-cols-[1fr_1fr_auto] ctv:gap-1" };
+const _hoisted_70 = ["placeholder", "value", "onInput"];
+const _hoisted_71 = ["placeholder", "value", "onInput"];
+const _hoisted_72 = ["onClick"];
+const _hoisted_73 = ["open"];
+const _hoisted_74 = { class: "ctv:cursor-pointer ctv:opacity-75 ctv:select-none ctv:pb-1 ctv:hover:opacity-100" };
+const _hoisted_75 = ["value", "onInput"];
 const META_INPUT_BASE = "ctv:w-full ctv:box-border ctv:py-0.5 ctv:px-1.5 ctv:text-2xs ctv:leading-snug ctv:rounded-sm ctv:[font-family:inherit] ctv:bg-secondary-background ctv:text-base-foreground ctv:border ctv:border-transparent ctv:hover:border-border-subtle ctv:focus:outline-none ctv:focus:border-primary-background/50 ctv:focus:bg-secondary-background-hover";
 const _sfc_main$3a = /* @__PURE__ */ defineComponent({
   __name: "StoryboardStageCard",
@@ -156763,12 +157294,43 @@ const _sfc_main$3a = /* @__PURE__ */ defineComponent({
       { key: "sfx", label: "storyboard.cols.sfx" },
       { key: "dialogue", label: "storyboard.cols.dialogue" }
     ];
+    function metaFields(shot) {
+      var _a2, _b2;
+      if (Array.isArray((_a2 = shot.source) == null ? void 0 : _a2.dialogue)) {
+        return META_FIELDS.filter((field) => field.key !== "dialogue" && field.key !== "character");
+      }
+      if (Array.isArray((_b2 = shot.source) == null ? void 0 : _b2.characters)) {
+        return META_FIELDS.filter((field) => field.key !== "character");
+      }
+      return META_FIELDS;
+    }
+    function kreaPrompt(shot) {
+      return separateKreaPrompt(shot.source);
+    }
+    function propRows(shot) {
+      var _a2;
+      const props2 = (_a2 = shot.source) == null ? void 0 : _a2.props;
+      if (!Array.isArray(props2)) return [];
+      return props2.filter((row) => isRecord(row));
+    }
+    function pretty(value) {
+      try {
+        return JSON.stringify(value, null, 2);
+      } catch {
+        return "";
+      }
+    }
+    function draft(id) {
+      return customDraft.value[id] ?? { key: "", value: "" };
+    }
     const props = __props;
     const {
       shots,
       uploadingId,
       regeneratingId,
       fileInputEl,
+      importInputEl,
+      customDraft,
       addShot,
       removeShot,
       move,
@@ -156777,6 +157339,20 @@ const _sfc_main$3a = /* @__PURE__ */ defineComponent({
       setImage,
       removeRef,
       setSeed,
+      setSourceScalar,
+      setSourceJson,
+      setDialogueField,
+      setAssetRef,
+      setCharacterId,
+      setLocationId,
+      setPropId,
+      setKreaPrompt,
+      setDraft,
+      addCustomField,
+      removeCustomField,
+      setCustomScalar,
+      pickImport,
+      onImportPicked,
       regenerateShot,
       pickFile,
       pickExtra,
@@ -156798,8 +157374,14 @@ const _sfc_main$3a = /* @__PURE__ */ defineComponent({
           createBaseVNode("span", _hoisted_3$2U, toDisplayString$1(_ctx.$t("storyboard.shots")) + " · " + toDisplayString$1(unref(shots).length), 1),
           createBaseVNode("button", {
             type: "button",
-            class: "ctv:ml-auto ctv:py-0.5 ctv:px-2.5 ctv:text-[11px] ctv:rounded ctv:cursor-pointer ctv:bg-primary-background/15 ctv:border ctv:border-primary-background/40 ctv:text-primary-background ctv:hover:bg-primary-background/25",
+            class: "ctv:ml-auto ctv:py-0.5 ctv:px-2.5 ctv:text-[11px] ctv:rounded ctv:cursor-pointer ctv:bg-secondary-background ctv:border ctv:border-border-subtle ctv:text-base-foreground",
             onClick: _cache2[0] || (_cache2[0] = //@ts-ignore
+            (...args) => unref(pickImport) && unref(pickImport)(...args))
+          }, toDisplayString$1(_ctx.$t("storyboard.importJson")), 1),
+          createBaseVNode("button", {
+            type: "button",
+            class: "ctv:py-0.5 ctv:px-2.5 ctv:text-[11px] ctv:rounded ctv:cursor-pointer ctv:bg-primary-background/15 ctv:border ctv:border-primary-background/40 ctv:text-primary-background ctv:hover:bg-primary-background/25",
+            onClick: _cache2[1] || (_cache2[1] = //@ts-ignore
             (...args) => unref(addShot) && unref(addShot)(...args))
           }, "+ " + toDisplayString$1(_ctx.$t("storyboard.addShot")), 1)
         ]),
@@ -156821,7 +157403,7 @@ const _sfc_main$3a = /* @__PURE__ */ defineComponent({
                     class: "ctv:w-[38px] ctv:py-0.5 ctv:px-1 ctv:rounded-sm ctv:text-[11px] ctv:font-mono ctv:bg-secondary-background ctv:text-base-foreground ctv:border ctv:border-border-subtle",
                     onChange: (e) => unref(setDuration)(shot.id, Number(e.target.value))
                   }, null, 40, _hoisted_9$14),
-                  _cache2[2] || (_cache2[2] = createBaseVNode("span", null, "s", -1))
+                  _cache2[4] || (_cache2[4] = createBaseVNode("span", null, "s", -1))
                 ]),
                 createBaseVNode("label", {
                   class: "ctv:flex ctv:items-center ctv:gap-0.5 ctv:text-2xs ctv:text-muted-foreground",
@@ -156846,7 +157428,7 @@ const _sfc_main$3a = /* @__PURE__ */ defineComponent({
                     disabled: idx === 0,
                     onClick: ($event) => unref(move)(idx, -1),
                     title: _ctx.$t("storyboard.moveUp")
-                  }, [..._cache2[3] || (_cache2[3] = [
+                  }, [..._cache2[5] || (_cache2[5] = [
                     createBaseVNode("i", { class: "pi pi-chevron-up" }, null, -1)
                   ])], 10, _hoisted_15$s),
                   createBaseVNode("button", {
@@ -156855,7 +157437,7 @@ const _sfc_main$3a = /* @__PURE__ */ defineComponent({
                     disabled: idx === unref(shots).length - 1,
                     onClick: ($event) => unref(move)(idx, 1),
                     title: _ctx.$t("storyboard.moveDown")
-                  }, [..._cache2[4] || (_cache2[4] = [
+                  }, [..._cache2[6] || (_cache2[6] = [
                     createBaseVNode("i", { class: "pi pi-chevron-down" }, null, -1)
                   ])], 10, _hoisted_16$p)
                 ]),
@@ -156873,7 +157455,7 @@ const _sfc_main$3a = /* @__PURE__ */ defineComponent({
                   class: "ctv:bg-transparent ctv:border-0 ctv:cursor-pointer ctv:text-[13px]",
                   title: _ctx.$t("storyboard.remove"),
                   onClick: ($event) => unref(removeShot)(shot.id)
-                }, [..._cache2[5] || (_cache2[5] = [
+                }, [..._cache2[7] || (_cache2[7] = [
                   createBaseVNode("i", { class: "pi pi-trash" }, null, -1)
                 ])], 8, _hoisted_20$i)
               ]),
@@ -156914,7 +157496,7 @@ const _sfc_main$3a = /* @__PURE__ */ defineComponent({
                     class: "ctv:absolute ctv:top-0.5 ctv:right-0.5 ctv:size-5 ctv:p-0 ctv:border-0 ctv:rounded ctv:cursor-pointer ctv:text-[11px] ctv:bg-destructive-background/70 ctv:text-white",
                     title: _ctx.$t("storyboard.clearRef"),
                     onClick: ($event) => unref(setImage)(shot.id, null)
-                  }, [..._cache2[6] || (_cache2[6] = [
+                  }, [..._cache2[8] || (_cache2[8] = [
                     createBaseVNode("i", { class: "pi pi-times" }, null, -1)
                   ])], 8, _hoisted_29$5)) : createCommentVNode("", true)
                 ]),
@@ -156936,7 +157518,7 @@ const _sfc_main$3a = /* @__PURE__ */ defineComponent({
                 createBaseVNode("button", {
                   type: "button",
                   class: "ctv:py-0.5 ctv:px-1.5 ctv:text-2xs ctv:rounded ctv:cursor-pointer ctv:bg-secondary-background ctv:border ctv:border-border-subtle ctv:text-base-foreground ctv:disabled:opacity-40 ctv:disabled:cursor-default",
-                  disabled: shot.reference_images.length >= 8 || unref(uploadingId) === shot.id,
+                  disabled: shot.reference_images.length >= unref(MAX_SHOT_REFS) || unref(uploadingId) === shot.id,
                   onClick: ($event) => unref(pickExtra)(shot.id)
                 }, "+ " + toDisplayString$1(_ctx.$t("storyboard.addRef")), 9, _hoisted_33$2),
                 (openBlock(true), createElementBlock(Fragment$1, null, renderList(shot.reference_images, (url, ri) => {
@@ -156944,7 +157526,7 @@ const _sfc_main$3a = /* @__PURE__ */ defineComponent({
                     key: `${shot.id}-${ri}`,
                     type: "button",
                     class: "ctv:relative ctv:w-8 ctv:h-8 ctv:p-0 ctv:rounded ctv:overflow-hidden ctv:border ctv:border-border-subtle ctv:cursor-pointer",
-                    title: _ctx.$t("storyboard.removeRef"),
+                    title: `${_ctx.$t("storyboard.pictureSlot", { n: ri + 1 })} — ${_ctx.$t("storyboard.removeRef")}`,
                     onClick: ($event) => unref(removeRef)(shot.id, ri)
                   }, [
                     createBaseVNode("img", {
@@ -156957,7 +157539,7 @@ const _sfc_main$3a = /* @__PURE__ */ defineComponent({
                 }), 128))
               ]),
               createBaseVNode("dl", _hoisted_36$1, [
-                (openBlock(), createElementBlock(Fragment$1, null, renderList(META_FIELDS, (field) => {
+                (openBlock(true), createElementBlock(Fragment$1, null, renderList(metaFields(shot), (field) => {
                   return openBlock(), createElementBlock(Fragment$1, {
                     key: field.key
                   }, [
@@ -156978,7 +157560,7 @@ const _sfc_main$3a = /* @__PURE__ */ defineComponent({
                       }, null, 42, _hoisted_40$1))
                     ])
                   ], 64);
-                }), 64))
+                }), 128))
               ]),
               createBaseVNode("details", {
                 class: "ctv:text-2xs ctv:py-[3px] ctv:px-1.5 ctv:rounded ctv:border ctv:border-dashed ctv:border-border-subtle",
@@ -156992,18 +157574,197 @@ const _sfc_main$3a = /* @__PURE__ */ defineComponent({
                   onInput: (e) => unref(setField)(shot.id, "character_desc", e.target.value)
                 }, null, 42, _hoisted_43$1)
               ], 8, _hoisted_41$1),
+              kreaPrompt(shot) !== null ? (openBlock(), createElementBlock("label", _hoisted_44$1, [
+                _cache2[9] || (_cache2[9] = createBaseVNode("span", { class: "ctv:opacity-60" }, "krea2", -1)),
+                createBaseVNode("textarea", {
+                  class: normalizeClass(metaInput(true, true)),
+                  value: kreaPrompt(shot) ?? "",
+                  rows: "2",
+                  onInput: (e) => unref(setKreaPrompt)(shot.id, e.target.value)
+                }, null, 42, _hoisted_45$1)
+              ])) : createCommentVNode("", true),
+              createBaseVNode("details", {
+                class: "ctv:text-2xs ctv:py-[3px] ctv:px-1.5 ctv:rounded ctv:border ctv:border-dashed ctv:border-border-subtle",
+                open: !!shot.source.shot_id
+              }, [
+                createBaseVNode("summary", _hoisted_47$1, toDisplayString$1(_ctx.$t("storyboard.fields")), 1),
+                createBaseVNode("div", _hoisted_48$1, [
+                  (openBlock(true), createElementBlock(Fragment$1, null, renderList(unref(panelKeys)(shot.source), (key) => {
+                    return openBlock(), createElementBlock("label", {
+                      key,
+                      class: "ctv:grid ctv:grid-cols-[max-content_1fr] ctv:gap-1.5 ctv:items-center"
+                    }, [
+                      createBaseVNode("span", _hoisted_49$1, toDisplayString$1(key), 1),
+                      createBaseVNode("input", {
+                        class: normalizeClass(metaInput(false)),
+                        type: "text",
+                        value: shot.source[key] == null ? "" : String(shot.source[key]),
+                        onChange: (e) => unref(setSourceScalar)(shot.id, key, e.target.value)
+                      }, null, 42, _hoisted_50)
+                    ]);
+                  }), 128)),
+                  unref(dialogueRows)(shot.source) ? (openBlock(), createElementBlock(Fragment$1, { key: 0 }, [
+                    createBaseVNode("span", _hoisted_51, toDisplayString$1(_ctx.$t("storyboard.dialogueLines")), 1),
+                    (openBlock(true), createElementBlock(Fragment$1, null, renderList(unref(dialogueRows)(shot.source), (line, li) => {
+                      return openBlock(), createElementBlock("div", {
+                        key: `${shot.id}-line-${li}`,
+                        class: "ctv:grid ctv:grid-cols-[1fr_4.5rem] ctv:gap-1"
+                      }, [
+                        createBaseVNode("input", {
+                          class: normalizeClass(metaInput(false)),
+                          type: "text",
+                          value: String(line.speaker ?? ""),
+                          placeholder: _ctx.$t("storyboard.speaker"),
+                          onChange: (e) => unref(setDialogueField)(shot.id, li, "speaker", e.target.value)
+                        }, null, 42, _hoisted_52),
+                        createBaseVNode("input", {
+                          class: normalizeClass(metaInput(false)),
+                          type: "text",
+                          value: String(line.kind ?? ""),
+                          placeholder: "kind",
+                          onChange: (e) => unref(setDialogueField)(shot.id, li, "kind", e.target.value)
+                        }, null, 42, _hoisted_53),
+                        createBaseVNode("textarea", {
+                          class: normalizeClass(["ctv:col-span-2", metaInput(true)]),
+                          rows: "2",
+                          value: String(line.text ?? ""),
+                          onChange: (e) => unref(setDialogueField)(shot.id, li, "text", e.target.value)
+                        }, null, 42, _hoisted_54)
+                      ]);
+                    }), 128))
+                  ], 64)) : createCommentVNode("", true),
+                  unref(characterRows)(shot.source) ? (openBlock(), createElementBlock(Fragment$1, { key: 1 }, [
+                    createBaseVNode("span", _hoisted_55, toDisplayString$1(_ctx.$t("storyboard.assetRefs")), 1),
+                    (openBlock(true), createElementBlock(Fragment$1, null, renderList(unref(characterRows)(shot.source), (ch, ci) => {
+                      return openBlock(), createElementBlock("label", {
+                        key: `${shot.id}-chr-${ci}`,
+                        class: "ctv:grid ctv:grid-cols-[max-content_1fr] ctv:gap-1.5 ctv:items-center"
+                      }, [
+                        createBaseVNode("span", _hoisted_56, toDisplayString$1(ch.visible || "character"), 1),
+                        createBaseVNode("input", {
+                          class: normalizeClass(metaInput(false)),
+                          type: "text",
+                          value: String(ch.id ?? ""),
+                          onChange: (e) => unref(setCharacterId)(shot.id, ci, e.target.value)
+                        }, null, 42, _hoisted_57)
+                      ]);
+                    }), 128)),
+                    unref(isRecord)(shot.source.location) ? (openBlock(), createElementBlock("label", _hoisted_58, [
+                      _cache2[10] || (_cache2[10] = createBaseVNode("span", { class: "ctv:opacity-50" }, "location", -1)),
+                      createBaseVNode("input", {
+                        class: normalizeClass(metaInput(false)),
+                        type: "text",
+                        value: String(shot.source.location.id ?? ""),
+                        onChange: (e) => unref(setLocationId)(shot.id, e.target.value)
+                      }, null, 42, _hoisted_59)
+                    ])) : createCommentVNode("", true),
+                    (openBlock(true), createElementBlock(Fragment$1, null, renderList(propRows(shot), (prop, pi) => {
+                      return openBlock(), createElementBlock("label", {
+                        key: `${shot.id}-prp-${pi}`,
+                        class: "ctv:grid ctv:grid-cols-[max-content_1fr] ctv:gap-1.5 ctv:items-center"
+                      }, [
+                        _cache2[11] || (_cache2[11] = createBaseVNode("span", { class: "ctv:opacity-50" }, "prop", -1)),
+                        createBaseVNode("input", {
+                          class: normalizeClass(metaInput(false)),
+                          type: "text",
+                          value: String(prop.id ?? ""),
+                          onChange: (e) => unref(setPropId)(shot.id, pi, e.target.value)
+                        }, null, 42, _hoisted_60)
+                      ]);
+                    }), 128))
+                  ], 64)) : createCommentVNode("", true),
+                  unref(objectRefs)(shot.source) ? (openBlock(true), createElementBlock(Fragment$1, { key: 2 }, renderList(unref(objectRefs)(shot.source), (ref2, ri) => {
+                    return openBlock(), createElementBlock("div", {
+                      key: `${shot.id}-ref-${ri}`,
+                      class: "ctv:grid ctv:grid-cols-[5.5rem_1fr] ctv:gap-1"
+                    }, [
+                      createBaseVNode("input", {
+                        class: normalizeClass(metaInput(false)),
+                        type: "text",
+                        value: String(ref2.role ?? ""),
+                        onChange: (e) => unref(setAssetRef)(shot.id, ri, "role", e.target.value)
+                      }, null, 42, _hoisted_61),
+                      createBaseVNode("input", {
+                        class: normalizeClass(metaInput(false)),
+                        type: "text",
+                        value: String(ref2.src ?? ""),
+                        onChange: (e) => unref(setAssetRef)(shot.id, ri, "src", e.target.value)
+                      }, null, 42, _hoisted_62)
+                    ]);
+                  }), 128)) : createCommentVNode("", true),
+                  (openBlock(true), createElementBlock(Fragment$1, null, renderList(unref(jsonKeys)(shot.source), (key) => {
+                    return openBlock(), createElementBlock(Fragment$1, { key }, [
+                      createBaseVNode("span", _hoisted_63, toDisplayString$1(key), 1),
+                      createBaseVNode("textarea", {
+                        class: normalizeClass(metaInput(true, true)),
+                        rows: "3",
+                        value: pretty(shot.source[key]),
+                        onChange: (e) => unref(setSourceJson)(shot.id, key, e.target.value)
+                      }, null, 42, _hoisted_64)
+                    ], 64);
+                  }), 128)),
+                  (openBlock(true), createElementBlock(Fragment$1, null, renderList(unref(customKeys)(shot.source), (key) => {
+                    return openBlock(), createElementBlock("div", {
+                      key,
+                      class: "ctv:grid ctv:grid-cols-[1fr_auto] ctv:gap-1 ctv:items-start"
+                    }, [
+                      createBaseVNode("span", _hoisted_65, toDisplayString$1(key), 1),
+                      createBaseVNode("button", {
+                        type: "button",
+                        class: "ctv:bg-transparent ctv:border-0 ctv:cursor-pointer ctv:text-[11px]",
+                        title: _ctx.$t("storyboard.removeField"),
+                        onClick: ($event) => unref(removeCustomField)(shot.id, key)
+                      }, "×", 8, _hoisted_66),
+                      unref(isComplex)(shot.source[key]) ? (openBlock(), createElementBlock("textarea", {
+                        key: 0,
+                        class: normalizeClass(["ctv:col-span-2", metaInput(true, true)]),
+                        rows: "2",
+                        value: pretty(shot.source[key]),
+                        onChange: (e) => unref(setSourceJson)(shot.id, key, e.target.value)
+                      }, null, 42, _hoisted_67)) : (openBlock(), createElementBlock("input", {
+                        key: 1,
+                        class: normalizeClass(["ctv:col-span-2", metaInput(false)]),
+                        type: "text",
+                        value: shot.source[key] == null ? "" : String(shot.source[key]),
+                        onChange: (e) => unref(setCustomScalar)(shot.id, key, e.target.value)
+                      }, null, 42, _hoisted_68))
+                    ]);
+                  }), 128)),
+                  createBaseVNode("div", _hoisted_69, [
+                    createBaseVNode("input", {
+                      class: normalizeClass(metaInput(false)),
+                      type: "text",
+                      placeholder: _ctx.$t("storyboard.fieldKey"),
+                      value: draft(shot.id).key,
+                      onInput: (e) => unref(setDraft)(shot.id, "key", e.target.value)
+                    }, null, 42, _hoisted_70),
+                    createBaseVNode("input", {
+                      class: normalizeClass(metaInput(false)),
+                      type: "text",
+                      placeholder: _ctx.$t("storyboard.fieldValue"),
+                      value: draft(shot.id).value,
+                      onInput: (e) => unref(setDraft)(shot.id, "value", e.target.value)
+                    }, null, 42, _hoisted_71),
+                    createBaseVNode("button", {
+                      type: "button",
+                      class: "ctv:px-1.5 ctv:rounded ctv:cursor-pointer ctv:border ctv:border-border-subtle ctv:bg-secondary-background",
+                      onClick: ($event) => unref(addCustomField)(shot.id)
+                    }, "+", 8, _hoisted_72)
+                  ])
+                ])
+              ], 8, _hoisted_46$1),
               createBaseVNode("details", {
                 class: "ctv:text-2xs ctv:py-[3px] ctv:px-1.5 ctv:rounded ctv:border ctv:border-dashed ctv:border-border-subtle",
                 open: !!shot.motion_prompt
               }, [
-                createBaseVNode("summary", _hoisted_45$1, toDisplayString$1(_ctx.$t("storyboard.cols.motion_prompt")), 1),
+                createBaseVNode("summary", _hoisted_74, toDisplayString$1(_ctx.$t("storyboard.cols.motion_prompt")), 1),
                 createBaseVNode("textarea", {
                   class: normalizeClass(metaInput(true, true)),
                   value: shot.motion_prompt,
                   rows: "2",
                   onInput: (e) => unref(setField)(shot.id, "motion_prompt", e.target.value)
-                }, null, 42, _hoisted_46$1)
-              ], 8, _hoisted_44$1)
+                }, null, 42, _hoisted_75)
+              ], 8, _hoisted_73)
             ]);
           }), 128))
         ])),
@@ -157013,8 +157774,17 @@ const _sfc_main$3a = /* @__PURE__ */ defineComponent({
           type: "file",
           accept: "image/*",
           class: "ctv:hidden",
-          onChange: _cache2[1] || (_cache2[1] = //@ts-ignore
+          onChange: _cache2[2] || (_cache2[2] = //@ts-ignore
           (...args) => unref(onFilePicked) && unref(onFilePicked)(...args))
+        }, null, 544),
+        createBaseVNode("input", {
+          ref_key: "importInputEl",
+          ref: importInputEl,
+          type: "file",
+          accept: "application/json,.json",
+          class: "ctv:hidden",
+          onChange: _cache2[3] || (_cache2[3] = //@ts-ignore
+          (...args) => unref(onImportPicked) && unref(onImportPicked)(...args))
         }, null, 544),
         createVNode(StageCard, {
           state: __props.state,
@@ -234360,7 +235130,7 @@ async function buildScopedPrompt(app2, reachable) {
   return { output, workflow: { nodes, links: [], version: 0.4 } };
 }
 async function buildRunPrompt(node, store2) {
-  var _a2, _b2, _c, _d, _e2, _f, _g, _h, _i, _j, _k, _l, _m2, _n2, _o, _p, _q;
+  var _a2, _b2, _c, _d, _e2, _f, _g, _h, _i, _j, _k, _l, _m2, _n2, _o, _p, _q, _r2, _s, _t2;
   const a2 = app$1;
   const isBridgeIn = typeof (node == null ? void 0 : node.comfyClass) === "string" && node.comfyClass.startsWith("ComfyTV.BridgeTo");
   const pm = isBridgeIn ? await a2.graphToPrompt() : await buildScopedPrompt(a2, collectReachableNodeIds(a2, node));
@@ -234495,8 +235265,17 @@ async function buildRunPrompt(node, store2) {
     const graphNode = graphNodeOf(nid);
     const table = tablesByNode.get(String(nid));
     if (table) {
-      for (const w of materializeMedia(obj, graphNode, table, resolveUrl)) {
-        console.warn(`[ComfyTV/stage] node #${nid}: ${w}`);
+      const warnings = materializeMedia(obj, graphNode, table, resolveUrl);
+      const dropped = warnings.filter((w) => w.includes("dropped"));
+      for (const w of warnings) console.warn(`[ComfyTV/stage] node #${nid}: ${w}`);
+      if (dropped.length) {
+        (_r2 = (_q = (_p = app$1 == null ? void 0 : app$1.extensionManager) == null ? void 0 : _p.toast) == null ? void 0 : _q.add) == null ? void 0 : _r2.call(_q, {
+          severity: "error",
+          summary: t("error.refMissing"),
+          detail: dropped.join(" "),
+          life: 8e3
+        });
+        return null;
       }
     }
     const mp = obj.main_prompt;
@@ -234514,7 +235293,7 @@ async function buildRunPrompt(node, store2) {
       obj.main_prompt = text;
     }
     const tl = obj.timeline_data;
-    if (typeof tl === "string" && ((_q = (_p = pm == null ? void 0 : pm.output) == null ? void 0 : _p[nid]) == null ? void 0 : _q.class_type) === "ComfyTV.DirectorStage") {
+    if (typeof tl === "string" && ((_t2 = (_s = pm == null ? void 0 : pm.output) == null ? void 0 : _s[nid]) == null ? void 0 : _t2.class_type) === "ComfyTV.DirectorStage") {
       const sharedRefs = { images: [], videos: [], audio: [] };
       const bucketOf = { image: "images", video: "videos", audio: "audio" };
       const nodeTable = readMediaTable(graphNode);
@@ -236165,6 +236944,56 @@ async function handleSceneRecord(app2, cmd) {
   });
   return await api2.record();
 }
+function storyboardNode(app2, cmd) {
+  const node = findStageNode(app2 == null ? void 0 : app2.graph, String(cmd.node));
+  if (!node) throw new Error(`stage ${cmd.node} not found on the canvas`);
+  return node;
+}
+function readStoryboardDocument(node) {
+  const raw = readWidgetStr(node, "storyboard_data", "");
+  if (!raw) return { shots: [] };
+  let document2;
+  try {
+    document2 = JSON.parse(raw);
+  } catch {
+    throw new Error("storyboard_data is not valid JSON");
+  }
+  if (!document2 || typeof document2 !== "object" || !Array.isArray(document2.shots)) {
+    throw new Error("storyboard_data is not a shot document");
+  }
+  return document2;
+}
+function handleStoryboardGet(app2, cmd) {
+  const node = storyboardNode(app2, cmd);
+  const document2 = readStoryboardDocument(node);
+  const shots = document2.shots;
+  return {
+    document: document2,
+    shots: shots.length,
+    episode: document2.episode ?? null,
+    series: document2.series ?? null
+  };
+}
+function handleStoryboardSet(app2, cmd) {
+  const node = storyboardNode(app2, cmd);
+  const document2 = cmd.document;
+  if (!document2 || typeof document2 !== "object" || Array.isArray(document2) || !Array.isArray(document2.shots)) {
+    throw new Error("document must be an object with a shots array");
+  }
+  if (!document2.shots.every((shot) => shot && typeof shot === "object" && !Array.isArray(shot))) {
+    throw new Error("every shot must be an object");
+  }
+  const text = JSON.stringify(document2);
+  writeWidget(node, "storyboard_data", text);
+  const state2 = useStageStore().getStage(node);
+  if (state2) useStageStore().applyExecutedPayload(state2, { output: [text] });
+  return {
+    ok: true,
+    shots: document2.shots.length,
+    episode: document2.episode ?? null,
+    series: document2.series ?? null
+  };
+}
 const OkSchema = object({ ok: boolean() });
 const COMMAND_EVENT = "comfytv-mcp-command";
 const RESULT_PATH = "/comfytv/mcp_command_result";
@@ -236306,6 +237135,9 @@ function mediaSummary(node, graph) {
         mention: `@${type}_${i + 1}`,
         source: e.src
       };
+      if (type === "image" && PICTURE_CLASSES.has(String((node == null ? void 0 : node.comfyClass) ?? ""))) {
+        row.picture = `<Picture ${i + 1}>`;
+      }
       if (e.src === "link") {
         const srcNode = mediaEntrySourceNode(node, e, graph);
         if (srcNode) row.from_node = String(srcNode.id);
@@ -236324,6 +237156,11 @@ function mediaSummary(node, graph) {
   }
   return out;
 }
+const PICTURE_CLASSES = /* @__PURE__ */ new Set([
+  "ComfyTV.VideoStage",
+  "ComfyTV.DirectorStage",
+  "ComfyTV.ShotImagesStage"
+]);
 const MENTION_TOKEN_RE = /@(image|video|audio)_(\d+)(?![0-9a-zA-Z_-])/g;
 function danglingMentionWarnings(node) {
   var _a2;
@@ -236512,7 +237349,8 @@ function handleGetStage(app2, cmd) {
     let v = w.value;
     if (typeof v === "function" || v === void 0) continue;
     if (typeof v === "string" && v.length > _WIDGET_VALUE_CAP) {
-      v = v.slice(0, _WIDGET_VALUE_CAP) + ` … [display truncated — full ${v.length}-char value is stored intact]`;
+      const note = name === "storyboard_data" ? " Read the full document with the storyboard tool (action get)." : "";
+      v = v.slice(0, _WIDGET_VALUE_CAP) + ` … [display truncated — full ${v.length}-char value is stored intact${note}]`;
     }
     widgets[name] = v;
   }
@@ -236556,7 +237394,8 @@ const UNDOABLE_ACTIONS = /* @__PURE__ */ new Set([
   "set_stage",
   "remove_stage",
   "connect_stages",
-  "arrange_canvas"
+  "arrange_canvas",
+  "storyboard_set"
 ]);
 async function executeCommand(app2, cmd) {
   if (UNDOABLE_ACTIONS.has(String(cmd.action))) {
@@ -236598,6 +237437,10 @@ async function dispatchCommand(app2, cmd) {
       return handleCancelStage(app2, cmd);
     case "get_stage":
       return handleGetStage(app2, cmd);
+    case "storyboard_get":
+      return handleStoryboardGet(app2, cmd);
+    case "storyboard_set":
+      return handleStoryboardSet(app2, cmd);
     case "arrange_canvas":
       return handleArrangeCanvas(app2, cmd);
     case "graph_get":
@@ -236785,6 +237628,41 @@ function installWorkflowRegistrySync(app2) {
     applyWorkflowEvent(app2, (event == null ? void 0 : event.detail) ?? event);
   });
   return true;
+}
+const UNSET_SEED = -1;
+const LEGACY_PICTURE = /^picture_\d+$/;
+const LIST_KEYS = /* @__PURE__ */ new Set(["reference_images", "pictures", "refs"]);
+function coerceSeed(raw) {
+  if (typeof raw === "boolean" || raw == null || raw === "") return null;
+  if (typeof raw === "number" && Number.isInteger(raw)) return raw;
+  if (typeof raw === "string" && /^[+-]?\d+$/.test(raw.trim())) return Number(raw.trim());
+  return null;
+}
+function migrateSeedParams(seed, customParams, hasImages) {
+  var _a2;
+  const items = parseParamItems(customParams);
+  let nextSeed = Number.isFinite(seed) ? seed : UNSET_SEED;
+  if (nextSeed === UNSET_SEED) {
+    const legacy = coerceSeed((_a2 = items.find((item) => item.key === "seed")) == null ? void 0 : _a2.value);
+    if (legacy != null) nextSeed = legacy;
+  }
+  const kept = items.filter((item) => {
+    if (item.key === "seed" && nextSeed !== UNSET_SEED) return false;
+    if (hasImages && (LEGACY_PICTURE.test(item.key) || LIST_KEYS.has(item.key))) return false;
+    return true;
+  });
+  const custom = serializeParamItems(kept);
+  const changed = nextSeed !== seed || custom !== serializeParamItems(items);
+  return { seed: nextSeed, customParams: custom, changed };
+}
+function migrateNodeSeed(node, hasImages = false) {
+  if (!getWidget(node, "seed")) return;
+  const current = readWidgetNum(node, "seed", UNSET_SEED);
+  const raw = readWidgetStr(node, "custom_params", "{}");
+  const next = migrateSeedParams(current, raw, hasImages);
+  if (!next.changed) return;
+  writeWidget(node, "seed", next.seed);
+  writeWidget(node, "custom_params", next.customParams);
 }
 const RING_FADE_MS = 400;
 const I = (d, sw = 1.7) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${sw}">${d}</svg>`;
@@ -240096,6 +240974,10 @@ function makeImageBatchShell(shellCfg = {}) {
     panel.append(refsAnchor, promptAnchor, presetAnchor, customAnchor, paramsAnchor, footer);
     card.append(preview, panel);
     const stageApi = useStageNode(node, kind, variant);
+    const migrateSeed = () => {
+      if (shellCfg.migrateSeed) migrateNodeSeed(node, readMediaTable(node).image.length > 0);
+    };
+    migrateSeed();
     const { state: stageState, onRunRequest, onCancelRequest, onAction } = stageApi;
     const scope2 = createNodeScope(node);
     attachOutputToolbar(node, card, kind, stageState, onAction);
@@ -240127,6 +241009,7 @@ function makeImageBatchShell(shellCfg = {}) {
     const prevConfigure = anyNode.onConfigure;
     anyNode.onConfigure = function(...args) {
       prevConfigure == null ? void 0 : prevConfigure.apply(this, args);
+      migrateSeed();
       queueMicrotask(mountApps);
     };
     node.addDOMWidget("v2_shell", "v2", card, {
@@ -240303,7 +241186,11 @@ function makeImageBatchShell(shellCfg = {}) {
   };
 }
 V2_SHELLS["ComfyTV.ImageStage"] = makeImageBatchShell();
-V2_SHELLS["ComfyTV.ShotImagesStage"] = makeImageBatchShell({ title: null, linkKind: "shot-images" });
+V2_SHELLS["ComfyTV.ShotImagesStage"] = makeImageBatchShell({
+  title: null,
+  linkKind: "shot-images",
+  migrateSeed: true
+});
 V2_SHELLS["ComfyTV.ImageVariationsStage"] = makeImageBatchShell({
   title: null,
   linkKind: "multiview",
@@ -245567,6 +246454,10 @@ function makeGeneratorShell(config2) {
     });
     ensureMinSize(node, 320, 460);
     const stageApi = useStageNode(node, kind, variant);
+    const migrateSeed = () => {
+      if (config2.migrateSeed) migrateNodeSeed(node, readMediaTable(node).image.length > 0);
+    };
+    migrateSeed();
     const { state: stageState, onRunRequest, onCancelRequest, onAction } = stageApi;
     const scope2 = createNodeScope(node);
     scope2.run(() => bindProgressRing(card, stageState));
@@ -245621,6 +246512,7 @@ function makeGeneratorShell(config2) {
     const prevConfigure = anyNode.onConfigure;
     anyNode.onConfigure = function(...args) {
       prevConfigure == null ? void 0 : prevConfigure.apply(this, args);
+      migrateSeed();
       queueMicrotask(mountApps);
     };
     const busyPct = busy.querySelector(".v2-preview__busytext span");
@@ -245692,8 +246584,10 @@ const GENERATORS = {
     refTypes: ["image", "video", "audio"],
     controls: [
       { name: "duration_s", control: "slider", labelKey: "v2.ctl.duration" },
-      { name: "generate_audio", control: "toggle", labelKey: "v2.ctl.generateAudio" }
-    ]
+      { name: "generate_audio", control: "toggle", labelKey: "v2.ctl.generateAudio" },
+      { name: "seed", control: "number", labelKey: "v2.ctl.seed" }
+    ],
+    migrateSeed: true
   },
   "ComfyTV.VideoUpscaleStage": {
     preview: "video",
@@ -247517,4 +248411,4 @@ export {
   DropdownMenuRoot_default as y,
   DropdownMenuTrigger_default as z
 };
-//# sourceMappingURL=main-KMKJ8efX.mjs.map
+//# sourceMappingURL=main-CyiP-ncN.mjs.map
