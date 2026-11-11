@@ -3,6 +3,7 @@ import { onScopeDispose, watch } from 'vue'
 import MainPromptInput from '@/components/stages/MainPromptInput.vue'
 import StagePresetBar from '@/components/stages/StagePresetBar.vue'
 import { readMediaTable, subscribeMediaTable } from '@/composables/stages/mediaOrder'
+import { migrateNodeSeed } from '@/composables/stages/seedField'
 import { useStageNode } from '@/composables/stages/useStageNode'
 import { t } from '@/i18n'
 import { attachOutputToolbar } from '@/v2/outputToolbar'
@@ -49,6 +50,7 @@ interface ImageBatchShellConfig {
   title?: string | null
   linkKind?: string
   footerExtra?: FooterExtra[]
+  migrateSeed?: boolean
 }
 
 function makeImageBatchShell(shellCfg: ImageBatchShellConfig = {}) {
@@ -97,6 +99,10 @@ function makeImageBatchShell(shellCfg: ImageBatchShellConfig = {}) {
   card.append(preview, panel)
 
   const stageApi = useStageNode(node as any, kind, variant)
+  const migrateSeed = () => {
+    if (shellCfg.migrateSeed) migrateNodeSeed(node, readMediaTable(node).image.length > 0)
+  }
+  migrateSeed()
   const { state: stageState, onRunRequest, onCancelRequest, onAction } = stageApi
   const scope = createNodeScope(node)
   attachOutputToolbar(node, card, kind, stageState, onAction)
@@ -130,6 +136,7 @@ function makeImageBatchShell(shellCfg: ImageBatchShellConfig = {}) {
   const prevConfigure = anyNode.onConfigure
   anyNode.onConfigure = function (...args: unknown[]) {
     prevConfigure?.apply(this, args)
+    migrateSeed()
     queueMicrotask(mountApps)
   }
 
@@ -311,7 +318,9 @@ function makeImageBatchShell(shellCfg: ImageBatchShellConfig = {}) {
 }
 
 V2_SHELLS['ComfyTV.ImageStage'] = makeImageBatchShell()
-V2_SHELLS['ComfyTV.ShotImagesStage'] = makeImageBatchShell({ title: null, linkKind: 'shot-images' })
+V2_SHELLS['ComfyTV.ShotImagesStage'] = makeImageBatchShell({
+  title: null, linkKind: 'shot-images', migrateSeed: true,
+})
 V2_SHELLS['ComfyTV.ImageVariationsStage'] = makeImageBatchShell({
   title: null,
   linkKind: 'multiview',

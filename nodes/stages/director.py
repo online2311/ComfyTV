@@ -1,6 +1,9 @@
 import logging
 
 from ._common import *  # noqa: F401, F403
+from .common.ref_slots import (
+    ReferenceSlotError, align_picture_prompt, load_image_cap, prepare_references,
+)
 
 _log = logging.getLogger(__name__)
 
@@ -244,7 +247,16 @@ class DirectorStage(io.ComfyNode):
             clip = {**clip, '_chained_frame': chained_frame}
         label = str(clip.get('workflow') or '').strip() or default_workflow
         own = _clip_refs(clip)
-        images = _clip_images(own, chained_frame, chain_mode)
+        try:
+            images, _seed, _ignored = prepare_references(
+                _clip_images(own, chained_frame, chain_mode),
+                seed_field=-1,
+                custom_params="{}",
+                cap=load_image_cap('video', label),
+                where=f"Director clip {index + 1}/{total} ({label!r})",
+            )
+        except ReferenceSlotError as exc:
+            raise RuntimeError(str(exc)) from exc
         refs = {
             'images': images,
             'videos': own['videos'],
@@ -260,6 +272,10 @@ class DirectorStage(io.ComfyNode):
         prompt = _combine_prompt(main_prompt, [str(clip.get('prompt') or '')],
                                  sep="\n")
         prompt = _reinforce_prompt(prompt, refs, _mention_style_for(label))
+        try:
+            prompt = align_picture_prompt(prompt, len(images))
+        except ReferenceSlotError as exc:
+            raise RuntimeError(str(exc)) from exc
         return {
             'index': index, 'total': total, 'clip': clip, 'label': label,
             'refs': refs, 'options': options, 'images': images,
