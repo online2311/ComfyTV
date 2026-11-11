@@ -26,7 +26,7 @@ Storyboard (LLM shot list) → Shot Images (per-shot render) → Image Picker (p
 - **Stage + ▶ Run**: Run executes **this node only**, calling the workflow per shot in order—progress shows `shot 2/6`, etc.
 - **Snapshots**: After Run, batch JSON is stored in the project; downstream Picker Runs use it without re-running Shot Images.
 - **workflow dropdown**: Maps to `workflows/shot-images/` plus image workflows with `kinds: ["image","shot-images"]`. ComfyTV injects each shot's prompt, resolution, and aspect_ratio into the subgraph.
-- **Storyboard-driven**: Missing storyboard or empty shots fails—Run Storyboard first.
+- **Storyboard-driven**: Missing storyboard or empty shots fails—Run Storyboard first. Each shot's prompt is `prompts.h3_image`, then `prompts.krea2`, then `image_prompt` / `prompt`. Reference images are chosen in this order: image URLs already on the shot (`reference_images`, `refs`, `image_url`, or `reference_img`), then images resolved from asset codes through the bound series library, then the stage's shared **images**. Asset codes are not sent as URLs themselves. An explicit shot URL list is used alone; it is not merged with library or shared images.
 
 ## Types (COMFYTV_* vs native ComfyUI)
 
