@@ -103,7 +103,9 @@ async def _series_library(args: dict) -> dict:
 TOOLS: dict[str, dict] = {
     "series_library": {
         "description": (
-            "Series asset index stored as library.yaml inside a series folder "
+            "Series asset index stored as library.yaml inside a series folder. "
+            "Does not need an open ComfyTV page; it only reads and writes that "
+            "file on disk. "
             "(schema_version 1, the production kit format). Codes look like "
             "CHR_xiaolongnv@v1#front, LOC_gumu_shishi@v1#empty, "
             "PRP_zhutai@v1#lit, STY_01@v1#style, VOX_xiaolongnv@v1#voice_ref. "

@@ -45,9 +45,9 @@ async def _storyboard(args: dict) -> dict:
     payload = _command_payload(args, ("project_id",))
     payload["node"] = str(node)
     if action == "get":
-        return await _shared.submit_command("storyboard_get", payload)
+        return await _shared.submit_or_headless("storyboard_get", payload)
     payload["document"] = _document_arg(args)
-    return await _shared.submit_command("storyboard_set", payload)
+    return await _shared.submit_or_headless("storyboard_set", payload)
 
 
 TOOLS: dict[str, dict] = {
@@ -65,7 +65,9 @@ TOOLS: dict[str, dict] = {
             "keys are kept. extras on a shot is the integer crowd count, not "
             "a custom-field bag. Asset codes are not resolved. action "
             "'validate' checks document with the production mechanical rules "
-            "and does not need an open page. get_stage truncates a large "
+            "and does not need an open page. 'get' and 'set' use the open "
+            "page when one is mirroring; with no page they read and write "
+            "storyboard_data on the persisted headless graph. get_stage truncates a large "
             "storyboard_data preview — use this tool for the full document. "
             "node is the StoryboardStage uid or graph node id."
         ),

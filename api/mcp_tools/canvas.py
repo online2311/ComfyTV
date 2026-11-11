@@ -4,6 +4,7 @@ import time
 from urllib.parse import urlencode
 from ..canvas_state import get_canvas_state
 
+from .. import headless_queue
 from . import _shared
 from ._shared import _command_payload
 from .bot_tools import _maybe_ask_run_approval
@@ -42,7 +43,7 @@ async def _canvas_command(args: dict) -> dict:
         raise ValueError("nodes must be an array of node ids")
     payload = _command_payload(args, ("project_id", "nodes"))
     payload["command"] = command
-    return await _shared.submit_command("canvas_command", payload)
+    return await _shared.submit_or_headless("canvas_command", payload)
 
 async def _canvas_focus(args: dict) -> dict:
     node = str(args.get("node") or "")
@@ -50,10 +51,10 @@ async def _canvas_focus(args: dict) -> dict:
         raise ValueError("node is required (a graph node id from graph_get)")
     payload = _command_payload(args, ("project_id",))
     payload["node"] = node
-    return await _shared.submit_command("canvas_focus", payload)
+    return await _shared.submit_or_headless("canvas_focus", payload)
 
 async def _graph_get(args: dict) -> dict:
-    return await _shared.submit_command(
+    return await _shared.submit_or_headless(
         "graph_get", _command_payload(args, ("project_id",)))
 
 async def _graph_edit(args: dict) -> dict:
@@ -67,7 +68,7 @@ async def _graph_edit(args: dict) -> dict:
                 f"{', '.join(_GRAPH_OPS)}")
     payload = _command_payload(args, ("project_id",))
     payload["ops"] = ops
-    return await _shared.submit_command("graph_edit", payload)
+    return await _shared.submit_or_headless("graph_edit", payload)
 
 def _history_outputs(entry: dict) -> list[str]:
     urls: list[str] = []
@@ -97,6 +98,19 @@ def _history_error_message(status: dict) -> str:
     return "execution failed"
 
 async def _graph_run(args: dict) -> dict:
+    project_id = args.get("project_id")
+    pid = project_id if isinstance(project_id, str) else None
+    has_graph = args.get("prompt") is not None or args.get("workflow") is not None
+    if args.get("job_id") and not has_graph:
+        return await headless_queue.queue_status(args)
+    if not _shared.page_is_live(pid):
+        if args.get("prompt_id") and not has_graph:
+            return await headless_queue.queue_status(args)
+        declined = await _maybe_ask_run_approval("Run the current graph?")
+        if declined is not None:
+            return declined
+        return await headless_queue.enqueue_graph(args)
+
     prompt_id = str(args.get("prompt_id") or "")
     base: dict = {}
     if not prompt_id:
@@ -162,7 +176,7 @@ async def _arrange_canvas(args: dict) -> dict:
             raise ValueError(
                 f"columns must be an integer from 1 to 12 (got {columns!r})")
         payload["columns"] = int(c)
-    return await _shared.submit_command("arrange_canvas", payload, timeout=30.0)
+    return await _shared.submit_or_headless("arrange_canvas", payload, timeout=30.0)
 
 
 TOOLS: dict[str, dict] = {
@@ -244,8 +258,8 @@ TOOLS: dict[str, dict] = {
             "and discards the user's manual layout — ask before arranging a "
             "canvas the user laid out by hand; to place individual nodes "
             "use graph_edit {op:'move'} instead. margin is the spacing in "
-            "pixels (default 100, 20-400). Requires an open ComfyTV page in "
-            "Desktop or a browser."
+            "pixels (default 100, 20-400). When a page is open the page moves "
+            "the nodes; with no page the headless graph is rearranged."
         ),
         "inputSchema": {
             "type": "object",
@@ -267,8 +281,8 @@ TOOLS: dict[str, dict] = {
             "node_id, class type, title, widget values and connections "
             "(ComfyTV stage nodes carry is_stage=true — drive those with "
             "set_stage/run_stage instead). Use before graph_edit to see "
-            "what is on the canvas. Requires an open ComfyTV page in Desktop "
-            "or a browser (the page executes the command)."
+            "what is on the canvas. When a page is open this reads that page. "
+            "With no page it reads the persisted headless graph."
         ),
         "inputSchema": {
             "type": "object",
@@ -301,8 +315,10 @@ TOOLS: dict[str, dict] = {
             "a subgraph (returns the new subgraph node's id); "
             "{op:'unpack_subgraph', node} explodes a subgraph node "
             "(graph_get flags them is_subgraph=true) back inline. "
-            "The whole call is one undo step (Comfy.Undo reverts it). "
-            "Requires an open ComfyTV page in Desktop or a browser."
+            "When a page is open, the whole call is one undo step "
+            "(Comfy.Undo reverts it). With no page, the same ops are applied "
+            "to the persisted headless graph (subgraph pack/unpack still "
+            "needs the live canvas)."
         ),
         "inputSchema": {
             "type": "object",
@@ -319,14 +335,15 @@ TOOLS: dict[str, dict] = {
     "graph_run": {
         "description": (
             "Queue the native canvas graph exactly like pressing ComfyUI's "
-            "Run button (ComfyTV stage nodes are stripped/bridged the same "
-            "way the Run button does), then wait up to wait_s (default 60, "
-            "max 170) for it to finish by watching local history. Returns "
-            "prompt_id plus status 'done' with outputs (/view URLs — "
-            "view_image can look at them), 'error' with the failing node, "
-            "or 'running' on timeout — re-call with the returned prompt_id "
-            "to keep waiting. Requires an open ComfyTV page in Desktop or a browser to queue; "
-            "waiting on a prompt_id is server-side."
+            "Run button. When a ComfyTV page is open and mirroring, the page "
+            "queues its graph and this waits up to wait_s (default 60, max "
+            "170) for local history: status 'done' with /view URLs, 'error', "
+            "or 'running' — re-call with prompt_id to keep waiting. With no "
+            "page open, pass prompt (API format) or workflow (UI format), or "
+            "run the persisted headless graph. The call returns a job_id "
+            "immediately and does not block; poll queue_status. Headless jobs "
+            "run one at a time, and only when ComfyUI's own queue is empty. "
+            "Pass job_id or prompt_id alone to read status without waiting."
         ),
         "inputSchema": {
             "type": "object",
@@ -334,6 +351,9 @@ TOOLS: dict[str, dict] = {
                 "project_id": {"type": "string"},
                 "wait_s": {"type": "number"},
                 "prompt_id": {"type": "string"},
+                "job_id": {"type": "string"},
+                "prompt": {"type": "object"},
+                "workflow": {"type": "object"},
             },
             "additionalProperties": False,
         },

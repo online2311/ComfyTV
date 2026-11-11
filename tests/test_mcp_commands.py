@@ -189,6 +189,7 @@ class TestWriteTools:
             return {"ok_from_tab": True}
 
         monkeypatch.setattr(mcp_tools._shared, "submit_command", submit)
+        monkeypatch.setattr(mcp_tools._shared, "page_is_live", lambda project_id=None: True)
         return calls
 
     async def test_add_stage_normalizes_class(self, client, fake_submit):

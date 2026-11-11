@@ -13,6 +13,7 @@ from .settings import *  # noqa: F401,F403
 from .eagle_pending import *  # noqa: F401,F403
 from .bot import *  # noqa: F401,F403
 from .collab import *  # noqa: F401,F403
+from .headless import *  # noqa: F401,F403
 from .series_library import (  # noqa: F401
     SeriesLibraryError,
     bind_series_library,

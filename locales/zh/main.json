@@ -510,6 +510,10 @@
         "label": "启用 MCP 服务",
         "desc": "开放 ComfyTV 的 MCP 端点(/comfytv/mcp),允许 agent 读取并操作画布。默认关闭。"
       },
+      "headless-auto-resume": {
+        "label": "启动时自动续跑无头队列",
+        "desc": "默认关闭。启动时无头队列会重新挂上仍在 ComfyUI 队列里的任务，并从 history 收回已完成的产出，但不会再次提交。打开后，ComfyUI 已无记录的任务也会重新排队。随时可用 resume_queue 手动续跑。"
+      },
       "enable-bot": {
         "label": "启用 ComfyTV Bot",
         "desc": "显示内嵌 Bot 侧边栏及其聊天接口。前置条件:先启用 MCP 服务。"

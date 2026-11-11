@@ -47,6 +47,9 @@ CORE_MCP_TOOLS = [
     "graph_get",
     "graph_edit",
     "graph_run",
+    "queue_status",
+    "list_queue",
+    "resume_queue",
     "canvas_command",
     "canvas_focus",
     "arrange_canvas",
@@ -64,16 +67,22 @@ CODEX_INSTRUCTIONS = (
     "- Start with the `server_info` tool, then `get_canvas` to see the "
     "current nodes, prompts and run states.\n"
     "- Build and run: `add_stage`, `set_stage`, `connect_stages`, "
-    "`run_stage`, then block on `wait_stage` for the result.\n"
+    "`run_stage`, then `wait_stage` or `queue_status` for the result. "
+    "With no page open, `run_stage` and `graph_run` return a job_id "
+    "immediately and run one at a time on ComfyUI's queue; poll "
+    "`queue_status`. `resume_queue` continues unfinished stages after a "
+    "restart. Do not interrupt the ComfyUI queue.\n"
     "- Look at results with `view_image` (returns real pixels), "
     "`media_frame`, `fx_preview`.\n"
     "- The `skill` tool lists installed skills (instruction packs). When a "
     "task matches one, read it first (action='read') and follow it.\n"
-    "- Canvas writes work through either Comfy Desktop or a browser page. "
-    "A `tab_page_active` diagnostic is not permission to stop: make one "
-    "real write attempt before deciding it failed. If a write really fails, "
-    "quote its tool error accurately; do not invent a focus problem or ask "
-    "the user to click the canvas or reply 'ready'.\n\n"
+    "- When a ComfyTV page is open, writes go to that page. With no page, "
+    "stage and graph writes use the persisted headless graph. Scene, "
+    "director, and layer editors still need a page. A `tab_page_active` "
+    "diagnostic is not permission to stop: make one real write attempt "
+    "before deciding it failed. If a write really fails, quote its tool "
+    "error accurately; do not invent a focus problem or ask the user to "
+    "click the canvas or reply 'ready'.\n\n"
     "Never claim you cannot see the canvas — call `get_canvas`. Do not use "
     "shell, file, web, or desktop-control tools; everything goes through the "
     "comfytv MCP tools. Never claim you can activate an OS window or that you "

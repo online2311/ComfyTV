@@ -154,6 +154,7 @@ class TestCommandPassthrough:
             return {"ok": True}
 
         monkeypatch.setattr(mcp_tools._shared, "submit_command", submit)
+        monkeypatch.setattr(mcp_tools._shared, "page_is_live", lambda project_id=None: True)
         return calls
 
     async def test_cancel_stage(self, reset_db, fake_submit):
@@ -187,6 +188,7 @@ class TestDirectorPassthrough:
             return {"ok": True}
 
         monkeypatch.setattr(mcp_tools._shared, "submit_command", submit)
+        monkeypatch.setattr(mcp_tools._shared, "page_is_live", lambda project_id=None: True)
         return calls
 
     async def test_director_get(self, reset_db, fake_submit):
@@ -221,6 +223,7 @@ class TestStoryboardDocument:
             return {"ok": True, "echo": payload.get("document")}
 
         monkeypatch.setattr(mcp_tools._shared, "submit_command", submit)
+        monkeypatch.setattr(mcp_tools._shared, "page_is_live", lambda project_id=None: True)
         return calls
 
     async def test_get_and_set_round_trip_the_document(self, reset_db, fake_submit):
@@ -368,6 +371,7 @@ class TestArrangeCanvas:
             return {"arranged": 5}
 
         monkeypatch.setattr(mcp_tools._shared, "submit_command", submit)
+        monkeypatch.setattr(mcp_tools._shared, "page_is_live", lambda project_id=None: True)
         return calls
 
     async def test_passthrough_with_options(self, reset_db, fake_submit):

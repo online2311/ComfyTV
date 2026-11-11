@@ -257,7 +257,7 @@ class TestSettingsApi:
         assert {r["key"] for r in rows} == {
             "enable-v2", "v2-lod-scale", "v2-lod-fill", "auto-picker", "drop-files-as-loaders",
             "enable-db-backup", "db-backup-max-count", "db-backup-path",
-            "enable-mcp", "enable-bot",
+            "enable-mcp", "headless-auto-resume", "enable-bot",
             "bot-model-claude-code", "bot-model-codex", "bot-model-qwen-code",
             "bot-model-local-llm", "bot-model-comfyui-llm",
             "bot-comfyui-llm-thinking", "bot-local-llm-url",

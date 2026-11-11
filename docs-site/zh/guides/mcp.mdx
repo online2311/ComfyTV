@@ -8,7 +8,7 @@ translationSourceHash: "cf9df1b38b00c73f"
 
 ComfyTV 在你的 ComfyUI 服务器上开放 [Model Context Protocol](https://modelcontextprotocol.io) 端点 `POST /comfytv/mcp`。任何支持 MCP 的 agent(Claude Code,或任何会说 streamable HTTP JSON-RPC 的客户端)都能连上来,把 ComfyTV 当成一套工具使用。
 
-设计上有个关键点:**画布的真相在打开着的 ComfyTV 页面里**。读工具由服务器直接回答,写工具(加节点、设 prompt、跑渲染)则由*打开着的 ComfyTV 页面*执行——无论它在 Comfy Desktop 还是浏览器中；服务器通过 websocket 把命令转给它。没有开着的页面 → 写工具会以明确的超时信息失败。
+有页面在镜像时,写工具仍由那一页经 websocket 执行。**没有打开的页面时**,stage / 图的写入落到持久化的无头图,`run_stage` / `graph_run` 进入 ComfyUI 自己的 prompt 队列并立刻返回 job id。用 `queue_status` 查询。任务一次只跑一个,且仅当 `GET /queue` 为空。`resume_queue` 在重启后续跑未完成的 stage,已有产出的不再重跑。这条路径不调用 `/interrupt` 或 `/free`。场景、导演台和图层编辑器仍然需要打开的页面。
 
 ## 启用
 

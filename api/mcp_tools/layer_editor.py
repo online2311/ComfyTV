@@ -17,7 +17,7 @@ async def _layer_get(args: dict) -> dict:
     payload = _layer_target(args)
     if args.get("resources") is False:
         payload["resources"] = False
-    return await _shared.submit_command("layer_get", payload)
+    return await _shared.submit_or_headless("layer_get", payload)
 
 
 async def _layer_edit(args: dict) -> dict:
@@ -28,7 +28,7 @@ async def _layer_edit(args: dict) -> dict:
         raise ValueError("every op must be an object with an 'op' field")
     payload = _layer_target(args)
     payload["ops"] = ops
-    return await _shared.submit_command("layer_edit", payload, timeout=60.0)
+    return await _shared.submit_or_headless("layer_edit", payload, timeout=60.0)
 
 
 async def _layer_capture(args: dict) -> dict:
@@ -38,7 +38,7 @@ async def _layer_capture(args: dict) -> dict:
     payload = _layer_target(args)
     if mode:
         payload["mode"] = mode
-    return await _shared.submit_command("layer_capture", payload, timeout=120.0)
+    return await _shared.submit_or_headless("layer_capture", payload, timeout=120.0)
 
 
 _NODE_SCHEMA = {"type": "string"}

@@ -268,6 +268,44 @@ class RemoteJob(Base):
     updated_at:       Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
 
 
+class HeadlessGraph(Base):
+    """Persisted UI graph used when no ComfyTV page is open."""
+
+    __tablename__ = "comfytv_headless_graphs"
+
+    project_id:    Mapped[str] = mapped_column(String, primary_key=True)
+    document_json: Mapped[str] = mapped_column(Text, default="{}")
+    updated_at:    Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
+
+
+class HeadlessJob(Base):
+    """One MCP stage/graph run waiting on ComfyUI's prompt queue.
+
+    ComfyTV submits at most one of these at a time, and only when ComfyUI's
+    own queue (the same list ``GET /queue`` returns) is empty.
+    """
+
+    __tablename__ = "comfytv_headless_jobs"
+
+    id:             Mapped[str] = mapped_column(String, primary_key=True)
+    seq:            Mapped[int] = mapped_column(Integer, index=True)
+    project_id:     Mapped[str] = mapped_column(String, index=True, default="default")
+    kind:           Mapped[str] = mapped_column(String, default="graph")
+    status:         Mapped[str] = mapped_column(String, index=True, default="queued")
+    prompt_json:    Mapped[str] = mapped_column(Text, default="{}")
+    partial_json:   Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    prompt_id:      Mapped[Optional[str]] = mapped_column(String, nullable=True, index=True)
+    stage_ref:      Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    stage_uid:      Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    error_text:     Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    outputs_json:   Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    progress_json:  Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    completed_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    attempt:        Mapped[int] = mapped_column(Integer, default=1)
+    created_at:     Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at:     Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
+
+
 class BotChat(Base):
     __tablename__ = "comfytv_bot_chats"
 

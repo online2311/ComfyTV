@@ -18,6 +18,7 @@ SETTINGS_SPEC: dict[str, dict[str, Any]] = {
     "db-backup-max-count": {"type": "int", "default": 10, "min": 1},
     "db-backup-path": {"type": "string", "default": ""},
     "enable-mcp": {"type": "boolean", "default": False},
+    "headless-auto-resume": {"type": "boolean", "default": False},
     "enable-bot": {"type": "boolean", "default": False},
     "bot-model-claude-code": {"type": "string", "default": ""},
     "bot-model-codex": {"type": "string", "default": ""},

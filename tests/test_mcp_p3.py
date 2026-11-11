@@ -308,6 +308,7 @@ class TestRemoveStageTool:
             return {"removed": True}
 
         monkeypatch.setattr(mcp_tools._shared, "submit_command", submit)
+        monkeypatch.setattr(mcp_tools._shared, "page_is_live", lambda project_id=None: True)
         return calls
 
     async def _call_tool(self, client, name, arguments):

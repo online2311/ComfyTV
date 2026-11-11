@@ -510,6 +510,10 @@
         "label": "Enable MCP server",
         "desc": "Expose the ComfyTV MCP endpoint (/comfytv/mcp) so agents can read and drive the canvas. Off by default."
       },
+      "headless-auto-resume": {
+        "label": "Auto-resume headless queue on startup",
+        "desc": "Off by default. On startup the headless queue re-attaches to a prompt still in ComfyUI's queue and collects outputs from history, but it does not submit again. Turn this on to also re-queue a job ComfyUI has no record of. resume_queue always does that resubmit when you ask."
+      },
       "enable-bot": {
         "label": "Enable ComfyTV Bot",
         "desc": "Show the embedded bot sidebar and its chat API. Requires the MCP server to be enabled."

@@ -48,6 +48,7 @@ def fake_submit(monkeypatch):
         return {"ok_from_tab": True}
 
     monkeypatch.setattr(mcp_tools._shared, "submit_command", submit)
+    monkeypatch.setattr(mcp_tools._shared, "page_is_live", lambda project_id=None: True)
     return calls
 
 

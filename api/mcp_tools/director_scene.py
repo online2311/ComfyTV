@@ -10,7 +10,7 @@ async def _director_get(args: dict) -> dict:
         raise ValueError("node is required (DirectorStage uid or graph node id)")
     payload = _command_payload(args, ("project_id",))
     payload["node"] = str(node)
-    return await _shared.submit_command("director_get", payload)
+    return await _shared.submit_or_headless("director_get", payload)
 
 async def _director_edit(args: dict) -> dict:
     node = args.get("node")
@@ -25,7 +25,7 @@ async def _director_edit(args: dict) -> dict:
     payload = _command_payload(args, ("project_id",))
     payload["node"] = str(node)
     payload["ops"] = ops
-    return await _shared.submit_command("director_edit", payload, timeout=30.0)
+    return await _shared.submit_or_headless("director_edit", payload, timeout=30.0)
 
 _SCENE_CHANNELS = ("color", "depth", "normal", "openpose", "id")
 
@@ -55,7 +55,7 @@ def _validate_channel(args: dict) -> None:
             f"channel must be one of {', '.join(_SCENE_CHANNELS)}")
 
 async def _scene_get(args: dict) -> dict:
-    return await _shared.submit_command("scene_get", _scene_target(args))
+    return await _shared.submit_or_headless("scene_get", _scene_target(args))
 
 async def _scene_edit(args: dict) -> dict:
     ops = args.get("ops")
@@ -65,19 +65,19 @@ async def _scene_edit(args: dict) -> dict:
         raise ValueError("every op must be an object with an 'op' field")
     payload = _scene_target(args)
     payload["ops"] = ops
-    return await _shared.submit_command("scene_edit", payload)
+    return await _shared.submit_or_headless("scene_edit", payload)
 
 async def _scene_capture(args: dict) -> dict:
     _validate_channel(args)
     payload = _scene_target(args)
     payload.update(_command_payload(args, ("channel", "width", "height", "layers")))
-    return await _shared.submit_command("scene_capture", payload, timeout=120.0)
+    return await _shared.submit_or_headless("scene_capture", payload, timeout=120.0)
 
 async def _scene_record(args: dict) -> dict:
     _validate_channel(args)
     payload = _scene_target(args)
     payload.update(_command_payload(args, ("channel", "width", "height", "layers")))
-    return await _shared.submit_command("scene_record", payload, timeout=300.0)
+    return await _shared.submit_or_headless("scene_record", payload, timeout=300.0)
 
 
 TOOLS: dict[str, dict] = {

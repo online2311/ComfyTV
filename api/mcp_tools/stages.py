@@ -58,7 +58,7 @@ async def _add_stage(args: dict) -> dict:
         args, ("title", "prompt", "workflow", "widgets", "asset_refs", "pos",
                "project_id"))
     payload["node_class"] = stage_class
-    return await _shared.submit_command("add_stage", payload)
+    return await _shared.submit_or_headless("add_stage", payload)
 
 def _validate_server(args: dict) -> None:
     server = args.get("server")
@@ -134,7 +134,7 @@ async def _set_stage(args: dict) -> dict:
         args, ("prompt", "workflow", "title", "widgets", "server",
                "asset_refs", "media_order", "project_id"))
     payload["node"] = str(node)
-    return await _shared.submit_command("set_stage", payload)
+    return await _shared.submit_or_headless("set_stage", payload)
 
 def _mirrored_stage_class(project_id, node_ref: str) -> str | None:
     from ..canvas_state import get_canvas_state
@@ -156,7 +156,7 @@ async def _connect_stages(args: dict) -> dict:
     payload = _command_payload(args, ("from_slot", "to_slot", "project_id"))
     payload["from_node"] = str(from_node)
     payload["to_node"] = str(to_node)
-    return await _shared.submit_command("connect_stages", payload)
+    return await _shared.submit_or_headless("connect_stages", payload)
 
 async def _stage_params_tool(args: dict) -> dict:
     action = str(args.get("action") or "list")
@@ -227,7 +227,7 @@ async def _cancel_stage(args: dict) -> dict:
         raise ValueError("node is required (stage uid or graph node id)")
     payload = _command_payload(args, ("project_id",))
     payload["node"] = str(node)
-    return await _shared.submit_command("cancel_stage", payload, timeout=30.0)
+    return await _shared.submit_or_headless("cancel_stage", payload, timeout=30.0)
 
 async def _get_stage(args: dict) -> dict:
     node = args.get("node")
@@ -235,7 +235,7 @@ async def _get_stage(args: dict) -> dict:
         raise ValueError("node is required (stage uid or graph node id)")
     payload = _command_payload(args, ("project_id",))
     payload["node"] = str(node)
-    result = await _shared.submit_command("get_stage", payload)
+    result = await _shared.submit_or_headless("get_stage", payload)
     if isinstance(result, dict):
         result["latest_output"] = _latest_output_summary(
             args.get("project_id") or result.get("project_id") or "default",
@@ -274,14 +274,15 @@ async def _remove_stage(args: dict) -> dict:
         raise ValueError("node is required (stage uid or graph node id)")
     payload = _command_payload(args, ("project_id",))
     payload["node"] = str(node)
-    return await _shared.submit_command("remove_stage", payload)
+    return await _shared.submit_or_headless("remove_stage", payload)
 
 
 TOOLS: dict[str, dict] = {
     "add_stage": {
         "description": (
-            "Add a ComfyTV stage node to the user's live canvas (requires an open "
-            "ComfyTV page in Desktop or a browser — the page executes the command). "
+            "Add a ComfyTV stage node. When a ComfyTV page is open and mirroring, "
+            "that page executes the command. With no page open, the node is "
+            "added to the persisted headless graph (no browser timeout). "
             "node_class is a "
             "stage_catalog node_id (e.g. 'ComfyTV.ImageStage'). Optionally set "
             "title, prompt, workflow (a list_workflows label for the stage's "
@@ -354,8 +355,9 @@ TOOLS: dict[str, dict] = {
             "and image-batch generators like ImageStage) select the same "
             "way: widgets {\"selected_index\": N} (1-BASED) picks that "
             "candidate on the live card and updates the downstream output. "
-            "node is a stage uid or graph_node_id from get_canvas. "
-            "Requires an open ComfyTV page in Desktop or a browser."
+            "node is a stage uid or graph_node_id from get_canvas or graph_get. "
+            "When a page is open and mirroring, the page applies this. With "
+            "no page open, it is written to the headless graph."
         ),
         "inputSchema": {
             "type": "object",
@@ -383,8 +385,8 @@ TOOLS: dict[str, dict] = {
             "target input name (e.g. 'images.image0'); omit it to auto-pick the "
             "first free type-compatible input. A media connection is appended to "
             "the end of the target's media list; the result reports its 1-based "
-            "position and the @-mention token for it. Requires an open ComfyTV "
-            "page in Desktop or a browser."
+            "position and the @-mention token for it. When a page is open the "
+            "page makes the link; with no page the headless graph is wired."
         ),
         "inputSchema": {
             "type": "object",
@@ -405,7 +407,8 @@ TOOLS: dict[str, dict] = {
             "Remove a ComfyTV stage node from the live canvas (its stored "
             "outputs stay in the project history). node is a stage uid or "
             "graph_node_id from get_canvas. Only ComfyTV stages can be "
-            "removed. Requires an open ComfyTV page in Desktop or a browser."
+            "removed. When a page is open the page deletes it; with no page "
+            "open it is removed from the headless graph."
         ),
         "inputSchema": {
             "type": "object",
@@ -424,7 +427,10 @@ TOOLS: dict[str, dict] = {
             "queue; remote runs cancel the remote job) — use when a render "
             "is clearly wrong or stuck instead of waiting it out. node is a "
             "stage uid or graph node id; errors if the stage is not "
-            "running. Requires an open ComfyTV page in Desktop or a browser."
+            "running. When a page is open, this still interrupts that page's "
+            "run. With no page, a headless job that has not been submitted "
+            "yet is dropped; a job already in ComfyUI's queue is left running "
+            "(this path does not call interrupt)."
         ),
         "inputSchema": {
             "type": "object",
@@ -457,7 +463,8 @@ TOOLS: dict[str, dict] = {
             "image_url}]) or null — use its image_url / payload_url directly "
             "in layer_edit add_image, asset_edit create or view_image without "
             "a separate outputs call. node is a stage uid or graph node id. "
-            "Requires an open ComfyTV page in Desktop or a browser."
+            "When a page is open this reads the live node; with no page it "
+            "reads the headless graph."
         ),
         "inputSchema": {
             "type": "object",

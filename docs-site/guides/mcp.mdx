@@ -7,7 +7,7 @@ description: "ComfyTV ships an MCP server so AI agents can read and drive your c
 
 ComfyTV exposes a [Model Context Protocol](https://modelcontextprotocol.io) endpoint at `POST /comfytv/mcp` on your ComfyUI server. Any MCP-capable agent (Claude Code, or anything speaking streamable HTTP JSON-RPC) can connect and use ComfyTV as a set of tools.
 
-The design has one important twist: **the canvas truth lives in the open ComfyTV page**. Read tools answer from the server, but write tools (adding nodes, setting prompts, running stages) are executed *by the open ComfyTV page* — inside Comfy Desktop or a browser — and the server relays commands to it over the websocket. No open page → write tools fail with a clear timeout message.
+When a ComfyTV page is open and mirroring, that page still executes write tools over the websocket. **With no page open, stage and graph writes use a persisted headless graph, and `run_stage` / `graph_run` queue on ComfyUI's own prompt queue and return a job id immediately.** Poll `queue_status`. Jobs run one at a time, and only when `GET /queue` is empty. `resume_queue` resubmits unfinished stages after a restart and skips stages that already saved an output. This path does not call `/interrupt` or `/free`. Scene, director, and layer editors still need a page. Verification steps for ComfyUI 0.45.0 are in `docs/mcp.md`.
 
 ## Enabling
 

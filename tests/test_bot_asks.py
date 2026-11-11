@@ -36,6 +36,8 @@ def turn_context(reset_db, monkeypatch):
     broadcasts: list[tuple[str, dict]] = []
     monkeypatch.setattr(bot_api.bot_turns, "_broadcast",
                         lambda ev, payload: broadcasts.append((ev, payload)))
+    from ComfyTV.api import mcp_tools
+    monkeypatch.setattr(mcp_tools._shared, "page_is_live", lambda project_id=None: True)
     token = BOT_CHAT_ID.set(chat["id"])
     yield {"chat": chat, "message": msg, "state": state,
            "broadcasts": broadcasts}
