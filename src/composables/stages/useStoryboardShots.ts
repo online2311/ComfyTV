@@ -74,10 +74,13 @@ export function referenceImagesOf(raw: Record<string, unknown>): string[] {
   return one ? [one] : []
 }
 
+const WHOLE_SEED = /^[+-]?\d+$/
+
 export function seedOf(raw: unknown): number | null {
-  if (raw == null || raw === '' || typeof raw === 'boolean') return null
-  const n = typeof raw === 'number' ? raw : Number.parseInt(String(raw).trim(), 10)
-  return Number.isInteger(n) ? n : null
+  if (typeof raw === 'number') return Number.isSafeInteger(raw) ? raw : null
+  if (typeof raw !== 'string' || !WHOLE_SEED.test(raw.trim())) return null
+  const n = Number(raw.trim())
+  return Number.isSafeInteger(n) ? n : null
 }
 
 function newId() {

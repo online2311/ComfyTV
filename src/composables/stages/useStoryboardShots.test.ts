@@ -5,7 +5,7 @@ import { nextTick, reactive } from 'vue'
 import { app } from '@/lib/comfyApp'
 import type { StageState } from '@/stores/stageStore'
 
-import { useStoryboardShots } from './useStoryboardShots'
+import { seedOf, useStoryboardShots } from './useStoryboardShots'
 
 const jsonResp = (data: any, status = 200) =>
   new Response(JSON.stringify(data), {
@@ -170,6 +170,22 @@ describe('useStoryboardShots', () => {
     expect(parsed.shots[0].image_url).toBe('/view?x=1')
     expect(parsed.shots[0].reference_images).toEqual(['/view?x=1'])
     expect(parsed.shots[0].seed).toBeNull()
+  })
+
+  it('does not turn a partial seed into an override the backend would ignore', () => {
+    for (const seed of ['12.5', '12oops', [12], true, 12.5, '']) {
+      const saved = {
+        shots: [{ shot_no: '1', image_prompt: 'x', seed }],
+      }
+      const w = makeWidget('storyboard_data', JSON.stringify(saved))
+      const { shots, setField } = useStoryboardShots(makeNode([w]), makeState())
+      expect(shots.value[0].seed).toBeNull()
+      setField(shots.value[0].id, 'scene_purpose', 'edited')
+      expect(JSON.parse(w.value).shots[0].seed).toBeNull()
+    }
+    expect(seedOf('42')).toBe(42)
+    expect(seedOf(0)).toBe(0)
+    expect(seedOf(' -7 ')).toBe(-7)
   })
 
   it('round-trips per-shot refs and seed, and ignores a non-url reference', () => {

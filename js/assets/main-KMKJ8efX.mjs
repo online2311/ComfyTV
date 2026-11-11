@@ -59817,7 +59817,7 @@ class ArrayStream {
 }
 let sparkPromise = null;
 function loadSpark() {
-  return sparkPromise ?? (sparkPromise = import("./spark.module-eI_i6li5.mjs"));
+  return sparkPromise ?? (sparkPromise = import("./spark.module-_xJPTK00.mjs"));
 }
 const MESH_MODEL_EXTENSIONS = [".glb", ".gltf", ".fbx", ".obj", ".stl", ".dae"];
 const SPLAT_MODEL_EXTENSIONS = [".spz", ".splat", ".ksplat"];
@@ -87123,7 +87123,7 @@ const _sfc_main$4v = /* @__PURE__ */ defineComponent({
       }
     });
     const AgentPanelRoot = /* @__PURE__ */ defineAsyncComponent({
-      loader: () => import("./AgentPanelRoot-BV2pEgHs.mjs"),
+      loader: () => import("./AgentPanelRoot-OflQ4XB-.mjs"),
       errorComponent: AgentPanelLoadError,
       onError: (error2, _retry, fail) => {
         reportError(error2, { errorType: "agent_panel_load_failure" });
@@ -149812,7 +149812,7 @@ async function parseToObject(file) {
     return new OBJLoader2().parse(await file.text());
   }
   if (lower.endsWith(".stl")) {
-    const { STLLoader } = await import("./STLLoader-BlwhTpSg.mjs");
+    const { STLLoader } = await import("./STLLoader-Bqx6dnyO.mjs");
     const geometry = new STLLoader().parse(await file.arrayBuffer());
     const material = new MeshStandardMaterial({ color: 13421772 });
     const group = new Group();
@@ -149820,7 +149820,7 @@ async function parseToObject(file) {
     return group;
   }
   if (lower.endsWith(".dae")) {
-    const { ColladaLoader } = await import("./ColladaLoader-cUvkfFou.mjs");
+    const { ColladaLoader } = await import("./ColladaLoader-BVgyHXFK.mjs");
     const collada = new ColladaLoader().parse(await file.text(), "");
     if (!(collada == null ? void 0 : collada.scene)) throw new Error(`failed to parse ${file.name}`);
     return collada.scene;
@@ -156358,10 +156358,12 @@ function referenceImagesOf(raw) {
   const one = asRefUrl(raw.image_url) || asRefUrl(raw.reference_img);
   return one ? [one] : [];
 }
+const WHOLE_SEED = /^[+-]?\d+$/;
 function seedOf(raw) {
-  if (raw == null || raw === "" || typeof raw === "boolean") return null;
-  const n = typeof raw === "number" ? raw : Number.parseInt(String(raw).trim(), 10);
-  return Number.isInteger(n) ? n : null;
+  if (typeof raw === "number") return Number.isSafeInteger(raw) ? raw : null;
+  if (typeof raw !== "string" || !WHOLE_SEED.test(raw.trim())) return null;
+  const n = Number(raw.trim());
+  return Number.isSafeInteger(n) ? n : null;
 }
 function newId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
@@ -247515,4 +247517,4 @@ export {
   DropdownMenuRoot_default as y,
   DropdownMenuTrigger_default as z
 };
-//# sourceMappingURL=main-BRMH5Uoy.mjs.map
+//# sourceMappingURL=main-KMKJ8efX.mjs.map
