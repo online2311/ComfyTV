@@ -354,13 +354,13 @@ class RemoteComfyUIRunner(Runner):
             state = await self._queue_state(session, prompt_id)
             if state == "pending":
                 await self._delete_pending(session, prompt_id)
-                # A follow-up read that still says pending is the queue view
-                # lagging the delete. Only a prompt that has since started
-                # must be left running.
-                if await self._queue_state(session, prompt_id) == "running":
-                    self._mark_cancel_requested()
-                    return "cancel_requested"
-                return "deleted"
+                # Only a follow-up read that no longer lists this prompt
+                # confirms the delete. Pending, running, or unreadable means
+                # the prompt may still execute, so keep waiting and drop outputs.
+                if await self._queue_state(session, prompt_id) == "absent":
+                    return "deleted"
+                self._mark_cancel_requested()
+                return "cancel_requested"
             if state == "running":
                 self._mark_cancel_requested()
                 return "cancel_requested"
@@ -369,7 +369,7 @@ class RemoteComfyUIRunner(Runner):
                 self._mark_cancel_requested()
                 return "cancel_requested"
             return "absent"
-        except aiohttp.ClientError as e:
+        except (aiohttp.ClientError, asyncio.TimeoutError) as e:
             _log.warning("[ComfyTV/remote] cancel on remote failed: %s", e)
             self._mark_cancel_requested()
             return "cancel_requested"
@@ -520,6 +520,11 @@ class RemoteComfyUIRunner(Runner):
 
     async def _extract_result(self, session: aiohttp.ClientSession,
                               entry: dict, result_meta: dict) -> str:
+        if self.job is not None and self.job.cancel_event.is_set():
+            self._mark_cancel_requested()
+            raise JobCancelled(
+                f"job {self.job.job_id} cancel requested; remote outputs ignored"
+            )
         rtype = result_meta.get("type")
         node_id = result_meta.get("node")
         outputs = entry.get("outputs") or {}
@@ -579,11 +584,45 @@ class RemoteComfyUIRunner(Runner):
 
         raise RuntimeError(f"unsupported result.type for remote run: {rtype!r}")
 
+    async def _discard_if_cancel_requested(self, session: aiohttp.ClientSession,
+                                           prompt_id: str) -> None:
+        """Apply a cancel that arrived while the wait was blocked, before any download."""
+        if self.job is None or not self.job.cancel_event.is_set():
+            return
+        await self._on_cancel_during_wait(session, prompt_id)
+        if self.job.cancel_event.is_set() and not self.job.discard_outputs:
+            self._mark_cancel_requested()
+        if self.job.discard_outputs or self.job.cancel_event.is_set():
+            raise JobCancelled(
+                f"job {self.job.job_id} cancel requested; remote outputs ignored"
+            )
+
     async def invoke(self, ctx: RunnerContext):
         workflow, result_meta = prepare_workflow(self.id, self.kinds, ctx)
         client_id = f"comfytv-remote-{uuid.uuid4().hex[:12]}"
-
         self._timeouts = remote_timeouts()
+        job_s = float(self._timeouts["job"])
+        try:
+            async with asyncio.timeout(job_s) as clock:
+                try:
+                    return await self._invoke_with_session(
+                        workflow, result_meta, client_id,
+                    )
+                except TimeoutError:
+                    if clock.expired():
+                        raise
+                    raise RuntimeError(
+                        f"can't reach remote {self.server['label']!r} "
+                        f"({self.server['host']}:{self.server['port']}): timed out"
+                    ) from None
+        except TimeoutError as e:
+            raise RuntimeError(
+                f"remote {self.server['label']!r} exceeded the job timeout "
+                f"({job_s:g}s)"
+            ) from e
+
+    async def _invoke_with_session(self, workflow: dict, result_meta: dict,
+                                   client_id: str):
         timeout = aiohttp.ClientTimeout(
             total=self._timeouts["job"],
             sock_connect=self._timeouts["connect"],
@@ -622,10 +661,7 @@ class RemoteComfyUIRunner(Runner):
                             ) from None
                 raise
 
-            if self.job is not None and self.job.discard_outputs:
-                raise JobCancelled(
-                    f"job {self.job.job_id} cancel requested; remote outputs ignored"
-                )
+            await self._discard_if_cancel_requested(session, prompt_id)
 
             entry = await self._fetch_history(session, prompt_id)
             if entry is None:

@@ -92,14 +92,18 @@ class _Resp:
 
 
 class ScriptedRemote:
-    def __init__(self, mode: str, *, history_misses: int = 0, queue_status: int = 200):
+    def __init__(self, mode: str, *, history_misses: int = 0, queue_status: int = 200,
+                 delete_status: int = 200, delete_error: BaseException | None = None):
         self.mode = mode
         self.history_misses = history_misses
         self.queue_status = queue_status
+        self.delete_status = delete_status
+        self.delete_error = delete_error
         self.calls: list[tuple] = []
         self.timeouts = []
         self.history_gets = 0
         self.arm_cancel = None
+        self.arm_cancel_on_history = None
         if mode == "pending":
             self.running = [[0, "someone-else"]]
             self.pending = [[1, "other-pending"], [2, _PROMPT_ID]]
@@ -125,11 +129,17 @@ class ScriptedRemote:
                 "queue_pending": self.pending,
             })
         if path == "/queue" and method == "POST":
+            if self.delete_error is not None:
+                raise self.delete_error
+            if self.delete_status != 200:
+                return _Resp(self.delete_status, {"error": "rejected"})
             drop = set((body or {}).get("delete") or [])
             self.pending = [item for item in self.pending if item[1] not in drop]
             return _Resp(200, {})
         if path.startswith("/history/"):
             self.history_gets += 1
+            if self.arm_cancel_on_history is not None and self.history_gets == 1:
+                self.arm_cancel_on_history()
             if self.history_gets <= self.history_misses:
                 return _Resp(200, {})
             return _Resp(200, {
@@ -405,3 +415,63 @@ class TestInvokeUsesDefaultTimeout:
         assert timeout.total == JOB_TIMEOUT_S
         assert timeout.sock_connect == CONNECT_TIMEOUT_S
         assert timeout.sock_read is None
+
+
+class TestCancelRacesAndJobDeadline:
+    async def test_failed_delete_keeps_the_job_cancel_requested(self, reset_db, monkeypatch):
+        from ComfyTV import storage
+
+        script = ScriptedRemote("pending", delete_status=500)
+        _install_session(monkeypatch, script)
+        runner, handle = _runner()
+        _arm(script, handle)
+        with pytest.raises(JobCancelled, match="ignored"):
+            await runner.invoke(RunnerContext(kind="image"))
+        _assert_no_interrupt_or_free(script.calls)
+        assert any(item[1] == _PROMPT_ID for item in script.pending)
+        assert storage.get_remote_job(handle.job_id)["status"] == "cancel-requested"
+        assert not any(path == "/view" for _m, path, _b in script.calls)
+
+    async def test_delete_timeout_stays_cancel_requested(self, reset_db, monkeypatch):
+        from ComfyTV import storage
+
+        script = ScriptedRemote("pending", delete_error=TimeoutError())
+        _install_session(monkeypatch, script)
+        runner, handle = _runner()
+        _arm(script, handle)
+        with pytest.raises(JobCancelled, match="ignored"):
+            await runner.invoke(RunnerContext(kind="image"))
+        _assert_no_interrupt_or_free(script.calls)
+        row = storage.get_remote_job(handle.job_id)
+        assert row["status"] == "cancel-requested"
+        assert handle.discard_outputs is True
+        assert not any(path == "/view" for _m, path, _b in script.calls)
+
+    async def test_cancel_during_completion_does_not_download(self, reset_db, monkeypatch):
+        from ComfyTV import storage
+
+        script = ScriptedRemote("running")
+        _install_session(monkeypatch, script)
+        runner, handle = _runner()
+        script.arm_cancel_on_history = handle.cancel_event.set
+        with pytest.raises(JobCancelled, match="ignored"):
+            await runner.invoke(RunnerContext(kind="image"))
+        _assert_no_interrupt_or_free(script.calls)
+        assert storage.get_remote_job(handle.job_id)["status"] == "cancel-requested"
+        assert not any(path == "/view" for _m, path, _b in script.calls)
+
+    async def test_job_timeout_bounds_the_whole_wait(self, reset_db, monkeypatch):
+        from ComfyTV.runners import remote_comfy
+
+        script = ScriptedRemote("running", history_misses=10_000)
+        _install_session(monkeypatch, script)
+        monkeypatch.setattr(remote_comfy, "remote_timeouts", lambda: {
+            "connect": 10.0,
+            "read": None,
+            "poll": 0.02,
+            "job": 0.15,
+        })
+        runner, _handle = _runner()
+        with pytest.raises(RuntimeError, match="job timeout"):
+            await runner.invoke(RunnerContext(kind="image"))
+        _assert_no_interrupt_or_free(script.calls)
