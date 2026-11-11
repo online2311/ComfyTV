@@ -109,6 +109,7 @@ accordingly.
 | `scene_get/edit/capture/record` | Drive a Scene 3D stage: characters, lights, cameras, animation clips, camera paths and the multi-shot director timeline (add_shot/patch_shot/set_path) |
 | `director_get/director_edit` | Read and edit the Director clip timeline |
 | `storyboard` | Read, replace, or validate a Storyboard stage's full shot document (`shots.json` fields and custom keys). `get_stage` only previews a large `storyboard_data` value. `validate` sums `duration_s` for the episode total (`cut_to` is only checked against that shot). The `target_duration_s` comparison is skipped when the board cannot reach the target even at 15s per shot (a single shot or a short partial extract) |
+| `episode_batch` | Plan or submit one VideoStage per shot. `plan` resolves library asset codes and `episode:` frames, assigns a reproducible per-shot seed, chooses Ref2VA or FL2VA, and attaches mapped dialogue audio. It does not call a model. A FL2VA shot with dialogue is planned as Ref2VA (`reason` `dialogue_downgrade`) when that FL2VA workflow does not bind upstream audio, unless `video_mode` is FL2VA. `run` submits one stage at a time after GET /queue is empty, skips shots already completed, and does not interrupt the queue |
 
 ## Patterns that matter
 
