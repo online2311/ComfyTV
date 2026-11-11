@@ -59,7 +59,8 @@ async def test_one_image_per_shot_shares_refs_and_stage_seed(shot_stage):
     )
     assert all(c["options"]["batch_size"] == 1 for c in calls)
     payload = json.loads(out.values[0])
-    assert [img["index"] for img in payload["images"]] == ["1", "2"]
+    assert [img["index"] for img in payload["images"]] == [1, 2]
+    assert [img["shot_no"] for img in payload["images"]] == ["1", "2"]
     assert out.values[1].endswith("close.png&type=output")
 
 
@@ -84,7 +85,10 @@ async def test_production_shot_uses_h3_image_and_leaves_asset_codes_alone(shot_s
     assert calls[0]["main_prompt"] == "the chamber"
     assert calls[0]["upstream"]["images"] == ["/view?filename=shared.png&type=input"]
     assert "CHR_yangguo" not in json.dumps(calls[0]["upstream"])
-    assert json.loads(out.values[0])["images"][0]["index"] == "E01S01_01"
+    row = json.loads(out.values[0])["images"][0]
+    assert row["index"] == 1
+    assert row["shot_no"] == "E01S01_01"
+    assert row["label"] == "Shot E01S01_01"
 
 
 async def test_krea2_prompt_is_used_when_h3_image_is_absent(shot_stage):
