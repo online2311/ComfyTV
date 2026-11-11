@@ -87,6 +87,19 @@ def _image_template(max_n: int = 12) -> 'io.Autogrow.TemplatePrefix':
     )
 
 
+# ComfyUI v0.45 Autogrow.TemplatePrefix rejects max > 100
+# (Autogrow._MaxNames). Names stay video0, video1, … so a canvas saved
+# when the cap was 12 still addresses the same slots.
+VIDEO_ASSEMBLY_SLOT_MAX = 100
+VIDEO_ASSEMBLY_TOOLTIP = (
+    "Autogrow clip slots (video0, video1, …), up to 100. "
+    "Connecting the last slot adds another; empty slots are skipped. "
+    "Run scales and retimes every clip to the first clip's even resolution "
+    "and frame rate. A clip with no audio gets silence of the same length "
+    "so later clips stay in sync."
+)
+
+
 def _video_template(max_n: int = 6) -> 'io.Autogrow.TemplatePrefix':
     return io.Autogrow.TemplatePrefix(
         COMFYTV_VIDEO.Input("video", optional=True),

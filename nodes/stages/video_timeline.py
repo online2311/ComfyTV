@@ -162,7 +162,11 @@ class SequenceStage(io.ComfyNode):
                                 socketless=True, extra_dict={"hidden": True},
                                 tooltip='JSON [{slot, in_s, out_s, transition, trans_dur}] '
                                         'in playback order — driven by the segment list UI'),
-                io.Autogrow.Input("videos", template=_video_template(12)),
+                io.Autogrow.Input(
+                    "videos",
+                    template=_video_template(VIDEO_ASSEMBLY_SLOT_MAX),
+                    tooltip=VIDEO_ASSEMBLY_TOOLTIP,
+                ),
             ],
             outputs=[COMFYTV_VIDEO.Output("video")],
             is_output_node=True,
