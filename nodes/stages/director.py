@@ -55,6 +55,10 @@ def _apply_storyboard_slots(clips: list, storyboard) -> None:
     for index, clip in enumerate(clips):
         if index >= len(shots) or not isinstance(clip, dict):
             continue
+        # Keep this clip's index so later shots stay aligned, but do not
+        # resolve references for a clip execute will skip.
+        if not clip.get("enabled", True):
+            continue
         shot = shots[index]
         if not _clip_refs(clip)["images"]:
             urls = shot_reference_images(shot, [])

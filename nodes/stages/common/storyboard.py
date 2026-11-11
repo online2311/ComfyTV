@@ -6,6 +6,7 @@ from .shot_document import (
     dump_shots_document,
     is_production_document,
     load_shots_document,
+    parse_asset_ref,
 )
 from .shot_inputs import image_ref_url, image_ref_urls, shot_seed
 
@@ -372,12 +373,21 @@ def normalize_supplied_storyboard(raw) -> str:
     return json.dumps(doc, ensure_ascii=False)
 
 
+_NAME_SEPARATORS = (":", "\uFF1A")
+# Shots with no person use these markers. They are not character identities.
+_NO_CHARACTER = frozenset({
+    "无", "none", "n/a", "(无指定角色)", "无指定角色", "- (无指定角色)",
+})
+
+
 def _split_card_name(body: str) -> tuple[str, str]:
-    for sep in (":", "\uFF1A"):
-        if sep in body:
-            name, rest = body.split(sep, 1)
-            return name.strip(), rest
-    return body.strip(), ""
+    """Split on the earliest ``:`` or full-width ``：``, not the first ASCII colon."""
+    indexes = [body.find(sep) for sep in _NAME_SEPARATORS]
+    found = [index for index in indexes if index >= 0]
+    if not found:
+        return body.strip(), ""
+    cut = min(found)
+    return body[:cut].strip(), body[cut + 1:]
 
 
 def _push_ref(refs: list, token: str) -> None:
@@ -460,39 +470,78 @@ def character_cards(characters: str) -> list[dict]:
     return cards
 
 
-def _shot_labels(shot: dict) -> list[str]:
-    labels: list[str] = []
-    for key in ("character", "character_desc"):
-        value = shot.get(key)
-        if isinstance(value, str) and value.strip():
-            labels.append(value.strip())
+def _is_no_character(text: str) -> bool:
+    return text.strip().lower() in {item.lower() for item in _NO_CHARACTER}
+
+
+def _identity_tokens(raw: str) -> set[str]:
+    text = str(raw or "").strip()
+    if not text or _is_no_character(text):
+        return set()
+    tokens = {text}
+    bare = str(parse_asset_ref(text).get("id") or "").strip()
+    if bare and bare != text and not _is_no_character(bare):
+        tokens.add(bare)
+    return tokens
+
+
+def _shot_identities(shot: dict) -> set[str]:
+    """Character ids on the shot. Description text is not an identity."""
+    found: set[str] = set()
+    character = shot.get("character")
+    if isinstance(character, str):
+        found |= _identity_tokens(character)
     characters = shot.get("characters")
     if isinstance(characters, list):
-        for character in characters:
-            if isinstance(character, str) and character.strip():
-                labels.append(character.strip())
-            elif isinstance(character, dict):
+        for entry in characters:
+            if isinstance(entry, str):
+                found |= _identity_tokens(entry)
+            elif isinstance(entry, dict):
                 for key in ("id", "name"):
-                    value = character.get(key)
-                    if isinstance(value, str) and value.strip():
-                        labels.append(value.strip())
-    return labels
+                    value = entry.get(key)
+                    if isinstance(value, str):
+                        found |= _identity_tokens(value)
+    return found
 
 
-def _matching_card(shot: dict, cards: list[dict]) -> dict | None:
-    labels = _shot_labels(shot)
+def _matching_cards(shot: dict, cards: list[dict]) -> list[dict]:
+    identities = _shot_identities(shot)
+    if not identities:
+        return []
+    matched = []
     for card in cards:
         name = str(card.get("name") or "").strip()
-        if not name:
+        if not name or _is_no_character(name):
             continue
-        for label in labels:
-            if name in label or label in name:
-                return card
-    return None
+        if _identity_tokens(name) & identities:
+            matched.append(card)
+    return matched
+
+
+def _shot_has_own_image(shot: dict) -> bool:
+    if shot.get("reference_images") or shot.get("refs"):
+        return True
+    return bool(image_ref_url(shot.get("image_url")) or image_ref_url(shot.get("reference_img")))
+
+
+def _extend_refs(dst: list, items: list) -> None:
+    seen = {json.dumps(item, sort_keys=True, ensure_ascii=False) if isinstance(item, (dict, list)) else str(item) for item in dst}
+    for item in items:
+        key = json.dumps(item, sort_keys=True, ensure_ascii=False) if isinstance(item, (dict, list)) else str(item)
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        dst.append(item)
 
 
 def apply_character_slots(payload: str | None, characters: str) -> str | None:
-    """Copy seed and reference fields from character cards onto shots that lack them."""
+    """Copy seed and reference fields from character cards onto shots that lack them.
+
+    A card matches a shot only when their character ids are the same string or
+    the same asset code. ``无`` does not match a longer name. Every matching
+    card contributes references. The seed is the first matching card, in
+    characters-input order, that has one.
+    """
     cards = character_cards(characters)
     if not payload or not cards:
         return payload
@@ -507,16 +556,22 @@ def apply_character_slots(payload: str | None, characters: str) -> str | None:
     for shot in shots:
         if not isinstance(shot, dict):
             continue
-        card = _matching_card(shot, cards)
-        if card is None:
+        matched = _matching_cards(shot, cards)
+        if not matched:
             continue
-        refs = card.get("reference_images") or []
-        if refs and not shot.get("reference_images") and not shot.get("refs"):
-            shot["reference_images"] = list(refs)
-            changed = True
-        if card.get("seed") is not None and shot_seed(shot) is None:
-            shot["seed"] = card["seed"]
-            changed = True
+        if not _shot_has_own_image(shot):
+            refs: list = []
+            for card in matched:
+                _extend_refs(refs, list(card.get("reference_images") or []))
+            if refs:
+                shot["reference_images"] = refs
+                changed = True
+        if shot_seed(shot) is None:
+            for card in matched:
+                if card.get("seed") is not None:
+                    shot["seed"] = card["seed"]
+                    changed = True
+                    break
     if not changed:
         return payload
     return json.dumps(doc, ensure_ascii=False)

@@ -1819,6 +1819,11 @@
       "motion_prompt": "视频运动提示词"
     },
     "regenerateFailed": "重新生成镜头失败",
+    "source": "来源",
+    "sourceAuto": "自动",
+    "sourceData": "使用数据",
+    "sourceLlm": "用 LLM 重写",
+    "sourceHint": "自动沿用 storyboard_data，不再调用 LLM。用 LLM 重写会按故事大纲重新生成。",
     "importJson": "导入 shots.json",
     "importFailed": "无法导入这份 JSON — 需要包含 shots 数组",
     "fields": "镜头字段",

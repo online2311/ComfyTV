@@ -15,6 +15,8 @@ from comfy_api.latest import io
 
 import ComfyTV.runners.media as media
 from ComfyTV.nodes.stages import director as dstage
+from ComfyTV.nodes.stages.common.storyboard import apply_character_slots
+from ComfyTV.nodes.stages.director import _apply_storyboard_slots
 
 
 def _doc(*shots: dict, **envelope) -> str:
@@ -366,3 +368,84 @@ async def test_director_clips_take_per_shot_slots_when_the_clip_has_none(
     assert calls[0]["upstream"]["images"] == ["/view?filename=lantern.png&type=input"]
     assert calls[1]["options"]["seed"] == 99
     assert calls[1]["upstream"]["images"] == ["/view?filename=own.png&type=input"]
+
+
+def _shaped_shot(**fields) -> str:
+    shot = {"shot_no": "1", "image_prompt": "door"}
+    shot.update(fields)
+    return json.dumps({"shots": [shot]}, ensure_ascii=False)
+
+
+def test_fullwidth_name_separator_keeps_the_image_before_an_ascii_colon():
+    raw = apply_character_slots(
+        _shaped_shot(character="林岳"),
+        "林岳： racer @https://example.com/lin.png seed=11",
+    )
+    shot = json.loads(raw)["shots"][0]
+    assert shot["reference_images"] == ["https://example.com/lin.png"]
+    assert shot["seed"] == 11
+
+
+def test_a_no_person_marker_does_not_inherit_a_longer_character_name():
+    raw = apply_character_slots(
+        _shaped_shot(character="无"),
+        "- 张无忌: @/view?filename=zhang.png&type=input seed=3",
+    )
+    shot = json.loads(raw)["shots"][0]
+    assert "reference_images" not in shot
+    assert "seed" not in shot
+
+
+def test_a_shorter_name_does_not_match_a_longer_character_id():
+    raw = apply_character_slots(
+        _shaped_shot(character="林岳_赛车手"),
+        "- 林: @/view?filename=lin.png&type=input seed=1",
+    )
+    shot = json.loads(raw)["shots"][0]
+    assert "reference_images" not in shot
+    assert "seed" not in shot
+
+
+def test_every_matching_character_contributes_refs_and_the_first_seed_wins():
+    raw = apply_character_slots(
+        _shaped_shot(characters=[{"name": "Alice"}, {"name": "Bob"}]),
+        json.dumps([
+            {"name": "Alice", "reference_images": ["/view?filename=a.png&type=input"], "seed": 1},
+            {"name": "Bob", "reference_images": ["/view?filename=b.png&type=input"], "seed": 2},
+        ]),
+    )
+    shot = json.loads(raw)["shots"][0]
+    assert shot["reference_images"] == [
+        "/view?filename=a.png&type=input",
+        "/view?filename=b.png&type=input",
+    ]
+    assert shot["seed"] == 1
+
+
+def test_a_shot_image_url_is_kept_ahead_of_a_character_card():
+    raw = apply_character_slots(
+        _shaped_shot(
+            character="林岳_赛车手",
+            image_url="/view?filename=own.png&type=input",
+        ),
+        "- 林岳_赛车手: @/view?filename=card.png&type=input seed=8",
+    )
+    shot = json.loads(raw)["shots"][0]
+    assert "reference_images" not in shot
+    assert shot["image_url"] == "/view?filename=own.png&type=input"
+    assert shot["seed"] == 8
+
+
+def test_a_disabled_clip_does_not_resolve_storyboard_references():
+    urls = [f"/view?filename={i}.png&type=input" for i in range(10)]
+    clips = [
+        {"id": "off", "enabled": False, "prompt": "skip"},
+        {"id": "on", "prompt": "keep"},
+    ]
+    _apply_storyboard_slots(clips, json.dumps({"shots": [
+        {"shot_no": "1", "reference_images": urls},
+        {"shot_no": "2", "seed": 5, "reference_images": ["/view?filename=keep.png&type=input"]},
+    ]}))
+    assert "images" not in clips[0]
+    assert clips[1]["images"] == ["/view?filename=keep.png&type=input"]
+    assert clips[1]["seed"] == 5
