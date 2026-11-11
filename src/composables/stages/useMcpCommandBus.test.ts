@@ -627,6 +627,32 @@ describe('installMcpCommandBus', () => {
     expect(detail.warnings?.[0]).toContain('@image_3')
   })
 
+  it('reports <Picture N> on video-stage image slots in pass order', async () => {
+    const node = makeNode({
+      id: 4,
+      comfyClass: 'ComfyTV.VideoStage',
+      properties: {
+        comfytv_stage_uid: 'u2',
+        comfytv_image_refs: [{ asset_id: 9, slot: 0 }],
+      },
+      widgets: [{ name: 'main_prompt', value: '' }, { name: 'seed', value: -1 }],
+      inputs: [{ name: 'images.image0', type: 'COMFYTV_IMAGE', link: 11 }],
+      outputs: [{ name: 'video', type: 'COMFYTV_VIDEO', links: [] }],
+      __comfytvStageApi: { state: { running: false } },
+    })
+    const src = makeNode()
+    const { host, deps, graph } = makeHost([src, node])
+    ;(graph as any).links = { 11: { origin_id: 3, target_id: 4 } }
+    uninstall = installMcpCommandBus(host, deps)
+    await dispatch(host, { id: 'c1', action: 'get_stage', node: 'u2' })
+    const [result] = postedResults()
+    expect(result.ok).toBe(true)
+    expect(result.result.media.image.map((row: any) => row.picture)).toEqual([
+      '<Picture 1>', '<Picture 2>',
+    ])
+    expect(result.result.widgets.seed).toBe(-1)
+  })
+
   it('remove_stage removes the node from the graph', async () => {
     const node = makeNode()
     const { host, deps, graph } = makeHost([node])
