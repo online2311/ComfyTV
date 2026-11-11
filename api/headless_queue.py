@@ -22,6 +22,7 @@ from .. import storage
 from ..nodes.stages import STAGE_META
 from .stages import NOT_RUNNABLE_VARIANTS
 from . import headless_graph as graph
+from .queue_state import queue_is_empty
 
 _log = logging.getLogger(__name__)
 
@@ -296,8 +297,9 @@ class ComfyQueueClient:
         )
 
     def busy(self) -> bool:
+        # Any prompt counts, including one submitted outside ComfyTV.
         running, pending = self.queue_ids()
-        return bool(running or pending)
+        return not queue_is_empty(running, pending)
 
     def history_for(self, prompt_id: str) -> dict | None:
         if not prompt_id:

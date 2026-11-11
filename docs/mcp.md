@@ -50,6 +50,7 @@ accordingly.
 | `outputs` | Render history per stage |
 | `assets` / `resources` / `entries` | Asset library, LUT/font/soundfont files, prompt snippets |
 | `jobs` / `exec_errors` / `servers` | Remote jobs, recent errors, machine list |
+| `executors` | GPU executor registry: register, update, drain, remove, list, get, and one-time join |
 | `node_info` | Search ComfyUI's installed node classes and inspect their inputs/outputs |
 | `skill` | List installed [Agent Skills](skills.md) and read their instructions — the tool's own description carries a live index of what's installed |
 
@@ -121,6 +122,8 @@ accordingly.
 **Binding a freshly linked workflow.** `workflow_get` shows the API graph's node inventory; `workflow_edit` binds stage values with sources like `option:seed`, `computed:width` / `computed:height` (sizing engine), `main_prompt`, `upstream_image:value[0]` or `literal:...`. If the workflow needs a parameter ComfyTV has no key for, create one with `stage_params` first and bind `option:<its key>`. `reset_to_preset` is your undo.
 
 **Multi-machine.** `servers` lists configured machines with live load; `set_stage {server: <id>}` routes a stage's runs there. Results land back on the local machine.
+
+**Executor registry.** `executors` is the controller's list of GPU hosts (a permanent DGX, or an ephemeral pod that joins with a one-time token). The token is configured on the controller and only its hash is stored. Boot-time join is `POST /comfytv/executors/join`; a `join_token` that shows up in a chat tool call is redacted before the transcript is saved. A host is `idle` only when its ComfyUI `/queue` running and pending lists are both empty, and `idle_since` marks when that started. `accepts_work` is false while the host is disabled, draining, not yet seen, unreachable, or already at `max_concurrency` (default 1). Dispatch itself is still the headless worker on the local process; a later scheduler will read `accepts_work` and `gpu_class`. These routes never call `/interrupt` or `/free`.
 
 **Two graph layers.** Stage tools (`add_stage`/`set_stage`/…) work at the ComfyTV product layer; the `graph_*` family edits the underlying native ComfyUI graph — any node from any plugin. Use stages when one exists for the job; drop to `graph_edit` + `graph_run` to build raw pipelines, and `canvas_focus` to show the user what you changed.
 

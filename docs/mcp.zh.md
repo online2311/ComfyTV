@@ -46,6 +46,7 @@ url = "http://127.0.0.1:8188/comfytv/mcp"
 | `outputs` | 各 stage 的渲染历史 |
 | `assets` / `resources` / `entries` | 资产库、LUT/字体/音色文件、提示词条目 |
 | `jobs` / `exec_errors` / `servers` | 远程任务、近期错误、机器列表 |
+| `executors` | GPU 执行器登记:注册、更新、排空、删除、列表、查询,以及一次性 join |
 | `node_info` | 搜索 ComfyUI 已装节点类并查看其输入/输出 |
 | `skill` | 列出已装的 [Agent Skills](skills.zh.md) 并读取其指令 — 工具自身的 description 内嵌一份实时技能索引 |
 
@@ -117,6 +118,8 @@ url = "http://127.0.0.1:8188/comfytv/mcp"
 **给新 link 的工作流配绑定。**`workflow_get` 看 API 图节点清单;`workflow_edit` 用 `option:seed`、`computed:width` / `computed:height`(尺寸引擎)、`main_prompt`、`upstream_image:value[0]`、`literal:...` 这些来源绑定。工作流需要 ComfyTV 没有默认键的参数时,先用 `stage_params` 建一个,再绑 `option:<它的 key>`。`reset_to_preset` 是后悔药。
 
 **多机。**`servers` 列出配置的机器和实时负载;`set_stage {server: <id>}` 把某节点的运行路由过去,结果落回本机。
+
+**执行器登记。**`executors` 是控制器上的 GPU 主机表(常驻 DGX,或用一次性 token 在启动时 join 的临时 pod)。token 配在控制器上,库里只留哈希。开机 join 走 `POST /comfytv/executors/join`;聊天工具调用里的 `join_token` 会在写入记录前被抹掉。只有 ComfyUI `/queue` 的 running 和 pending 都空,主机才是 `idle`,`idle_since` 记下这段空闲从何时开始。禁用、排空、还没探测到、不可达,或已达到 `max_concurrency`(默认 1)时,`accepts_work` 为 false。真正派发仍是本机无头队列;下一步的调度器会读 `accepts_work` 和 `gpu_class`。这些接口不调用 `/interrupt` 或 `/free`。
 
 **两层图。**stage 工具(`add_stage`/`set_stage`/…)工作在 ComfyTV 产品层;`graph_*` 家族直接编辑底下的原生 ComfyUI 图 — 任何插件的任何节点。有现成 stage 就用 stage;要搭裸管线就下到 `graph_edit` + `graph_run`,再用 `canvas_focus` 给用户看你改了哪。
 
