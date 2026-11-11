@@ -271,7 +271,8 @@
       "voice": "音色",
       "speed": "语速",
       "referenceText": "参考文本",
-      "variantCount": "变体数量"
+      "variantCount": "变体数量",
+      "seed": "种子"
     },
     "toolbar": {
       "hd": "高清",
@@ -508,6 +509,10 @@
       "enable-mcp": {
         "label": "启用 MCP 服务",
         "desc": "开放 ComfyTV 的 MCP 端点(/comfytv/mcp),允许 agent 读取并操作画布。默认关闭。"
+      },
+      "headless-auto-resume": {
+        "label": "启动时自动续跑无头队列",
+        "desc": "默认关闭。启动时无头队列会重新挂上仍在 ComfyUI 队列里的任务，并从 history 收回已完成的产出，但不会再次提交。打开后，ComfyUI 已无记录的任务也会重新排队。随时可用 resume_queue 手动续跑。"
       },
       "enable-bot": {
         "label": "启用 ComfyTV Bot",
@@ -1793,7 +1798,8 @@
     "clearRef": "清除参考图",
     "addRef": "添加参考图",
     "removeRef": "移除这张参考图",
-    "refsCount": "参考图 {n}/8",
+    "refsCount": "参考图 {n}/9",
+    "pictureSlot": "<Picture {n}>",
     "seed": "种子",
     "seedAuto": "跟随",
     "seedHint": "留空则使用阶段上的种子",
@@ -1812,7 +1818,16 @@
       "image_prompt": "分镜提示词",
       "motion_prompt": "视频运动提示词"
     },
-    "regenerateFailed": "重新生成镜头失败"
+    "regenerateFailed": "重新生成镜头失败",
+    "importJson": "导入 shots.json",
+    "importFailed": "无法导入这份 JSON — 需要包含 shots 数组",
+    "fields": "镜头字段",
+    "assetRefs": "资产引用",
+    "dialogueLines": "对白",
+    "speaker": "说话人",
+    "fieldKey": "字段",
+    "fieldValue": "值",
+    "removeField": "删除字段"
   },
   "storyboardEditor": {
     "boards": "画板",

@@ -271,7 +271,8 @@
       "voice": "Voice",
       "speed": "Speed",
       "referenceText": "Reference transcript",
-      "variantCount": "Variant count"
+      "variantCount": "Variant count",
+      "seed": "Seed"
     },
     "toolbar": {
       "hd": "HD",
@@ -508,6 +509,10 @@
       "enable-mcp": {
         "label": "Enable MCP server",
         "desc": "Expose the ComfyTV MCP endpoint (/comfytv/mcp) so agents can read and drive the canvas. Off by default."
+      },
+      "headless-auto-resume": {
+        "label": "Auto-resume headless queue on startup",
+        "desc": "Off by default. On startup the headless queue re-attaches to a prompt still in ComfyUI's queue and collects outputs from history, but it does not submit again. Turn this on to also re-queue a job ComfyUI has no record of. resume_queue always does that resubmit when you ask."
       },
       "enable-bot": {
         "label": "Enable ComfyTV Bot",
@@ -1793,7 +1798,8 @@
     "clearRef": "Clear reference",
     "addRef": "Add reference",
     "removeRef": "Remove this reference",
-    "refsCount": "{n}/8 refs",
+    "refsCount": "{n}/9 refs",
+    "pictureSlot": "<Picture {n}>",
     "seed": "Seed",
     "seedAuto": "stage",
     "seedHint": "Leave empty to use the stage seed",
@@ -1812,7 +1818,16 @@
       "image_prompt": "Image prompt",
       "motion_prompt": "Motion prompt"
     },
-    "regenerateFailed": "Regenerate shot failed"
+    "regenerateFailed": "Regenerate shot failed",
+    "importJson": "Import shots.json",
+    "importFailed": "Could not import that JSON — it needs a shots array",
+    "fields": "Shot fields",
+    "assetRefs": "Asset references",
+    "dialogueLines": "Dialogue",
+    "speaker": "Speaker",
+    "fieldKey": "Field",
+    "fieldValue": "Value",
+    "removeField": "Remove field"
   },
   "storyboardEditor": {
     "boards": "Boards",

@@ -82,8 +82,12 @@ Whether the **subgraph** also synthesizes audio. Optional for T2V/I2V/FLF2V. For
 ### texts / images / videos
 
 - **texts**: Text Stage or story context.
-- **images**: I2V = 1; FLF2V = 2 (start → end order).
+- **images**: up to **9** reference images. The order you pass them is `<Picture 1>`..`<Picture 9>` (`@image_1` is the same first image). LTX I2V uses 1, FLF2V uses 2 (start → end). A model that accepts fewer than 9 errors if you pass more — the extra images are not dropped. MiniMax H3 reference-to-video accepts all 9; its first/last-frame node accepts 2; Wan 2.7 video edit accepts 4 (ComfyUI v0.45.0).
 - **videos**: Some workflows accept motion refs (built-in LTX is image-first).
+
+### seed
+
+Generation seed on the stage itself. `-1` means “not set” (the workflow’s own default, often a fresh random seed). A seed that older projects stored under custom params is still applied, then saved on this field.
 
 ### audio
 
@@ -91,7 +95,7 @@ Whether the **subgraph** also synthesizes audio. Optional for T2V/I2V/FLF2V. For
 
 ### custom_params
 
-Sidebar: seed, negative prompt, etc.
+Sidebar extras such as a negative prompt. The seed is the **seed** field above, not a custom param.
 
 ## Outputs
 

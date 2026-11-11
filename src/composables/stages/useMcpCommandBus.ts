@@ -48,6 +48,8 @@ import {
   handleSceneEdit,
   handleSceneGet,
   handleSceneRecord,
+  handleStoryboardGet,
+  handleStoryboardSet,
 } from '@/composables/stages/mcpSubApiCommands'
 import { claimStageUid, getStageUid } from '@/composables/stages/stageIdentity'
 import { useAssetStore } from '@/stores/assetStore'
@@ -205,6 +207,9 @@ function mediaSummary(node: any, graph: any): Record<string, unknown[]> {
       const row: Record<string, unknown> = {
         position: i + 1, mention: `@${type}_${i + 1}`, source: e.src,
       }
+      if (type === 'image' && PICTURE_CLASSES.has(String(node?.comfyClass ?? ''))) {
+        row.picture = `<Picture ${i + 1}>`
+      }
       if (e.src === 'link') {
         const srcNode = mediaEntrySourceNode(node, e, graph)
         if (srcNode) row.from_node = String(srcNode.id)
@@ -223,6 +228,12 @@ function mediaSummary(node: any, graph: any): Record<string, unknown[]> {
   }
   return out
 }
+
+const PICTURE_CLASSES = new Set([
+  'ComfyTV.VideoStage',
+  'ComfyTV.DirectorStage',
+  'ComfyTV.ShotImagesStage',
+])
 
 const MENTION_TOKEN_RE = /@(image|video|audio)_(\d+)(?![0-9a-zA-Z_-])/g
 
@@ -419,8 +430,11 @@ function handleGetStage(app: any, cmd: any): CommandResult {
     let v = (w as any).value
     if (typeof v === 'function' || v === undefined) continue
     if (typeof v === 'string' && v.length > _WIDGET_VALUE_CAP) {
+      const note = name === 'storyboard_data'
+        ? ' Read the full document with the storyboard tool (action get).'
+        : ''
       v = v.slice(0, _WIDGET_VALUE_CAP)
-        + ` … [display truncated — full ${v.length}-char value is stored intact]`
+        + ` … [display truncated — full ${v.length}-char value is stored intact${note}]`
     }
     widgets[name] = v
   }
@@ -464,6 +478,7 @@ function handleGetStage(app: any, cmd: any): CommandResult {
 
 const UNDOABLE_ACTIONS = new Set([
   'add_stage', 'set_stage', 'remove_stage', 'connect_stages', 'arrange_canvas',
+  'storyboard_set',
 ])
 
 async function executeCommand(app: any, cmd: any): Promise<CommandResult> {
@@ -491,6 +506,8 @@ async function dispatchCommand(app: any, cmd: any): Promise<CommandResult> {
     case 'run_stage': return handleRunStage(app, cmd)
     case 'cancel_stage': return handleCancelStage(app, cmd)
     case 'get_stage': return handleGetStage(app, cmd)
+    case 'storyboard_get': return handleStoryboardGet(app, cmd)
+    case 'storyboard_set': return handleStoryboardSet(app, cmd)
     case 'arrange_canvas': return handleArrangeCanvas(app, cmd)
     case 'graph_get': return handleGraphGet(app)
     case 'graph_edit': return handleGraphEdit(app, cmd)

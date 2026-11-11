@@ -10,7 +10,7 @@
 
 ## 工作流需要包含
 
-- 一个文本节点,第 0 个输出是模型原文。StoryboardStage 会自己把前提包成 16 字段 ChatML,并解析回复。能解析的回复是 `镜号:` 字段表(半角或全角冒号),或 JSON 对象 `{"shots": [...]}`。
+- 一个文本节点,第 0 个输出是模型原文。StoryboardStage 会自己把前提包成 16 字段 ChatML,并解析回复。能解析的回复是 `镜号:` 字段表(半角或全角冒号)、JSON 对象 `{"shots": [...]}`，或短剧管线的 `shots.json`（这份文档原样保留，包括 16 字段以外的键）。
 - 提示词输入接 LLM 的 prompt 端。关掉模型自带的对话模板(`use_default_template=false`),避免把 stage 的 ChatML 再包一层。
 - 结果走 `graph_output_first` 取该节点的第 0 个输出。
 

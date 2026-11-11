@@ -339,7 +339,8 @@ class HeadlessQueue:
             self._task = loop.create_task(self._run())
 
     async def _run(self) -> None:
-        await self.recover()
+        # Re-attach or collect. Resubmit only when headless-auto-resume is on.
+        await self.recover(resubmit=None)
         while True:
             try:
                 async with self._lock:
@@ -356,34 +357,109 @@ class HeadlessQueue:
             await self._watch()
             await self._submit_one()
 
-    async def recover(self) -> list[str]:
-        async with self._lock:
-            return await self._recover()
+    async def recover(self, *, resubmit: bool | None = None) -> list[str]:
+        """Match running jobs to ComfyUI before any resubmit.
 
-    async def _recover(self) -> list[str]:
-        resumed: list[str] = []
-        for row in storage.list_headless_jobs(status="running", limit=200):
-            prompt_id = row.get("prompt_id") or ""
-            entry = None
-            try:
-                entry = self.client.history_for(prompt_id) if prompt_id else None
-            except Exception:
-                entry = None
+        ``resubmit`` None uses the headless-auto-resume setting (default off).
+        A prompt still in GET /queue is re-attached. One in GET /history is
+        collected. A prompt ComfyUI has no record of is resubmitted only when
+        ``resubmit`` is true.
+        """
+        if resubmit is None:
+            resubmit = auto_resume_enabled()
+        async with self._lock:
+            return await self._recover(resubmit=resubmit)
+
+    def _prompt_state(self, prompt_id: str) -> str:
+        """running, pending, history, absent, or unknown.
+
+        Queue is read before history, the same data as GET /queue and
+        GET /history/{prompt_id}. unknown means the read failed; the caller
+        must not submit another prompt.
+        """
+        if not prompt_id:
+            return "absent"
+        try:
+            running, pending = self.client.queue_ids()
+        except Exception:
+            _log.warning("[ComfyTV/headless] could not read ComfyUI queue")
+            return "unknown"
+        if prompt_id in running:
+            return "running"
+        if prompt_id in pending:
+            return "pending"
+        try:
+            entry = self.client.history_for(prompt_id)
+        except Exception:
+            _log.warning("[ComfyTV/headless] could not read ComfyUI history")
+            return "unknown"
+        if entry:
+            return "history"
+        return "absent"
+
+    def _reconcile_job(self, row: dict, *, resubmit: bool) -> str:
+        prompt_id = row.get("prompt_id") or ""
+        state = self._prompt_state(prompt_id)
+        if state == "unknown":
+            return "skipped"
+        if state in ("running", "pending"):
+            if row.get("status") != "running" or row.get("prompt_id") != prompt_id:
+                storage.update_headless_job(
+                    row["id"], status="running", prompt_id=prompt_id, error_text=None,
+                )
+            _log.info(
+                "[ComfyTV/headless] job %s still %s as prompt %s",
+                row["id"], state, prompt_id,
+            )
+            return "attached"
+        if state == "history":
+            entry = self.client.history_for(prompt_id)
             if entry:
                 self._finish_history(row, entry)
-                continue
-            try:
-                running, pending = self.client.queue_ids()
-            except Exception:
-                running, pending = [], []
-            if prompt_id and (prompt_id in running or prompt_id in pending):
-                continue
+            return "finished"
+        prompt = _loads(row.get("prompt_json"), {})
+        partial = _loads(row.get("partial_json"), None)
+        completed = _loads(row.get("completed_json"), {})
+        if not isinstance(completed, dict):
+            completed = {}
+        reduced, partial_left = apply_completed(prompt, completed, partial)
+        if not reduced or (partial_left is not None and len(partial_left) == 0):
+            self._nothing_left(row, completed)
+            return "finished"
+        if resubmit:
             self._requeue(row)
-            resumed.append(row["id"])
             _log.info(
-                "[ComfyTV/headless] requeued orphaned job %s (attempt %s)",
-                row["id"], (row.get("attempt") or 1) + 1,
+                "[ComfyTV/headless] ComfyUI has no record of prompt %s; "
+                "job %s queued again",
+                prompt_id or "(none)", row["id"],
             )
+            return "resubmitted"
+        storage.update_headless_job(
+            row["id"],
+            status="interrupted",
+            error_text=(
+                "ComfyUI has no record of this prompt. "
+                "Call resume_queue to submit the unfinished stages again."
+            ),
+        )
+        _log.info(
+            "[ComfyTV/headless] job %s interrupted; auto-resume is off",
+            row["id"],
+        )
+        return "interrupted"
+
+    async def _recover(self, *, resubmit: bool) -> list[str]:
+        resumed: list[str] = []
+        rows = storage.list_headless_jobs(status="running", limit=200)
+        if resubmit:
+            rows = rows + storage.list_headless_jobs(status="interrupted", limit=200)
+        seen: set[str] = set()
+        for row in rows:
+            if row["id"] in seen:
+                continue
+            seen.add(row["id"])
+            if self._reconcile_job(row, resubmit=resubmit) == "resubmitted":
+                resumed.append(row["id"])
         return resumed
 
     def _requeue(self, row: dict) -> None:
@@ -407,42 +483,32 @@ class HeadlessQueue:
     async def _watch(self) -> None:
         for row in storage.list_headless_jobs(status="running", limit=200):
             prompt_id = row.get("prompt_id") or ""
-            if not prompt_id:
-                self._requeue(row)
-                continue
-            try:
-                running, pending = self.client.queue_ids()
-            except Exception:
-                _log.warning("[ComfyTV/headless] could not read ComfyUI queue")
+            state = self._prompt_state(prompt_id)
+            if state == "unknown":
                 return
-            fresh = self._merge_completed(row, self.client.completed_for(prompt_id))
-            if fresh != _loads(row.get("completed_json"), {}):
-                storage.update_headless_job(
-                    row["id"], completed_json=json.dumps(fresh),
-                )
-                row = storage.get_headless_job(row["id"]) or row
-            progress = self.client.progress_for(prompt_id)
-            if progress:
-                storage.update_headless_job(
-                    row["id"], progress_json=json.dumps(progress),
-                )
-            if prompt_id in running or prompt_id in pending:
+            if state in ("running", "pending"):
                 self._absent.pop(row["id"], None)
+                fresh = self._merge_completed(row, self.client.completed_for(prompt_id))
+                if fresh != _loads(row.get("completed_json"), {}):
+                    storage.update_headless_job(
+                        row["id"], completed_json=json.dumps(fresh),
+                    )
+                progress = self.client.progress_for(prompt_id)
+                if progress:
+                    storage.update_headless_job(
+                        row["id"], progress_json=json.dumps(progress),
+                    )
                 continue
-            entry = self.client.history_for(prompt_id)
-            if entry:
+            if state == "history":
                 self._absent.pop(row["id"], None)
-                self._finish_history(row, entry)
+                entry = self.client.history_for(prompt_id)
+                if entry:
+                    self._finish_history(row, entry)
                 continue
             self._absent[row["id"]] = self._absent.get(row["id"], 0) + 1
             if self._absent[row["id"]] >= _ABSENT_POLLS:
                 self._absent.pop(row["id"], None)
-                self._requeue(row)
-                _log.info(
-                    "[ComfyTV/headless] prompt %s left the queue without history; "
-                    "job %s will resume",
-                    prompt_id, row["id"],
-                )
+                self._reconcile_job(row, resubmit=auto_resume_enabled())
 
     def _finish_history(self, row: dict, entry: dict) -> None:
         status = (entry.get("status") or {}).get("status_str")
@@ -580,6 +646,14 @@ def get_queue() -> HeadlessQueue:
 def set_queue(queue: HeadlessQueue | None) -> None:
     global _QUEUE
     _QUEUE = queue
+
+
+def auto_resume_enabled() -> bool:
+    """True only when the headless-auto-resume setting is on. Default is off."""
+    try:
+        return bool(storage.get_setting("headless-auto-resume"))
+    except Exception:
+        return False
 
 
 def reset_for_tests() -> None:
@@ -742,7 +816,9 @@ async def queue_status(args: dict) -> dict:
 
 async def list_queue(args: dict) -> dict:
     status = args.get("status")
-    if status and status not in ("queued", "running", "done", "error", "cancelled"):
+    if status and status not in (
+        "queued", "running", "done", "error", "cancelled", "interrupted",
+    ):
         raise ValueError(f"unknown status {status!r}")
     try:
         limit = int(args.get("limit", 50))
@@ -758,6 +834,7 @@ async def list_queue(args: dict) -> dict:
 
 
 async def resume_queue(args: dict) -> dict:
+    """Reconcile against ComfyUI, then resubmit only prompts it has no record of."""
     job_id = str(args.get("job_id") or "")
     queue = get_queue()
     if job_id:
@@ -765,14 +842,27 @@ async def resume_queue(args: dict) -> dict:
         if row is None:
             raise ValueError(f"job {job_id!r} not found")
         if row["status"] == "error":
-            storage.update_headless_job(
-                row["id"], status="queued", clear_prompt_id=True, error_text=None,
-            )
-        resumed = await queue.recover()
+            state = queue._prompt_state(row.get("prompt_id") or "")
+            if state == "unknown":
+                raise ValueError(
+                    "could not read ComfyUI's queue or history; not submitting again"
+                )
+            if state in ("running", "pending"):
+                queue._reconcile_job(row, resubmit=False)
+            elif state == "history":
+                entry = queue.client.history_for(row.get("prompt_id") or "")
+                status = ((entry or {}).get("status") or {}).get("status_str")
+                if status == "error":
+                    queue._requeue(row)
+                else:
+                    queue._reconcile_job(row, resubmit=False)
+            else:
+                queue._requeue(row)
+        resumed = await queue.recover(resubmit=True)
         queue.ensure_started()
         fresh = storage.get_headless_job(row["id"]) or row
         return {"resumed": resumed, "job": public_job(fresh)}
-    resumed = await queue.recover()
+    resumed = await queue.recover(resubmit=True)
     queue.ensure_started()
     jobs = []
     for jid in resumed:

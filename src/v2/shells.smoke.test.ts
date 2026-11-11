@@ -247,12 +247,13 @@ const SHELL_META: Record<string, Meta> = {
 
 const EXTRA_WIDGETS: Record<string, Array<[string, string]>> = {
   'ComfyTV.ImageStage': [['resolution', 'combo'], ['aspect_ratio', 'combo'], ['batch_size', 'number'], ['selected_index', 'number']],
-  'ComfyTV.ShotImagesStage': [['selected_index', 'number']],
+  'ComfyTV.ShotImagesStage': [['selected_index', 'number'], ['seed', 'number']],
   'ComfyTV.ImageVariationsStage': [['variant_count', 'number'], ['selected_index', 'number']],
   'ComfyTV.ImagePickerStage': [['selected_index', 'number'], ['pool', 'string']],
   'ComfyTV.VideoPickerStage': [['selected_index', 'number'], ['pool', 'string']],
   'ComfyTV.AudioPickerStage': [['selected_index', 'number'], ['pool', 'string']],
-  'ComfyTV.VideoStage': [['resolution', 'combo'], ['aspect_ratio', 'combo'], ['duration_s', 'number'], ['generate_audio', 'toggle']],
+  'ComfyTV.VideoStage': [['resolution', 'combo'], ['aspect_ratio', 'combo'], ['duration_s', 'number'], ['generate_audio', 'toggle'], ['seed', 'number']],
+
   'ComfyTV.DirectorStage': [['resolution', 'combo'], ['aspect_ratio', 'combo'], ['generate_audio', 'toggle']],
   'ComfyTV.AudioStage': [['lyrics', 'customtext'], ['duration_s', 'number'], ['bpm', 'number'], ['timesignature', 'combo'], ['keyscale', 'combo'], ['language', 'combo']],
   'ComfyTV.SpeechStage': [['voice', 'string'], ['language', 'combo'], ['speed', 'number'], ['reference_text', 'customtext']],

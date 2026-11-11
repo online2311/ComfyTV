@@ -45,6 +45,7 @@ const PARENT: Record<string, string> = {
   'v2-lod-fill': 'enable-v2',
   'enable-bot': 'enable-mcp',
   'enable-skills': 'enable-mcp',
+  'headless-auto-resume': 'enable-mcp',
   'bot-comfy-mcp-command': 'bot-enable-comfy-mcp',
   'bot-model-local-llm': 'bot-local-llm-url',
 }
@@ -59,7 +60,7 @@ const PROBES: Record<string, () => Promise<boolean>> = {
 
 export function sectionOf(key: string): string {
   if (key === 'enable-db-backup' || key.startsWith('db-backup-')) return 'backup'
-  if (AGENT_TOGGLE_KEYS.has(key) || key === 'enable-skills' || key.startsWith('bot-')) return 'agent'
+  if (AGENT_TOGGLE_KEYS.has(key) || key === 'enable-skills' || key === 'headless-auto-resume' || key.startsWith('bot-')) return 'agent'
   if (key === 'enable-eagle' || key.startsWith('eagle-')) return 'eagle'
   if (key.startsWith('blender-')) return 'blender'
   if (key === 'enable-collab') return 'collab'

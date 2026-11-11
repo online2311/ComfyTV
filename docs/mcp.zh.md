@@ -2,7 +2,7 @@
 
 # Agent 接入(MCP)
 
-> ComfyTV 内置 MCP 服务,让 AI agent 读取并驱动你的画布:搭建节点图、跑渲染、阻塞等待、用真视觉检查结果、编辑原生 ComfyUI 图、管理工作流配置 — 共 45 个工具,外加把已装的 [Agent Skills](skills.zh.md) 作为 MCP prompts 提供。
+> ComfyTV 内置 MCP 服务,让 AI agent 读取并驱动你的画布:搭建节点图、跑渲染、阻塞等待、用真视觉检查结果、编辑原生 ComfyUI 图、管理工作流配置 — 共 46 个工具,外加把已装的 [Agent Skills](skills.zh.md) 作为 MCP prompts 提供。
 
 ## 是什么
 
@@ -59,7 +59,7 @@ url = "http://127.0.0.1:8188/comfytv/mcp"
 | `wait_stage` | 阻塞等到出结果或报错。无页面时改等无头任务 |
 | `queue_status` | 查一个无头任务的状态、进度和 `/view` 产出,不阻塞 |
 | `list_queue` | 列出无头队列(不是远程机器的 `jobs`) |
-| `resume_queue` | 重启后重排未完成的无头任务,已有产出的 stage 不再重跑 |
+| `resume_queue` | 先查 `/queue` 和 `/history/{prompt_id}`，只有 ComfyUI 完全没有这条 prompt 的记录时才重新提交。启动时默认不自动续跑（`headless-auto-resume` 默认关） |
 | `cancel_stage` | 有页面时停止该次运行。无页面时只丢掉还没提交的任务;已经在 ComfyUI 队列里的不中断 |
 | `remove_stage` | 删节点 |
 | `arrange_canvas` | 整理画布布局(行/列/网格) |
@@ -94,6 +94,7 @@ url = "http://127.0.0.1:8188/comfytv/mcp"
 | `workflow_get` / `workflow_edit` | 读工作流的输入绑定与节点清单;绑定/解绑 stage 值到工作流输入,按真实图校验 |
 | `stage_params` | 定义自定义参数,再以 `option:<key>` 绑定 |
 | `asset_edit` | 把产出存入资产库、改名、归类 |
+| `series_library` | 读写系列目录里的 `library.yaml`（稳定代号 `ID@vN#view`、锁定、新版本、解析到文件、JSON manifest 导入） |
 
 **富编辑器**
 
@@ -101,6 +102,7 @@ url = "http://127.0.0.1:8188/comfytv/mcp"
 |---|---|
 | `scene_get/edit/capture/record` | 驱动 Scene 3D:角色、灯光、相机、动画 clip、相机路径与多镜导演时间轴(add_shot/patch_shot/set_path) |
 | `director_get/director_edit` | 读写导演台 clip 时间线 |
+| `storyboard` | 读取、替换或校验分镜阶段的完整镜头文档（`shots.json` 字段和自定义键）。`get_stage` 对很长的 `storyboard_data` 只给预览 |
 
 ## 关键套路
 
@@ -128,11 +130,11 @@ url = "http://127.0.0.1:8188/comfytv/mcp"
 2. `run_stage` 和 `graph_run` 写入 `comfytv_headless_jobs` 并立刻返回 `{job_id, status: "queued"}`。`graph_run` 可直接传要 POST 给 `/prompt` 的 API 图。
 3. 工作线程**一次只提交一个**任务到 ComfyUI 进程内的 prompt 队列(和 `GET /queue` 是同一份),而且仅当该队列里既没有 running 也没有 pending。这条路径不调用 `/interrupt` 或 `/free`。
 4. 用 `queue_status` / `list_queue` 看 `queued` / `running` / `done` / `error`、进度和产出。不要靠固定超时干等。
-5. 任务状态落在 sqlite 里。进程重启后,若任务曾是 `running` 但已经不在 ComfyUI 队列和 history 里,会重新排队。已经存下产出的 stage 会从再次提交的 prompt 里拿掉,下游输入改接到那份产出,所以做完的 stage 不会重跑。`resume_queue` 可以手动触发;对 `error` 任务传入 `job_id` 会再排队。
+5. 任务状态落在 sqlite 里。启动时先查 `GET /queue`（running 和 pending）和 `GET /history/{prompt_id}`。还在队列里的重新挂上并继续等；已经在 history 里的收回产出，不再提交。ComfyUI 完全没有记录时**不会**自动再提交，除非调用 `resume_queue`，或打开设置 `headless-auto-resume`（默认关）。再次提交时会丢掉已经存下产出的 stage，下游输入改接到那份产出。对 `error` 任务传入 `job_id` 会在同样的检查之后再排队。
 
 新表由现有的启动 `create_all` 建出。这条路径不另开监听端口。
 
-在 ComfyUI v0.45.0(commit `989d93d`)上、不打开浏览器验证:MCP 开着、不要打开 ComfyTV 页面; `server_info` 里 `write_tools_need_open_tab` 为 false; `graph_run` 传一个小 API `prompt`,应立刻得到 `job_id`; `GET /queue` 里来自 ComfyTV 的任务同时不超过一个;第二个 `graph_run` 在 `list_queue` 里保持 `queued`,直到第一个离开 `/queue`;长任务用 `queue_status` 等到 `done`。中途重启后 `resume_queue` 只补未完成的 stage。
+在 ComfyUI v0.45.0(commit `989d93d`)上、不打开浏览器验证:MCP 开着、不要打开 ComfyTV 页面; `server_info` 里 `write_tools_need_open_tab` 为 false; `graph_run` 传一个小 API `prompt`,应立刻得到 `job_id`; `GET /queue` 里来自 ComfyTV 的任务同时不超过一个;第二个 `graph_run` 在 `list_queue` 里保持 `queued`,直到第一个离开 `/queue`;长任务用 `queue_status` 等到 `done`。中途重启后任务变为 `interrupted`（自动续跑默认关）。`resume_queue` 只有在 `/queue` 和 `/history/{prompt_id}` 都没有这条 prompt 时才补交未完成的 stage；若 prompt 仍在跑，则只重新挂上，不再提交第二条。
 
 ## 前置条件与行为说明
 

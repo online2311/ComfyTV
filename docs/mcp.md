@@ -8,7 +8,7 @@
 
 ComfyTV exposes a [Model Context Protocol](https://modelcontextprotocol.io) endpoint at `POST /comfytv/mcp` on your ComfyUI server. Any MCP-capable agent (Claude Code, or anything speaking streamable HTTP JSON-RPC) can connect and use ComfyTV as a set of tools.
 
-When a ComfyTV page is open and mirroring, that page is still the live canvas: write tools are relayed to it over the websocket, exactly as before. **With no page open, stage and graph writes are applied on the server** to a persisted headless graph, and `run_stage` / `graph_run` queue work on ComfyUI's own prompt queue. They return a job id immediately instead of waiting out a browser timeout. Scene, director, and layer editors, and viewport commands, still need a page.
+When a ComfyTV page is open and mirroring, that page is still the live canvas: write tools are relayed to it over the websocket, exactly as before. **With no page open, stage and graph writes are applied on the server** to a persisted headless graph, and `run_stage` / `graph_run` queue work on ComfyUI's own prompt queue. They return a job id immediately instead of waiting out a browser timeout. `series_library` only reads and writes `library.yaml` on disk. `storyboard` `validate` is server-side; `get` and `set` use the headless graph's `storyboard_data` widget when no page is open. Scene, director, and layer editors, and viewport commands, still need a page.
 
 ## Enabling
 
@@ -63,7 +63,7 @@ accordingly.
 | `wait_stage` | Block until the run lands an output or errors — no polling. Also polls a headless job |
 | `queue_status` | Status, progress, and `/view` outputs of one headless job. Does not block |
 | `list_queue` | Headless jobs (queued, running, done, error). Not the remote-machine `jobs` tool |
-| `resume_queue` | After a restart, requeue unfinished headless jobs and skip stages that already saved an output |
+| `resume_queue` | After checking `/queue` and `/history/{prompt_id}`, requeue a job ComfyUI has no record of. Startup does not do this unless `headless-auto-resume` is on (default off) |
 | `cancel_stage` | Stop an in-flight page run. Headless: drop a job that has not been submitted; a prompt already in ComfyUI is left running |
 | `remove_stage` | Delete a node |
 | `arrange_canvas` | Tidy the canvas layout (rows, columns, grids) |
@@ -98,6 +98,7 @@ accordingly.
 | `workflow_get` / `workflow_edit` | Read a workflow's input bindings and node inventory; bind/unbind stage values to workflow inputs, validated against the real graph |
 | `stage_params` | Define custom stage parameters, then bind them as `option:<key>` |
 | `asset_edit` | Save outputs into the asset library, rename, categorize |
+| `series_library` | Read and update a series folder's `library.yaml` (stable `ID@vN#view` codes, lock, new version, resolve, JSON manifest import) |
 
 **Rich editors**
 
@@ -105,6 +106,7 @@ accordingly.
 |---|---|
 | `scene_get/edit/capture/record` | Drive a Scene 3D stage: characters, lights, cameras, animation clips, camera paths and the multi-shot director timeline (add_shot/patch_shot/set_path) |
 | `director_get/director_edit` | Read and edit the Director clip timeline |
+| `storyboard` | Read, replace, or validate a Storyboard stage's full shot document (`shots.json` fields and custom keys). `get_stage` only previews a large `storyboard_data` value |
 
 ## Patterns that matter
 
@@ -112,7 +114,7 @@ accordingly.
 
 **Waiting without polling.** `wait_stage` blocks server-side (default 25 s per call, max 170 s) and returns the new output the second it lands. On timeout it returns `after_output_id` — call again with it to keep waiting. Total wait is unbounded; long renders just take a few re-calls.
 
-**Mentions are 1-based positions.** Every stage keeps one ordered media list per type — wired inputs and `asset_refs` together, in the order `get_stage` reports under `media`. Prompt tokens like `@image_1` / `@video_1` address that list by position (`@image_1` is the first image). Removing or reordering media renumbers the tokens in the stage's prompt for you; `set_stage` `media_order` reorders a list, and `connect_stages` reports the position of the connection it made. Out-of-range tokens expand to nothing — and the tools warn you when that happens.
+**Mentions are 1-based positions.** Every stage keeps one ordered media list per type — wired inputs and `asset_refs` together, in the order `get_stage` reports under `media`. Prompt tokens like `@image_1` / `@video_1` address that list by position (`@image_1` is the first image). On `VideoStage`, `DirectorStage` and `ShotImagesStage` that same image order is `<Picture 1>`..`<Picture 9>`: `get_stage` adds `picture` on each image entry, and a video workflow that accepts fewer than 9 images errors instead of dropping the extras. `VideoStage` and `ShotImagesStage` store the seed on the `seed` widget (`widgets.seed`; `-1` means unset). A seed still sitting in `custom_params` is read once and written onto that widget. Removing or reordering media renumbers the tokens in the stage's prompt for you; `set_stage` `media_order` reorders a list, and `connect_stages` reports the position of the connection it made. Out-of-range tokens expand to nothing — and the tools warn you when that happens.
 
 **Real vision.** `view_image` is the only tool that returns pixels. For video QC: `media_frame` to pull a frame, then `view_image` to actually look at it. Never judge an image by its filename.
 
@@ -132,7 +134,7 @@ With no ComfyTV page open:
 2. `run_stage` and `graph_run` insert a row in `comfytv_headless_jobs` and return `{job_id, status: "queued"}` without waiting. `graph_run` accepts an API-format `prompt` (what you would POST to `/prompt`) or a UI-format `workflow`. Omit both to run the stored graph.
 3. A worker submits **one** job to ComfyUI's in-process prompt queue — the same queue `GET /queue` reads — and only when that queue has nothing running and nothing pending. ComfyTV never calls `/interrupt` or `/free`.
 4. Poll `queue_status` (or `list_queue`) for `queued` / `running` / `done` / `error`, plus `progress` and `outputs`. There is no fixed timeout to wait out.
-5. Jobs survive a process restart. On the next queue start, a job that was `running` but is gone from both the ComfyUI queue and its history is queued again. Stages whose outputs were saved are removed from the resubmitted prompt and downstream inputs are rewired to those outputs, so finished stages are not run again. `resume_queue` does this on demand; an `error` job is queued again when you pass its `job_id`.
+5. Jobs survive a process restart. Startup checks `GET /queue` (running and pending) and `GET /history/{prompt_id}` before doing anything else. A prompt still in the queue is re-attached and watched. A prompt already in history has its outputs collected and is not submitted again. A prompt ComfyUI has no record of is **not** submitted again unless you call `resume_queue` or turn on the `headless-auto-resume` setting (default off). That resubmit drops stages whose outputs were already saved and rewires downstream inputs to those outputs. Passing an `error` job id to `resume_queue` queues that job again only after the same queue and history check.
 
 The new tables are created by the existing startup `create_all`. Nothing in this path binds a port; ComfyUI stays on `127.0.0.1`.
 
@@ -143,7 +145,7 @@ The new tables are created by the existing startup `create_all`. Nothing in this
 3. `graph_run` with a small API `prompt` (or `run_stage` after `add_stage`). The call returns a `job_id` at once.
 4. `GET http://127.0.0.1:8188/queue` shows at most one ComfyTV prompt. A second `graph_run` stays `queued` in `list_queue` until the first leaves `/queue`.
 5. `queue_status` with that `job_id` moves to `done` and lists `/view` URLs, including for a run longer than a few minutes (no client timeout to extend).
-6. Restart ComfyUI while a multi-stage job is unfinished. After it is back, `resume_queue` (or the worker's own startup) resubmits only the stages that did not save an output.
+6. Restart ComfyUI while a job is unfinished. After it is back, `queue_status` shows `interrupted` (`headless-auto-resume` is off). `resume_queue` resubmits only when `/queue` and `/history/{prompt_id}` have no record of that prompt, and only the stages that did not save an output. A prompt still running stays attached and nothing new is submitted.
 
 ## Requirements and behavior notes
 

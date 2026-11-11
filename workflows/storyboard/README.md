@@ -10,7 +10,7 @@ Workflows in this folder appear in the **Storyboard** dropdown. Take a story / p
 
 ## What your workflow needs
 
-- A text node whose slot 0 is the raw model string. StoryboardStage already wraps the premise in the 16-field ChatML prompt and parses the reply. Accepted replies are the `镜号:` field list (ASCII or fullwidth colon) or a JSON object `{"shots": [...]}`.
+- A text node whose slot 0 is the raw model string. StoryboardStage already wraps the premise in the 16-field ChatML prompt and parses the reply. Accepted replies are the `镜号:` field list (ASCII or fullwidth colon), a JSON object `{"shots": [...]}`, or a drama-pipeline `shots.json` (that document is kept as-is, including keys outside the 16 columns).
 - The prompt input wired to the LLM's prompt port. Turn the model's own chat template off (`use_default_template=false`) so the stage's ChatML is not wrapped a second time.
 - Result type `graph_output_first` pointing at that node's slot 0.
 

@@ -120,7 +120,7 @@ ComfyTV 天生就是给 AI agent 和人一起用的。三块能力,都在**设�
 
 **ComfyTV Bot** —— 内嵌在侧边栏的聊天代理（✨）。说出你要什么,它就搭节点、跑工作流、等渲染、用真视觉看结果并迭代。驱动的是你本机已装的 agent CLI——**Claude Code、Codex、Qwen Code**——或任何 OpenAI 兼容的**本地 LLM 服务**;绝不存任何 API key。支持图/视频/音频附件、按 provider 选模型、对话持久化。[指南 →](docs/bot.zh.md)
 
-**MCP 服务** —— 内置的 [MCP](https://modelcontextprotocol.io) 端点 `/comfytv/mcp`,共 **45 个工具**：读实时画布、建/跑/等 stage、亲眼检查结果（`view_image` 返回真像素）、编辑**原生 ComfyUI 图**（`graph_edit` / `graph_run`——任何插件的任何节点）、管理工作流绑定。跑在 ComfyUI 服务进程里,零额外安装：
+**MCP 服务** —— 内置的 [MCP](https://modelcontextprotocol.io) 端点 `/comfytv/mcp`,共 **46 个工具**：读实时画布、建/跑/等 stage、亲眼检查结果（`view_image` 返回真像素）、编辑**原生 ComfyUI 图**（`graph_edit` / `graph_run`——任何插件的任何节点）、管理工作流绑定。跑在 ComfyUI 服务进程里,零额外安装：
 
 ```
 claude mcp add --transport http comfytv http://127.0.0.1:8188/comfytv/mcp

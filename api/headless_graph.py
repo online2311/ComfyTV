@@ -8,12 +8,14 @@ it to the API prompt ComfyUI's queue accepts.
 from __future__ import annotations
 
 import copy
+import json
 import logging
 import math
 import uuid
 
 from .. import storage
 from ..nodes.stages import STAGE_META
+from ..nodes.stages.common.shot_document import load_shots_document
 
 _log = logging.getLogger(__name__)
 
@@ -829,6 +831,71 @@ def adopt_workflow(project_id: str, workflow: dict) -> dict:
     doc = normalize_document(workflow)
     save_document(project_id, doc)
     return doc
+
+
+def _storyboard_document(node: dict) -> dict:
+    raw = (node.get("widgets") or {}).get("storyboard_data")
+    if isinstance(raw, dict):
+        document = raw
+    elif not raw:
+        document = {"shots": []}
+    else:
+        try:
+            document = json.loads(raw)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("storyboard_data is not valid JSON") from exc
+    if not isinstance(document, dict) or not isinstance(document.get("shots"), list):
+        raise ValueError("storyboard_data is not a shot document")
+    return document
+
+
+def _require_storyboard(doc: dict, ref) -> dict:
+    node = _require(doc, ref, "stage")
+    type_name = str(node.get("type") or "")
+    if type_name not in ("ComfyTV.StoryboardStage", "StoryboardStage"):
+        raise ValueError(
+            f"stage {ref!r} is {type_name or 'unknown'}, not a StoryboardStage"
+        )
+    return node
+
+
+def storyboard_get(payload: dict) -> dict:
+    project_id = project_id_of(payload)
+    doc = load_document(project_id)
+    node = _require_storyboard(doc, payload.get("node"))
+    document = _storyboard_document(node)
+    shots = document.get("shots") or []
+    return {
+        "document": document,
+        "shots": len(shots),
+        "episode": document.get("episode"),
+        "series": document.get("series"),
+        "graph_node_id": str(node["id"]),
+        "headless": True,
+    }
+
+
+def storyboard_set(payload: dict) -> dict:
+    project_id = project_id_of(payload)
+    doc = load_document(project_id)
+    node = _require_storyboard(doc, payload.get("node"))
+    try:
+        document = load_shots_document(payload.get("document"))
+    except ValueError as exc:
+        raise ValueError(str(exc)) from exc
+    node.setdefault("widgets", {})["storyboard_data"] = json.dumps(
+        document, ensure_ascii=False,
+    )
+    save_document(project_id, doc)
+    shots = document.get("shots") or []
+    return {
+        "ok": True,
+        "shots": len(shots),
+        "episode": document.get("episode"),
+        "series": document.get("series"),
+        "graph_node_id": str(node["id"]),
+        "headless": True,
+    }
 
 
 def local_server_or_raise(node: dict) -> None:

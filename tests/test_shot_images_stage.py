@@ -53,12 +53,50 @@ async def test_one_image_per_shot_shares_refs_and_stage_seed(shot_stage):
     )
     assert [c["main_prompt"] for c in calls] == ["wide", "close"]
     assert all(c["upstream"]["images"] == refs for c in calls)
-    assert all(c["custom_params"] == custom for c in calls)
-    assert all("seed" not in c["options"] for c in calls)
+    assert all(c["options"]["seed"] == 7 for c in calls)
+    assert all(
+        json.loads(c["custom_params"])["items"] == [] for c in calls
+    )
     assert all(c["options"]["batch_size"] == 1 for c in calls)
     payload = json.loads(out.values[0])
     assert [img["index"] for img in payload["images"]] == ["1", "2"]
     assert out.values[1].endswith("close.png&type=output")
+
+
+async def test_production_shot_uses_h3_image_and_leaves_asset_codes_alone(shot_stage):
+    g, calls = shot_stage
+    storyboard = json.dumps({
+        "episode": "E01",
+        "shots": [{
+            "shot_id": "E01S01_01",
+            "duration_s": 6,
+            "prompts": {"h3_image": "the chamber", "krea2": "krea text"},
+            "refs": [{"role": "character", "src": "CHR_yangguo@v1#front"}],
+            "extras": 0,
+            "custom_note": "keep",
+        }],
+    })
+    out = await g.ShotImagesStage.execute(
+        workflow="Flux",
+        storyboard=storyboard,
+        images=["/view?filename=shared.png&type=input"],
+    )
+    assert calls[0]["main_prompt"] == "the chamber"
+    assert calls[0]["upstream"]["images"] == ["/view?filename=shared.png&type=input"]
+    assert "CHR_yangguo" not in json.dumps(calls[0]["upstream"])
+    assert json.loads(out.values[0])["images"][0]["index"] == "E01S01_01"
+
+
+async def test_krea2_prompt_is_used_when_h3_image_is_absent(shot_stage):
+    g, calls = shot_stage
+    await g.ShotImagesStage.execute(
+        workflow="Flux",
+        storyboard=_storyboard({
+            "shot_id": "E01S01_02",
+            "prompts": {"krea2": "still of the door"},
+        }),
+    )
+    assert calls[0]["main_prompt"] == "still of the door"
 
 
 async def test_empty_storyboard_names_the_missing_shots(shot_stage):
@@ -204,23 +242,43 @@ async def test_per_shot_refs_and_seed_override_the_shared_values(shot_stage):
         "https://example.com/room.png",
     ]
     assert calls[0]["options"]["seed"] == 11
+    assert calls[0]["main_prompt"] == "own"
     assert calls[1]["upstream"]["images"] == ["/view?filename=only.png&type=input"]
-    assert "seed" not in calls[1]["options"]
+    assert calls[1]["options"]["seed"] == 7
     assert calls[2]["upstream"]["images"] == shared
     assert calls[3]["upstream"]["images"] == shared
-    assert "seed" not in calls[3]["options"]
+    assert calls[3]["options"]["seed"] == 7
+    written = json.loads(calls[0]["custom_params"])["items"]
+    assert written == []
     assert calls[3]["custom_params"] == calls[0]["custom_params"]
 
 
-async def test_refs_objects_are_capped_at_eight(shot_stage):
+@pytest.mark.parametrize("count", [1, 3, 9])
+async def test_per_shot_refs_keep_picture_order(shot_stage, count):
     g, calls = shot_stage
-    refs = [{"image_url": f"/view?filename={i}.png&type=input"} for i in range(10)]
+    refs = [f"/view?filename={i}.png&type=input" for i in range(1, count + 1)]
+    prompt = " ".join(f"@image_{i}" for i in range(1, count + 1))
     await g.ShotImagesStage.execute(
         workflow="Flux",
-        storyboard=_storyboard({"shot_no": "1", "prompt": "many", "refs": refs}),
+        storyboard=_storyboard({
+            "shot_no": "1", "prompt": prompt, "reference_images": refs, "seed": 4,
+        }),
     )
-    assert len(calls[0]["upstream"]["images"]) == 8
-    assert calls[0]["upstream"]["images"][0].endswith("0.png&type=input")
+    assert calls[0]["upstream"]["images"] == refs
+    assert calls[0]["main_prompt"] == " ".join(f"<Picture {i}>" for i in range(1, count + 1))
+    assert calls[0]["options"]["seed"] == 4
+
+
+async def test_a_tenth_shot_ref_is_an_error(shot_stage):
+    g, calls = shot_stage
+    refs = [{"image_url": f"/view?filename={i}.png&type=input"} for i in range(10)]
+    with pytest.raises(RuntimeError, match="9") as raised:
+        await g.ShotImagesStage.execute(
+            workflow="Flux",
+            storyboard=_storyboard({"shot_no": "1", "prompt": "many", "refs": refs}),
+        )
+    assert "not dropped" in str(raised.value)
+    assert calls == []
 
 
 async def test_missing_workflow_is_a_runner_error(monkeypatch, reset_db):

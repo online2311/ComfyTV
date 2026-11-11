@@ -326,7 +326,7 @@ class TestResume:
         )
         restarted = HeadlessQueue(client=FakeComfy(), autostart=False)
         set_queue(restarted)
-        resumed = await restarted.recover()
+        resumed = await restarted.recover(resubmit=True)
         assert resumed == [row["id"]]
         fresh = storage.get_headless_job(row["id"])
         assert fresh["status"] == "queued"
@@ -392,6 +392,122 @@ class TestResume:
         assert out["job"]["status"] == "queued"
         await headless["queue"].tick()
         assert len(headless["comfy"].submitted) == 2
+
+
+class TestRestartRecord:
+    async def _lost(self, headless, prompt_id, prompt=None, partial=None):
+        from ComfyTV import storage
+        row = storage.create_headless_job(
+            project_id="default",
+            kind="graph",
+            prompt=prompt or PROMPT,
+            partial=partial,
+        )
+        storage.update_headless_job(row["id"], status="running", prompt_id=prompt_id)
+        return row
+
+    async def test_still_running_reattaches_and_does_not_submit(self, headless):
+        from ComfyTV import storage
+        headless["comfy"].running.append("still-running")
+        headless["comfy"].history["still-running"] = SUCCESS
+        row = await self._lost(headless, "still-running")
+        resumed = await headless["queue"].recover()
+        assert resumed == []
+        fresh = storage.get_headless_job(row["id"])
+        assert fresh["status"] == "running"
+        assert fresh["prompt_id"] == "still-running"
+        await headless["queue"].tick()
+        assert headless["comfy"].submitted == []
+
+    async def test_still_pending_reattaches_and_blocks_other_submits(self, headless):
+        from ComfyTV import storage
+        from ComfyTV.api.mcp_tools import _graph_run
+        headless["comfy"].pending.append("still-pending")
+        row = await self._lost(headless, "still-pending")
+        await headless["queue"].recover()
+        assert storage.get_headless_job(row["id"])["status"] == "running"
+        assert storage.get_headless_job(row["id"])["prompt_id"] == "still-pending"
+        await _graph_run({"prompt": PROMPT})
+        await headless["queue"].tick()
+        assert headless["comfy"].submitted == []
+
+    async def test_history_is_collected_and_not_resubmitted(self, headless):
+        from ComfyTV import storage
+        headless["comfy"].history["p-done"] = SUCCESS
+        row = await self._lost(headless, "p-done")
+        await headless["queue"].recover()
+        fresh = storage.get_headless_job(row["id"])
+        assert fresh["status"] == "done"
+        assert json.loads(fresh["outputs_json"]) == [
+            "/view?filename=x.png&subfolder=&type=output",
+        ]
+        await headless["queue"].tick()
+        assert headless["comfy"].submitted == []
+
+    async def test_no_record_is_not_auto_resumed(self, headless):
+        from ComfyTV import storage
+        row = await self._lost(headless, "gone")
+        resumed = await headless["queue"].recover()
+        assert resumed == []
+        fresh = storage.get_headless_job(row["id"])
+        assert fresh["status"] == "interrupted"
+        assert fresh["prompt_id"] == "gone"
+        await headless["queue"].tick()
+        assert headless["comfy"].submitted == []
+        assert storage.get_setting("headless-auto-resume") is False
+
+    async def test_resume_queue_submits_only_after_no_record(self, headless):
+        from ComfyTV import storage
+        from ComfyTV.api.headless_queue import resume_queue
+        row = await self._lost(headless, "gone")
+        await headless["queue"].recover()
+        out = await resume_queue({"job_id": row["id"]})
+        assert out["job"]["status"] == "queued"
+        await headless["queue"].tick()
+        assert len(headless["comfy"].submitted) == 1
+        assert storage.get_headless_job(row["id"])["prompt_id"] == "prompt-1"
+
+
+class TestStoredDataTools:
+    async def test_storyboard_round_trip_without_a_page(self, headless):
+        from ComfyTV.api.mcp_tools import _add_stage
+        from ComfyTV.api.mcp_tools.storyboard_tool import _storyboard
+
+        added = await _add_stage({"node_class": "StoryboardStage"})
+        document = {
+            "episode": "E01",
+            "series": "gumu",
+            "shots": [{
+                "shot_id": "E01S01_01",
+                "custom_note": "keep",
+                "refs": [{"role": "first_frame", "src": "CHR_xiaolongnv@v1#front"}],
+            }],
+        }
+        saved = await _storyboard({
+            "action": "set", "node": added["graph_node_id"], "document": document,
+        })
+        assert saved["headless"] is True
+        assert saved["shots"] == 1
+        got = await _storyboard({"action": "get", "node": added["uid"]})
+        assert got["headless"] is True
+        assert got["document"]["shots"][0]["custom_note"] == "keep"
+        assert got["episode"] == "E01"
+        report = await _storyboard({"action": "validate", "document": document})
+        assert "errors" in report and "warnings" in report
+        assert report["ok"] is False
+
+    async def test_series_library_reads_disk_without_a_page(self, headless, tmp_path):
+        from ComfyTV.api.mcp_tools.series_library import _series_library
+
+        root = tmp_path / "series"
+        root.mkdir()
+        (root / "library.yaml").write_text(
+            "schema_version: 1\nseries:\n  id: demo\nassets: []\n",
+            encoding="utf-8",
+        )
+        listed = await _series_library({"action": "list", "root": str(root)})
+        assert listed["assets"] == []
+        assert listed["series"]["id"] == "demo"
 
 
 class TestHeadlessGraph:

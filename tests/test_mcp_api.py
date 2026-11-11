@@ -160,7 +160,7 @@ class TestProtocol:
             "workflow_get", "workflow_edit", "workflow_create", "node_info",
             "graph_get", "graph_edit", "graph_run",
             "canvas_command", "canvas_focus",
-            "asset_edit", "entries",
+            "asset_edit", "series_library", "entries",
             "resources", "stage_params", "media_probe", "media_frame",
             "media_waveform", "media_timeline", "pick_output",
             "cancel_stage", "get_stage",
@@ -168,6 +168,7 @@ class TestProtocol:
             "director_get", "director_edit", "view_image", "fx_preview",
             "arrange_canvas",
             "scene_get", "scene_edit", "scene_capture", "scene_record", "layer_get", "layer_edit", "layer_capture",
+            "storyboard",
             "skill",
         }
         for t in tools.values():

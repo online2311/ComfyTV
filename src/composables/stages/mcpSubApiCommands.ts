@@ -1,4 +1,6 @@
 import { findStageNode } from '@/composables/stages/mcpStageLookup'
+import { useStageStore } from '@/stores/stageStore'
+import { readWidgetStr, writeWidget } from '@/utils/widget'
 
 type CommandResult = Record<string, unknown>
 
@@ -101,4 +103,58 @@ export async function handleSceneRecord(app: any, cmd: any): Promise<CommandResu
     layers: cmd.layers,
   })
   return await api.record()
+}
+
+function storyboardNode(app: any, cmd: any) {
+  const node = findStageNode(app?.graph, String(cmd.node))
+  if (!node) throw new Error(`stage ${cmd.node} not found on the canvas`)
+  return node
+}
+
+function readStoryboardDocument(node: any): Record<string, unknown> {
+  const raw = readWidgetStr(node, 'storyboard_data', '')
+  if (!raw) return { shots: [] }
+  let document: unknown
+  try {
+    document = JSON.parse(raw)
+  } catch {
+    throw new Error('storyboard_data is not valid JSON')
+  }
+  if (!document || typeof document !== 'object' || !Array.isArray((document as { shots?: unknown }).shots)) {
+    throw new Error('storyboard_data is not a shot document')
+  }
+  return document as Record<string, unknown>
+}
+
+export function handleStoryboardGet(app: any, cmd: any): CommandResult {
+  const node = storyboardNode(app, cmd)
+  const document = readStoryboardDocument(node)
+  const shots = document.shots as unknown[]
+  return {
+    document,
+    shots: shots.length,
+    episode: document.episode ?? null,
+    series: document.series ?? null,
+  }
+}
+
+export function handleStoryboardSet(app: any, cmd: any): CommandResult {
+  const node = storyboardNode(app, cmd)
+  const document = cmd.document
+  if (!document || typeof document !== 'object' || Array.isArray(document) || !Array.isArray(document.shots)) {
+    throw new Error('document must be an object with a shots array')
+  }
+  if (!document.shots.every((shot: unknown) => shot && typeof shot === 'object' && !Array.isArray(shot))) {
+    throw new Error('every shot must be an object')
+  }
+  const text = JSON.stringify(document)
+  writeWidget(node, 'storyboard_data', text)
+  const state = useStageStore().getStage(node)
+  if (state) useStageStore().applyExecutedPayload(state, { output: [text] })
+  return {
+    ok: true,
+    shots: document.shots.length,
+    episode: document.episode ?? null,
+    series: document.series ?? null,
+  }
 }

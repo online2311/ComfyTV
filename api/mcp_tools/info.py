@@ -12,6 +12,13 @@ from ..stages import workflow_info_payload
 from ._shared import _no_args_schema
 
 
+def _headless_auto_resume() -> bool:
+    try:
+        return bool(storage.get_setting("headless-auto-resume"))
+    except Exception:
+        return False
+
+
 async def _server_info(_args: dict) -> dict:
     projects = storage.list_projects()
     return {
@@ -25,6 +32,7 @@ async def _server_info(_args: dict) -> dict:
         "write_tools_need_open_tab": False,
         "headless_graph": True,
         "headless_queue": "one_at_a_time",
+        "headless_auto_resume": _headless_auto_resume(),
     }
 
 async def _projects(args: dict) -> dict:
