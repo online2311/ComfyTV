@@ -4,6 +4,7 @@ The autouse fixture removes ffmpeg and ffprobe from PATH. That is the Spark
 production case: ComfyUI's venv Python does not see a system ffmpeg, and the
 imageio-ffmpeg wheel ships ffmpeg without ffprobe.
 """
+import hashlib
 import os
 import subprocess
 from pathlib import Path
@@ -317,6 +318,54 @@ def test_stream_copy_aac_duration_stays_within_one_frame():
     assert audio_s is not None
     assert video_s >= 8 * 0.5 - 0.05
     assert abs(video_s - audio_s) <= 0.05
+
+
+def test_aligned_aac_stays_a_pure_stream_copy(monkeypatch):
+    """Audio already within one frame of the picture is left as the stream
+    copy. ``video_encoder == copy`` is also true after an audio re-encode,
+    so this checks that the fit subprocess never runs."""
+    from ComfyTV.runners import media
+
+    src = _src_dir("concat-aac-pure-copy")
+    paths = []
+    for i in range(4):
+        path = src / f"s{i:02d}.mp4"
+        _write_clip(path, w=64, h=48, fps=24, seconds=0.5, with_audio=True)
+        paths.append(path)
+
+    commands = []
+    real_run = subprocess.run
+
+    def spy(cmd, *args, **kwargs):
+        if isinstance(cmd, (list, tuple)):
+            commands.append(list(cmd))
+        return real_run(cmd, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", spy)
+    report = {}
+    out = media.concat_videos(_urls(paths), report=report)
+    assert report["video_encoder"] == "copy"
+    video_s, audio_s = _stream_durations(out)
+    assert audio_s is not None
+    assert abs(video_s - audio_s) <= 0.05
+
+    ffmpeg_cmds = [c for c in commands if c and Path(c[0]).name.startswith("ffmpeg")]
+    assert len(ffmpeg_cmds) == 1
+    joined = ffmpeg_cmds[0]
+    assert "concat" in joined and "copy" in joined
+    assert "-af" not in joined
+    assert not any("apad" in arg or "atrim" in arg for arg in joined)
+
+    copied = media.localize(out)
+    reference = src / "reference-copy.mp4"
+    listing = src / "reference-concat.txt"
+    listing.write_text("".join(f"file '{p.resolve().as_posix()}'\n" for p in paths), encoding="utf-8")
+    real_run([
+        _ffmpeg(), "-y", "-hide_banner", "-loglevel", "error",
+        "-f", "concat", "-safe", "0", "-i", str(listing),
+        "-c", "copy", "-movflags", "+faststart", str(reference),
+    ], check=True)
+    assert hashlib.sha256(copied.read_bytes()).digest() == hashlib.sha256(reference.read_bytes()).digest()
 
 
 def test_all_silent_sources_stay_silent():
