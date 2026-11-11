@@ -269,6 +269,8 @@ class TestSettingsApi:
             "enable-eagle", "eagle-api-url", "eagle-library-path",
             "eagle-send-folder", "eagle-auto-send",
             "blender-bridge-url",
+            "remote-connect-timeout-s", "remote-read-timeout-s",
+            "remote-poll-interval-s", "remote-job-timeout-s",
         }
         for r in rows:
             assert set(r) - {"options"} == {"key", "type", "value", "default", "experimental"}

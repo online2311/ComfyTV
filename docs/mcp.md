@@ -64,7 +64,7 @@ accordingly.
 | `queue_status` | Status, progress, and `/view` outputs of one headless job. Does not block |
 | `list_queue` | Headless jobs (queued, running, done, error). Not the remote-machine `jobs` tool |
 | `resume_queue` | After checking `/queue` and `/history/{prompt_id}`, requeue a job ComfyUI has no record of. Startup does not do this unless `headless-auto-resume` is on (default off) |
-| `cancel_stage` | Stop an in-flight page run. Headless: drop a job that has not been submitted; a prompt already in ComfyUI is left running |
+| `cancel_stage` | Open page: interrupt that page's own ComfyUI prompt. Remote executor: delete the prompt only while it is still pending; a running remote prompt is marked cancel-requested, left to finish, and its outputs are discarded. Headless: drop a job that has not been submitted; a prompt already in the local queue is left running |
 | `remove_stage` | Delete a node |
 | `arrange_canvas` | Tidy the canvas layout (rows, columns, grids) |
 
@@ -76,7 +76,7 @@ accordingly.
 | `graph_edit` | Batch-edit the native graph: add/remove/clone nodes, set widgets, wire links, group, collapse, bypass, pack/unpack subgraphs — one undo step |
 | `graph_run` | Queue the native graph. With a page open, waits up to `wait_s`. With no page, pass `prompt` (API format) or `workflow` (UI format) and get a `job_id` back immediately |
 | `workflow_create` | Author a brand-new workflow file for a stage kind from an API-format graph |
-| `canvas_command` | Whitelisted native commands: undo/redo, save, fit view, interrupt, refresh node definitions |
+| `canvas_command` | Whitelisted native commands: undo/redo, save, fit view, interrupt (the open page's own ComfyUI only), refresh node definitions |
 | `canvas_focus` | Select a node and glide the user's viewport to it — show the user what changed |
 
 **See & judge**
@@ -120,7 +120,7 @@ accordingly.
 
 **Binding a freshly linked workflow.** `workflow_get` shows the API graph's node inventory; `workflow_edit` binds stage values with sources like `option:seed`, `computed:width` / `computed:height` (sizing engine), `main_prompt`, `upstream_image:value[0]` or `literal:...`. If the workflow needs a parameter ComfyTV has no key for, create one with `stage_params` first and bind `option:<its key>`. `reset_to_preset` is your undo.
 
-**Multi-machine.** `servers` lists configured machines with live load; `set_stage {server: <id>}` routes a stage's runs there. Results land back on the local machine.
+**Multi-machine.** `servers` lists configured machines with live load; `set_stage {server: <id>}` routes a stage's runs there. Results land back on the local machine. Cancelling that remote job never calls interrupt or free on the other host. A prompt still waiting is removed from that host's queue; a prompt that has started is marked `cancel-requested` (`jobs`), runs to completion, and its outputs are ignored. Timeouts for those calls are the settings `remote-connect-timeout-s` (default 10), `remote-read-timeout-s` (default 0, no per-read limit), `remote-poll-interval-s` (default 2), and `remote-job-timeout-s` (default 3600).
 
 **Two graph layers.** Stage tools (`add_stage`/`set_stage`/…) work at the ComfyTV product layer; the `graph_*` family edits the underlying native ComfyUI graph — any node from any plugin. Use stages when one exists for the job; drop to `graph_edit` + `graph_run` to build raw pipelines, and `canvas_focus` to show the user what you changed.
 

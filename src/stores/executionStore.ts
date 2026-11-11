@@ -78,10 +78,15 @@ export const useExecutionStore = defineStore('comfytv-execution', () => {
 
   function hydrateRemoteJobs(): Promise<void> {
     if (!remoteHydration) {
-      remoteHydration = listRemoteJobs('running')
-        .then(({ jobs }) => {
-          for (const j of jobs) remoteJobs.set(String(j.stage_node_id), j.id)
-        })
+      // cancel-requested jobs are still executing on the remote host.
+      remoteHydration = Promise.all([
+        listRemoteJobs('running'),
+        listRemoteJobs('cancel-requested'),
+      ]).then((pages) => {
+        for (const page of pages) {
+          for (const j of page.jobs) remoteJobs.set(String(j.stage_node_id), j.id)
+        }
+      })
         .catch((e) => {
           console.warn('[ComfyTV/execution] remote job hydrate failed', e)
         })

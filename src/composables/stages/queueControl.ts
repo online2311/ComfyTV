@@ -1,3 +1,7 @@
+// Cancel a prompt on the open page's own ComfyUI (the host serving this tab).
+// A pending prompt is deleted. A running prompt is interrupted.
+// A remote executor is never cancelled here: those jobs go through
+// cancelRemoteJob, which does not call interrupt or free on the other machine.
 export type CancelOutcome = 'deleted' | 'interrupted' | 'gone' | 'unknown'
 
 type QueueSnapshot = { queue_running?: unknown[]; queue_pending?: unknown[] }
