@@ -176,8 +176,8 @@ def load_image_value(path: str):
 
 def _call_encode(encoder, clip, image):
     if hasattr(encoder, "encode"):
-        return encoder.encode(clip, image)
-    return encoder.execute(clip_vision=clip, image=image)
+        return encoder.encode(clip, image, "center")
+    return encoder.execute(clip_vision=clip, image=image, crop="center")
 
 
 def _embeds(result) -> list[float]:

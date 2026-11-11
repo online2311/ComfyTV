@@ -169,7 +169,7 @@ STAGE_META: dict[str, dict] = {
     'STMapGenStage':                {'kind': 'image'},
     'RegrainStage':                 {'kind': 'video'},
     'ContactSheetStage':            {'kind': 'image'},
-    'ConsistencyRescoreStage':      {'kind': 'image-batch'},
+    'ConsistencyRescoreStage':      {'kind': 'image-batch', 'workflow_kind': 'video'},
     'KenBurnsStage':                {'kind': 'video'},
     'OldFilmStage':                 {'kind': 'video'},
     'AnnotateStage':                {'kind': 'video'},

@@ -378,7 +378,8 @@ def test_clip_vision_backend_scores_with_the_registered_nodes(monkeypatch, tmp_p
             return (f"vision:{clip_name}",)
 
     class Encoder:
-        def encode(self, clip_vision, image, crop="center"):
+        def encode(self, clip_vision, image, crop):
+            assert crop == "center"
             value = float(image)
             return (type("Out", (), {"image_embeds": [value, 1.0 - value]})(),)
 
@@ -600,7 +601,9 @@ def test_reshoot_prompt_uses_the_new_seed(monkeypatch):
     assert captured["images"] == ["/view?filename=face.png"]
 
 
-async def test_a_running_prompt_still_reshoots_once_pending_is_empty(tmp_path):
+async def test_in_prompt_reshoot_fails_immediately_when_pending_is_blocked(tmp_path):
+    from ComfyTV.runners.consistency_rescore import ConsistencyQueueBusy
+
     root = materialize(tmp_path / "series")
     reader = ScriptedReader([
         {"running": ["this-stage"], "pending": ["other"]},
@@ -612,8 +615,34 @@ async def test_a_running_prompt_still_reshoots_once_pending_is_empty(tmp_path):
             self.jobs = []
 
         def submit(self, job):
-            assert reader.reads[-1]["pending"] == []
-            assert reader.reads[-1]["running"] == ["this-stage"]
+            self.jobs.append(job)
+            return "take-2"
+
+    submitter = Submit()
+    with pytest.raises(ConsistencyQueueBusy, match="not submitted") as raised:
+        await _run(
+            root=root,
+            reader=reader,
+            submitter=submitter,
+            scorer=FakeScorer([0.1, 0.95]),
+            sheets=[],
+            allow_running=True,
+            queue_timeout_s=30,
+        )
+    assert submitter.jobs == []
+    assert len(reader.reads) == 1
+    assert raised.value.report["takes_in_order"][0]["score"] == 0.1
+
+
+async def test_in_prompt_reshoot_runs_when_only_this_prompt_is_running(tmp_path):
+    root = materialize(tmp_path / "series")
+    reader = ScriptedReader([{"running": ["this-stage"], "pending": []}])
+
+    class Submit:
+        def __init__(self):
+            self.jobs = []
+
+        def submit(self, job):
             self.jobs.append(job)
             return "take-2"
 
@@ -627,8 +656,56 @@ async def test_a_running_prompt_still_reshoots_once_pending_is_empty(tmp_path):
         allow_running=True,
     )
     assert [job.seed for job in submitter.jobs] == [6]
-    assert report["reshoots"] == 1
     assert report["selected_video"] == "take-2"
+
+
+async def test_a_queue_that_fills_before_submit_keeps_the_scores(tmp_path):
+    from ComfyTV.runners.consistency_rescore import ConsistencyQueueBusy
+
+    root = materialize(tmp_path / "series")
+    reader = ScriptedReader([{"running": [], "pending": []}])
+
+    class Submit:
+        def submit(self, job):
+            raise ConsistencyQueueBusy(
+                "GET /queue filled before the reshoot was submitted.",
+            )
+
+    with pytest.raises(ConsistencyQueueBusy, match="Scored so far") as raised:
+        await _run(
+            root=root,
+            reader=reader,
+            submitter=Submit(),
+            scorer=FakeScorer([0.1, 0.95]),
+            sheets=[],
+        )
+    assert raised.value.report["takes_in_order"][0]["score"] == 0.1
+
+
+def test_reshoot_prompt_keeps_custom_params_and_the_new_seed(monkeypatch):
+    from ComfyTV.runners.consistency_rescore import ReshootJob, build_reshoot_prompt
+
+    captured = {}
+
+    def prepare(runner_id, kinds, ctx):
+        captured["options"] = dict(ctx.options)
+        return {"1": {"class_type": "SaveVideo", "inputs": {}}}, {"node": "1"}
+
+    monkeypatch.setattr(
+        "ComfyTV.runners.consistency_rescore.prepare_workflow", prepare,
+    )
+    build_reshoot_prompt(ReshootJob(
+        seed=6,
+        shot={},
+        prompt="turns",
+        images=[],
+        workflow="GXS",
+        options={"resolution": "720P", "seed": 9},
+        custom_params='{"items":[{"key":"steps","value":4},{"key":"seed","value":1}]}',
+    ))
+    assert captured["options"]["steps"] == 4
+    assert captured["options"]["seed"] == 6
+    assert captured["options"]["resolution"] == "720P"
 
 
 def test_runner_payload_is_a_video_url():
@@ -636,6 +713,80 @@ def test_runner_payload_is_a_video_url():
 
     assert coerce_video_url("/view?filename=a.mp4") == "/view?filename=a.mp4"
     assert coerce_video_url('{"video_url": "/view?filename=b.mp4"}') == "/view?filename=b.mp4"
+
+
+async def test_canvas_reuses_the_report_without_an_explicit_cache_path(tmp_path, reset_db, monkeypatch):
+    import folder_paths
+    from ComfyTV.nodes.stages import consistency as stage_mod
+    from ComfyTV.nodes.stages.consistency import ConsistencyRescoreStage
+
+    out = tmp_path / "output"
+    out.mkdir()
+    monkeypatch.setattr(folder_paths, "get_output_directory", lambda: str(out))
+    calls = []
+
+    def fake_run(**kwargs):
+        calls.append(kwargs.get("selected_index"))
+        return {
+            "stop": "pick_take",
+            "takes": [
+                {"take": 1, "score": 0.2, "video_url": "low", "seed": 1, "passed": False, "frames": [], "characters": []},
+                {"take": 2, "score": 0.9, "video_url": "high", "seed": 2, "passed": True, "frames": [], "characters": []},
+            ],
+            "contact_sheet": "/view?filename=sheet.png",
+            "threshold": 0.7,
+            "max_reshoots": 2,
+            "backend": "fake",
+            "reshoots": 1,
+            "shot_id": "E01S01_01",
+            "shot_index": 1,
+        }
+
+    monkeypatch.setattr(stage_mod, "run_consistency_rescore", fake_run)
+    common = dict(
+        project_id="proj-cache",
+        video="/view?filename=shot.mp4",
+        storyboard=json.dumps({"shots": [_shot()]}),
+        shot_index=1,
+        series_root=str(tmp_path),
+        threshold=0.7,
+        max_reshoots=2,
+        frame_count=4,
+        seed=5,
+        workflow="GXS",
+        force_run_token=3,
+    )
+    await ConsistencyRescoreStage.execute(**common, selected_index=1)
+    second = await ConsistencyRescoreStage.execute(**common, selected_index=2)
+    assert calls == [1]
+    assert second.values[1] == "low"
+
+
+async def test_nested_reshoot_forwards_custom_params_and_keeps_the_seed(monkeypatch):
+    from ComfyTV.nodes.stages import consistency as stage_mod
+    from ComfyTV.runners.consistency_rescore import ReshootJob
+
+    seen = {}
+
+    async def invoke(**kwargs):
+        seen.update(kwargs)
+        return "/view?filename=take.mp4"
+
+    monkeypatch.setattr(stage_mod, "invoke_runner", invoke)
+    url = await stage_mod._NestedReshoot().submit(ReshootJob(
+        seed=6,
+        shot={},
+        prompt="turns",
+        images=["/view?filename=face.png"],
+        workflow="GXS",
+        options={"resolution": "720P", "seed": 6},
+        custom_params='{"items":[{"key":"steps","value":4},{"key":"seed","value":1}]}',
+    ))
+    assert url == "/view?filename=take.mp4"
+    assert seen["label"] == "GXS"
+    assert seen["options"]["seed"] == 6
+    assert seen["custom_params"].startswith("{")
+    assert "steps" in seen["custom_params"]
 
 
 async def test_stage_schema_defaults_and_reuses_a_cached_report(tmp_path, reset_db, monkeypatch):
@@ -646,6 +797,9 @@ async def test_stage_schema_defaults_and_reuses_a_cached_report(tmp_path, reset_
     schema = ConsistencyRescoreStage.define_schema()
     assert schema.kw["node_id"] == "ComfyTV.ConsistencyRescoreStage"
     widgets = {item.args[0]: item.kw.get("default") for item in schema.kw["inputs"] if item.args}
+    from ComfyTV.nodes.stages.common.meta import STAGE_META
+    assert STAGE_META["ConsistencyRescoreStage"]["kind"] == "image-batch"
+    assert STAGE_META["ConsistencyRescoreStage"]["workflow_kind"] == "video"
     assert widgets["max_reshoots"] == 2
     assert widgets["threshold"] == pytest.approx(0.70)
     assert "video" in {output.args[0] for output in schema.kw["outputs"]}

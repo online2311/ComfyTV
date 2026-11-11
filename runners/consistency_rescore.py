@@ -65,6 +65,7 @@ class ReshootJob:
     workflow: str
     options: dict = field(default_factory=dict)
     previous_video: str = ""
+    custom_params: str = "{}"
 
 
 def cache_key(
@@ -431,6 +432,11 @@ def await_idle(
         last = reader() or {}
         running = list(last.get("running") or [])
         pending = list(last.get("pending") or [])
+        if allow_running and pending:
+            raise ConsistencyQueueBusy(
+                "GET /queue has pending work, so this in-prompt reshoot "
+                "was not submitted.",
+            )
         if not pending and (allow_running or not running):
             return {"running": running, "pending": pending}
         if now() - start >= float(timeout_s):
@@ -565,7 +571,7 @@ def build_reshoot_prompt(job: ReshootJob) -> dict:
         raise ConsistencyRescoreError(
             "reshoot needs a video workflow label"
         )
-    options = dict(job.options or {})
+    options = _options_with_custom_params(job.options, job.custom_params)
     options["seed"] = int(job.seed)
     context = RunnerContext(
         kind="video",
@@ -580,6 +586,26 @@ def build_reshoot_prompt(job: ReshootJob) -> dict:
     )
     workflow, _meta = prepare_workflow(f"video/{job.workflow}", {"video"}, context)
     return workflow
+
+
+def _options_with_custom_params(options: dict | None, custom_params) -> dict:
+    merged: dict = {}
+    raw = custom_params
+    if isinstance(raw, str) and raw.strip():
+        try:
+            raw = json.loads(raw)
+        except json.JSONDecodeError:
+            raw = None
+    items = raw.get("items") if isinstance(raw, dict) else None
+    if isinstance(items, list):
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            key = item.get("key")
+            if key and key != "seed":
+                merged[str(key)] = item.get("value")
+    merged.update(dict(options or {}))
+    return merged
 
 
 def coerce_video_url(payload) -> str:
@@ -635,6 +661,7 @@ async def run_consistency_rescore(
     poll_s: float = DEFAULT_POLL_S,
     selected_index: int = 1,
     allow_running: bool = False,
+    custom_params: str = "{}",
 ) -> dict:
     if not str(video_url or "").strip():
         raise ConsistencyRescoreError("consistency rescore needs a shot video")
@@ -689,7 +716,7 @@ async def run_consistency_rescore(
                 clock=clock,
                 poll_s=poll_s,
             )
-        current = await _call_submitter(video_submitter, ReshootJob(
+        job = ReshootJob(
             seed=new_seed,
             shot=chosen,
             prompt=motion,
@@ -697,7 +724,26 @@ async def run_consistency_rescore(
             workflow=workflow,
             options=dict(options or {}),
             previous_video=current,
-        ))
+            custom_params=custom_params or "{}",
+        )
+        try:
+            current = await _call_submitter(video_submitter, job)
+        except ConsistencyQueueBusy as exc:
+            if exc.report:
+                raise
+            scored = ", ".join(
+                f"take {row['take']}={float(row['score']):.3f}" for row in takes
+            )
+            partial = {
+                "stop": "pick_take",
+                "status": "queue_busy",
+                "takes_in_order": list(takes),
+                "takes": _ranked(takes),
+            }
+            raise ConsistencyQueueBusy(
+                f"{exc} Scored so far: {scored}.",
+                report=partial,
+            ) from exc
     report = {
         "stop": "pick_take",
         "status": "awaiting_pick",

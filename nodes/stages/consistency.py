@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import inspect
 import json
+import re
 from pathlib import Path
 
 from ._common import *  # noqa: F401, F403
@@ -154,7 +155,8 @@ class ConsistencyRescoreStage(io.ComfyNode):
             series_root=series_root or "",
             force_run_token=int(force_run_token or 0),
         )
-        stored = _read_cache(cache_path, key)
+        cache_file = _cache_file(cache_path, project_id, _node_id(cls))
+        stored = _read_cache(cache_file, key)
         if stored is None:
             report = run_consistency_rescore(
                 video_url=video,
@@ -178,11 +180,12 @@ class ConsistencyRescoreStage(io.ComfyNode):
                 selected_index=int(selected_index or 1),
                 allow_running=True,
                 submitter=_NestedReshoot(),
+                custom_params=custom_params or "{}",
             )
             if inspect.isawaitable(report):
                 report = await report
             report["cache_key"] = key
-            _write_cache(cache_path, report)
+            _write_cache(cache_file, report)
         else:
             report = stored
         report = apply_selection(report, int(selected_index or 1))
@@ -219,8 +222,23 @@ class _NestedReshoot:
                 "audio": [],
             },
             options=options,
+            custom_params=job.custom_params or "{}",
         )
         return coerce_video_url(payload)
+
+
+def _node_id(cls):
+    hidden = getattr(cls, "hidden", None)
+    return getattr(hidden, "unique_id", None)
+
+
+def _cache_file(cache_path, project_id: str, node_id) -> Path:
+    if cache_path:
+        return Path(cache_path)
+    base = Path(folder_paths.get_output_directory()) / "comfytv" / "consistency"
+    label = f"{project_id or 'default'}-{node_id if node_id is not None else 'stage'}"
+    safe = re.sub(r"[^A-Za-z0-9_.-]+", "_", label)
+    return base / f"{safe}.json"
 
 
 def _read_cache(cache_path, key: str) -> dict | None:
