@@ -5,13 +5,16 @@
 ## What this node does
 
 **Video Concat** takes several upstream clips and stitches them into one clip. It has an
-autogrow **videos** input (up to 12 slots) plus a reorder strip in the node body: drag the
-clips into the sequence you want, and that order is stored in the hidden **clip_order**
-field. Slots you leave empty are skipped.
+autogrow **videos** input (up to 100 slots — a new slot appears when you connect the
+last one) plus a reorder strip in the node body: drag the clips into the sequence you
+want, and that order is stored in the hidden **clip_order** field. Slots you leave empty
+are skipped. Canvases saved when the cap was 12 still open: the slots are still named
+`video0`, `video1`, and so on.
 
-This is a real render, not a browser-side trick. On **▶ Run** the server re-encodes the
-clips (PyAV / ffmpeg) into one MP4 and saves it as a project snapshot. You need at least
-**two** non-empty clips or the run errors out. The input and output are `COMFYTV_VIDEO`.
+This is a real render, not a browser-side trick. On **▶ Run** the server joins the clips
+with ffmpeg (one clip at a time, then a stream copy) into one MP4 and saves it as a
+project snapshot. You need at least **two** non-empty clips or the run errors out. The
+input and output are `COMFYTV_VIDEO`.
 
 ## When to use it
 
@@ -22,8 +25,9 @@ clips (PyAV / ffmpeg) into one MP4 and saves it as a project snapshot. You need 
 ## Parameters
 
 ### videos
-Autogrow list of clip slots (up to 12). Wire each upstream `COMFYTV_VIDEO` into a slot; new
-slots appear as you fill them. Empty slots are ignored.
+Autogrow list of clip slots, up to 100 (ComfyUI's autogrow ceiling). Wire each upstream
+`COMFYTV_VIDEO` into a slot; a new slot appears when the last one is connected. Empty
+slots are ignored.
 
 ### clip_order (hidden)
 A JSON list of the video slot keys in concat order. You don't edit this by hand — it is
@@ -38,8 +42,14 @@ after the ordered ones.
 
 ## Tips
 
-- Clips with different resolutions/frame rates are normalized during the re-encode; for the
-  cleanest result, feed clips that already share a size and fps.
+- **Size and frame rate follow the first clip.** Later clips are stretched to that even
+  width and height and retimed to that frame rate. If the first clip has no readable
+  size or frame rate, or the frame rate is above 480 fps, the run stops with an error
+  instead of guessing. Matching size and fps on the way in still looks cleanest.
+- **Audio stays locked to the picture.** If any clip has sound, a clip with no soundtrack
+  gets silence of the same length, and a short or long soundtrack is padded or trimmed
+  to the picture. Later clips therefore don't start early. If every clip is silent, the
+  result has no audio track.
 - Order comes from the reorder strip, not from the slot numbers — rearrange there.
 - Fewer than two non-empty clips is an error; wire at least two.
 

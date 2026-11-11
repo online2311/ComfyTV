@@ -130,7 +130,11 @@ class VideoConcatStage(io.ComfyNode):
                                 socketless=True, extra_dict={"hidden": True},
                                 tooltip="JSON list of video slot keys in concat order — "
                                         "driven by the reorder strip in the node body."),
-                io.Autogrow.Input("videos", template=_video_template(12)),
+                io.Autogrow.Input(
+                    "videos",
+                    template=_video_template(VIDEO_ASSEMBLY_SLOT_MAX),
+                    tooltip=VIDEO_ASSEMBLY_TOOLTIP,
+                ),
             ],
             outputs=[COMFYTV_VIDEO.Output("video")],
             is_output_node=True,
