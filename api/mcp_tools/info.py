@@ -33,6 +33,7 @@ async def _server_info(_args: dict) -> dict:
         "headless_graph": True,
         "headless_queue": "one_at_a_time",
         "headless_auto_resume": _headless_auto_resume(),
+        "scheduler": "shot_stage",
     }
 
 async def _projects(args: dict) -> dict:

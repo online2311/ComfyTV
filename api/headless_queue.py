@@ -283,7 +283,7 @@ class ComfyQueueClient:
             )
         return queue
 
-    def queue_ids(self) -> tuple[list[str], list[str]]:
+    def _queue_rows(self) -> tuple[list, list]:
         queue = self._queue()
         getter = getattr(queue, "get_current_queue_volatile", None)
         if getter is None:
@@ -291,10 +291,27 @@ class ComfyQueueClient:
         if getter is None:
             raise ValueError("ComfyUI prompt queue cannot be read")
         running, pending = getter()
+        return list(running or []), list(pending or [])
+
+    def queue_ids(self) -> tuple[list[str], list[str]]:
+        running, pending = self._queue_rows()
         return (
-            [i for i in (_queue_item_id(item) for item in running or []) if i],
-            [i for i in (_queue_item_id(item) for item in pending or []) if i],
+            [i for i in (_queue_item_id(item) for item in running) if i],
+            [i for i in (_queue_item_id(item) for item in pending) if i],
         )
+
+    def find_client(self, client_id: str) -> str | None:
+        """Prompt id already queued with this client id, if the queue has one."""
+        if not client_id:
+            return None
+        running, pending = self._queue_rows()
+        for item in list(running) + list(pending):
+            if not isinstance(item, (list, tuple)) or len(item) < 2 or not item[1]:
+                continue
+            extra = item[3] if len(item) > 3 and isinstance(item[3], dict) else {}
+            if extra.get("client_id") == client_id:
+                return str(item[1])
+        return None
 
     def busy(self) -> bool:
         # Any prompt counts, including one submitted outside ComfyTV.
@@ -314,7 +331,8 @@ class ComfyQueueClient:
     def completed_for(self, prompt_id: str) -> dict:
         return dict(_COMPLETED.get(str(prompt_id)) or {})
 
-    async def submit(self, prompt: dict, partial: list | None) -> str:
+    async def submit(self, prompt: dict, partial: list | None,
+                     client_id: str | None = None) -> str:
         if self.busy():
             raise QueueBusy("ComfyUI queue is not empty")
         install_progress_tap()
@@ -336,7 +354,7 @@ class ComfyQueueClient:
             raise QueueBusy("ComfyUI queue filled while the prompt was checked")
         self._number += 1
         extra = {
-            "client_id": HEADLESS_CLIENT_ID,
+            "client_id": client_id or HEADLESS_CLIENT_ID,
             "create_time": int(time.time() * 1000),
         }
         item = (self._number, prompt_id, prompt, extra, outputs or [], {})
@@ -630,6 +648,13 @@ class HeadlessQueue:
         )
 
     async def _submit_one(self) -> None:
+        # Any executor besides the seeded local default: that host's queue is
+        # not this process. The scheduler sends the job. This branch does not
+        # run when the registry is empty or holds only that default row, so
+        # the in-process submit below stays the single-host path.
+        if storage.foreign_executors_registered():
+            await scheduler_mod.drive_scheduler(self.client)
+            return
         try:
             if self.client.busy():
                 return
@@ -847,7 +872,7 @@ async def enqueue_stage(payload: dict) -> dict:
     }
 
 
-def cancel_queued_stage(payload: dict) -> dict:
+async def cancel_queued_stage(payload: dict) -> dict:
     project_id = graph.project_id_of(payload)
     ref = str(payload.get("node") or "")
     row = storage.latest_headless_job_for_stage(project_id, ref)
@@ -856,6 +881,8 @@ def cancel_queued_stage(payload: dict) -> dict:
             f"no headless job for stage {ref!r}. cancel_stage on a page-owned "
             "run still needs the open ComfyTV page."
         )
+    if row["status"] == "delegated":
+        return await scheduler_mod.cancel_headless(row["id"])
     if row["status"] == "queued":
         claimed = storage.claim_headless_job(
             row["id"], expect="queued", become="cancelled",
@@ -928,6 +955,7 @@ async def list_queue(args: dict) -> dict:
     status = args.get("status")
     if status and status not in (
         "queued", "running", "done", "error", "cancelled", "interrupted",
+        "delegated",
     ):
         raise ValueError(f"unknown status {status!r}")
     try:
@@ -985,3 +1013,9 @@ async def resume_queue(args: dict) -> dict:
         if fresh is not None:
             jobs.append(public_job(fresh))
     return {"resumed": resumed, "jobs": jobs}
+
+
+# Imported last. api.scheduler does not import this module at load time
+# (it pulls ComfyQueueClient only when a unit is sent to the local executor),
+# so this import does not cycle.
+from . import scheduler as scheduler_mod  # noqa: E402

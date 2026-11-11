@@ -170,6 +170,7 @@ class TestProtocol:
             "scene_get", "scene_edit", "scene_capture", "scene_record", "layer_get", "layer_edit", "layer_capture",
             "storyboard",
             "executors",
+            "scheduler",
             "skill",
         }
         for t in tools.values():
