@@ -66,9 +66,17 @@ _COMPUTED_FILE_KEYS = ("sha256", "bytes", "payload_url")
 
 
 class SeriesLibraryError(ValueError):
-    def __init__(self, message: str, *, status: int = 400):
+    def __init__(self, message: str, *, status: int = 400, details: dict | None = None):
         super().__init__(message)
         self.http_status = status
+        self.details = details or {}
+
+
+_ASSET_STATUSES = ("draft", "candidate", "locked")
+_MUTABLE_STATUSES = ("draft", "candidate")
+_LOCK_APPROVER = "张景"
+_PROVENANCE = {"self", "licensed", "ai_generated"}
+_POLICY_CACHE: dict | None = None
 
 
 def parse_series_ref(text: str) -> dict:
@@ -173,10 +181,45 @@ def register_series_asset(root, asset: dict) -> dict:
                 status=409,
             )
         doc.setdefault("assets", []).append(prepared)
+        if prepared.get("kind") == "character":
+            _assert_alias_unique(doc, prepared["id"])
         _save(folder, doc, preamble)
         if prepared["status"] == "locked":
             _chmod_version(folder, prepared["id"], prepared["version"])
         return copy.deepcopy(prepared)
+
+
+def asset_store_policy() -> dict:
+    """Migration and directory policy. Box paths in the file are notes only."""
+    global _POLICY_CACHE
+    if _POLICY_CACHE is None:
+        path = Path(__file__).with_name("asset_store.yaml")
+        loaded = yaml.safe_load(path.read_text(encoding="utf-8"))
+        if not isinstance(loaded, dict):
+            raise SeriesLibraryError("asset_store.yaml must be a mapping")
+        _POLICY_CACHE = loaded
+    return _POLICY_CACHE
+
+
+def read_series_document(root) -> dict:
+    folder = _as_root(root)
+    doc, _text = _load(folder)
+    return copy.deepcopy(doc)
+
+
+def character_dependencies(root, code: str) -> list[dict]:
+    """Lock state of the OUT_, LOOK_, and VOX_ refs on a character version."""
+    folder = _as_root(root)
+    doc, _text = _load(folder)
+    parsed = _require_asset_code(code)
+    record, _defaulted = _select_record(doc, parsed, require_locked=False)
+    if record.get("kind") != "character":
+        return []
+    return character_dependency_rows(doc, record)
+
+
+def character_dependency_rows(doc: dict, record: dict) -> list[dict]:
+    return [_resolve_dependency(doc, ref) for ref in _character_dep_refs(record)]
 
 
 def lock_series_asset(root, code: str, *, approved_by: str,
@@ -185,6 +228,8 @@ def lock_series_asset(root, code: str, *, approved_by: str,
     approver = str(approved_by or "").strip()
     if not approver:
         raise SeriesLibraryError("approved_by is required to lock a version")
+    if approver != _LOCK_APPROVER:
+        raise SeriesLibraryError("approved_by must be 张景")
     folder = _as_root(root)
     with _WRITE_LOCK:
         doc, preamble = _open_for_write(folder)
@@ -193,6 +238,16 @@ def lock_series_asset(root, code: str, *, approved_by: str,
         label = f"{record['id']}@v{int(record['version'])}"
         if record.get("status") == "locked":
             raise SeriesLibraryError(f"{label} is already locked", status=409)
+        if record.get("kind") == "character":
+            gaps = [
+                row for row in character_dependency_rows(doc, record)
+                if not row["locked"]
+            ]
+            if gaps:
+                listed = ", ".join(
+                    f"{row['code']} ({row['status']})" for row in gaps)
+                raise SeriesLibraryError(
+                    f"cannot lock {label}; dependencies are not locked: {listed}")
         now = _now()
         record["status"] = "locked"
         record["approved_by"] = approver
@@ -235,6 +290,52 @@ def new_series_asset_version(root, code: str, *, files: dict | None = None) -> d
         return copy.deepcopy(fresh)
 
 
+def update_draft_series_asset(root, code: str, changes: dict) -> dict:
+    """Replace mutable fields on a draft or candidate. Locked versions are refused."""
+    if not isinstance(changes, dict):
+        raise SeriesLibraryError("changes must be a mapping")
+    folder = _as_root(root)
+    with _WRITE_LOCK:
+        doc, preamble = _open_for_write(folder)
+        parsed = _require_asset_code(code)
+        record = _tip_record(doc, parsed["id"], parsed["version"])
+        label = f"{record['id']}@v{int(record['version'])}"
+        if record.get("status") not in _MUTABLE_STATUSES:
+            raise SeriesLibraryError(
+                f"{label} is {record.get('status')}; create a new version",
+                status=409,
+            )
+        for key in ("id", "kind", "version"):
+            if key in changes and changes[key] != record.get(key):
+                raise SeriesLibraryError(f"cannot change {key} on {label}")
+        if "status" in changes:
+            raise SeriesLibraryError("status changes go through lock")
+        for key in _DROP_ON_NEW_VERSION:
+            if key in changes:
+                raise SeriesLibraryError(f"{key} is only set by lock")
+        files = changes.get("files")
+        for key, value in changes.items():
+            if key in ("files", "id", "kind", "version"):
+                continue
+            record[key] = copy.deepcopy(value)
+        if record.get("status") != "locked":
+            for key in _DROP_ON_NEW_VERSION:
+                record.pop(key, None)
+        if files is not None:
+            merged = dict(record.get("files") or {})
+            if not isinstance(files, dict):
+                raise SeriesLibraryError("files must be a mapping")
+            merged.update(files)
+            record["files"] = _prepare_files(
+                folder, record["id"], int(record["version"]), merged)
+        _validate_record_extras(record)
+        _normalize_name_lists(record)
+        if record.get("kind") == "character":
+            _assert_alias_unique(doc, record["id"])
+        _save(folder, doc, preamble)
+        return copy.deepcopy(record)
+
+
 def resolve_series_ref(root, ref: str, *, require_locked: bool = True,
                        verify: bool = False) -> dict:
     folder = _as_root(root)
@@ -271,7 +372,8 @@ def resolve_series_shot(root, shot: dict, *, require_locked: bool = True) -> dic
 
 
 def import_series_manifest(root, manifest: dict | None = None, *,
-                           manifest_path: str | None = None) -> dict:
+                           manifest_path: str | None = None,
+                           allow_excluded: bool = False) -> dict:
     if manifest_path:
         if manifest is not None:
             raise SeriesLibraryError("pass manifest or manifest_path, not both")
@@ -281,6 +383,9 @@ def import_series_manifest(root, manifest: dict | None = None, *,
     assets = manifest.get("assets")
     if not isinstance(assets, list):
         raise SeriesLibraryError("manifest assets must be a list")
+    _reject_excluded_manifest(manifest, allow_excluded=allow_excluded)
+    declared = _declared_manifest_files(manifest)
+    _check_manifest_inventory(manifest, declared)
     folder = _as_root_allow_empty(root)
     with _WRITE_LOCK:
         path = folder / "library.yaml"
@@ -308,28 +413,40 @@ def import_series_manifest(root, manifest: dict | None = None, *,
                 raise SeriesLibraryError(f"asset {asset_id or '?'} needs a version")
             label = f"{asset_id}@v{version}"
             existing = _by_version(doc, asset_id, version)
+            prepared = _prepare_record(folder, raw)
             if existing is None:
-                staged.append(_prepare_record(folder, raw))
+                staged.append(prepared)
                 added.append(label)
                 continue
-            if _same_record(existing, raw):
+            if _same_record(existing, prepared):
                 skipped.append(label)
                 continue
             if existing.get("status") == "locked":
                 raise SeriesLibraryError(
                     f"locked version {label} cannot be changed", status=409)
             raise SeriesLibraryError(
-                f"draft version {label} cannot be changed; lock it or create a new version",
+                f"{existing.get('status')} version {label} cannot be changed; "
+                "lock it or create a new version",
                 status=409,
             )
         if staged or not path.is_file():
             folder.mkdir(parents=True, exist_ok=True)
             doc.setdefault("assets", []).extend(staged)
+            for prepared in staged:
+                if prepared.get("kind") == "character":
+                    _assert_alias_unique(doc, prepared["id"])
             _save(folder, doc, preamble)
             for prepared in staged:
                 if prepared.get("status") == "locked":
                     _chmod_version(folder, prepared["id"], int(prepared["version"]))
-        return {"added": added, "skipped": skipped, "root": str(folder.resolve())}
+        checked = sum(1 for info in declared if str(info.get("sha256") or "").strip())
+        return {
+            "added": added,
+            "skipped": skipped,
+            "root": str(folder.resolve()),
+            "file_count": len(declared),
+            "sha256_checked": checked,
+        }
 
 
 def image_urls_for_shot(shot: dict, root=None) -> list[str]:
@@ -564,15 +681,23 @@ def _prepare_record(folder: Path, raw: dict) -> dict:
         raise SeriesLibraryError("version must be a positive integer")
     _check_id_kind(asset_id, kind)
     status = str(raw.get("status") or "draft").strip()
-    if status not in ("draft", "locked"):
-        raise SeriesLibraryError("status must be draft or locked")
-    if status == "locked" and not str(raw.get("approved_by") or "").strip():
-        raise SeriesLibraryError("approved_by is required to lock a version")
+    if status not in _ASSET_STATUSES:
+        raise SeriesLibraryError("status must be draft, candidate, or locked")
     record = copy.deepcopy(raw)
     record["id"] = asset_id
     record["kind"] = kind
     record["version"] = version
     record["status"] = status
+    if status == "locked":
+        approver = str(raw.get("approved_by") or "").strip()
+        if approver != _LOCK_APPROVER:
+            raise SeriesLibraryError("approved_by must be 张景")
+        record["approved_by"] = approver
+    else:
+        for key in _DROP_ON_NEW_VERSION:
+            record.pop(key, None)
+    _validate_record_extras(record)
+    _normalize_name_lists(record)
     record["files"] = _prepare_files(folder, asset_id, version, raw.get("files") or {})
     return record
 
@@ -614,6 +739,13 @@ def _prepare_files(folder: Path, asset_id: str, version: int, files) -> dict:
         given = item.get("sha256")
         if given and str(given).strip() and str(given).strip() != digest:
             raise SeriesLibraryError(f"sha256 mismatch for {rel}", status=409)
+        if "bytes" in item and item.get("bytes") is not None:
+            try:
+                declared_bytes = int(item["bytes"])
+            except (TypeError, ValueError):
+                raise SeriesLibraryError(f"bytes for {rel} must be an integer")
+            if declared_bytes != size:
+                raise SeriesLibraryError(f"byte size mismatch for {rel}", status=409)
         item["path"] = rel
         item["sha256"] = digest
         item["bytes"] = size
@@ -659,6 +791,198 @@ def _copy_files(folder: Path, record: dict, new_version: int) -> dict:
         item.pop("approval", None)
         copied[view] = item
     return copied
+
+
+def _character_dep_refs(record: dict) -> list[str]:
+    refs: list[str] = []
+    wardrobe = record.get("wardrobe") or []
+    if isinstance(wardrobe, list):
+        for item in wardrobe:
+            if not isinstance(item, dict):
+                continue
+            outfit = str(item.get("outfit") or "").strip()
+            if outfit:
+                refs.append(outfit)
+            look = item.get("look")
+            if isinstance(look, str) and look.strip():
+                refs.append(look.strip())
+    voice = record.get("voice")
+    if isinstance(voice, str) and voice.strip():
+        refs.append(voice.strip())
+    return refs
+
+
+def _resolve_dependency(doc: dict, ref: str) -> dict:
+    parsed = parse_series_ref(ref)
+    if parsed["kind"] != "asset":
+        return {"code": ref, "status": "missing", "locked": False}
+    asset_id = parsed["id"]
+    if parsed.get("version") is None:
+        rows = _versions(doc, asset_id)
+        if not rows:
+            return {"code": asset_id, "status": "missing", "locked": False}
+        locked = [row for row in rows if row.get("status") == "locked"]
+        chosen = max(locked or rows, key=lambda row: int(row.get("version") or 0))
+    else:
+        chosen = _by_version(doc, asset_id, int(parsed["version"]))
+        if chosen is None:
+            return {
+                "code": f"{asset_id}@v{parsed['version']}",
+                "status": "missing",
+                "locked": False,
+            }
+    code = f"{chosen.get('id')}@v{int(chosen.get('version') or 0)}"
+    status = str(chosen.get("status") or "")
+    return {
+        "code": code,
+        "kind": chosen.get("kind"),
+        "status": status,
+        "locked": status == "locked",
+    }
+
+
+def _normalize_name_lists(record: dict) -> None:
+    for key in ("aliases", "legacy_ids"):
+        raw = record.get(key)
+        if raw is None:
+            continue
+        if not isinstance(raw, list):
+            continue
+        seen: list[str] = []
+        for item in raw:
+            if not isinstance(item, str):
+                continue
+            text = item.strip()
+            if text and text not in seen:
+                seen.append(text)
+        record[key] = seen
+
+
+def _validate_record_extras(record: dict) -> None:
+    legacy = record.get("legacy_ids")
+    if legacy is not None and (
+        not isinstance(legacy, list)
+        or not all(isinstance(item, str) and item.strip() for item in legacy)
+    ):
+        raise SeriesLibraryError("legacy_ids must be a list of strings")
+    aliases = record.get("aliases")
+    if aliases is not None and (
+        not isinstance(aliases, list)
+        or not all(isinstance(item, str) and item.strip() for item in aliases)
+    ):
+        raise SeriesLibraryError("aliases must be a list of strings")
+    face = record.get("face_source")
+    if face is None:
+        return
+    if not isinstance(face, list):
+        raise SeriesLibraryError("face_source must be a list")
+    for item in face:
+        if not isinstance(item, dict):
+            raise SeriesLibraryError("face_source items must be objects")
+        if item.get("provenance") not in _PROVENANCE:
+            raise SeriesLibraryError(
+                "face_source provenance must be self, licensed, or ai_generated")
+
+
+def _alias_claims(record: dict) -> set[str]:
+    names: set[str] = set()
+    asset_id = str(record.get("id") or "").strip()
+    if asset_id:
+        names.add(asset_id)
+    name_zh = str(record.get("name_zh") or "").strip()
+    if name_zh:
+        names.add(name_zh)
+    for key in ("aliases", "legacy_ids"):
+        raw = record.get(key) or []
+        if not isinstance(raw, list):
+            continue
+        for item in raw:
+            text = str(item or "").strip()
+            if text:
+                names.add(text)
+    return names
+
+
+def _assert_alias_unique(doc: dict, focus_id: str) -> None:
+    claims: dict[str, set[str]] = {}
+    for asset in doc.get("assets") or []:
+        if not isinstance(asset, dict) or asset.get("kind") != "character":
+            continue
+        for name in _alias_claims(asset):
+            claims.setdefault(name, set()).add(str(asset.get("id")))
+    conflicts = [
+        f"{name}: {', '.join(sorted(ids))}"
+        for name, ids in sorted(claims.items())
+        if len(ids) > 1 and focus_id in ids
+    ]
+    if conflicts:
+        raise SeriesLibraryError(
+            "alias conflict: " + "; ".join(conflicts),
+            status=409,
+            details={"conflicts": conflicts},
+        )
+
+
+def _declared_manifest_files(manifest: dict) -> list[dict]:
+    found: list[dict] = []
+    for raw in manifest.get("assets") or []:
+        if not isinstance(raw, dict):
+            continue
+        files = raw.get("files")
+        if not isinstance(files, dict):
+            continue
+        for info in files.values():
+            if not isinstance(info, dict):
+                continue
+            alias = info.get("alias_of") or info.get("alias")
+            if isinstance(alias, str) and alias.strip():
+                continue
+            path = info.get("path")
+            if isinstance(path, str) and path.strip():
+                found.append(info)
+    return found
+
+
+def _check_manifest_inventory(manifest: dict, declared: list[dict]) -> None:
+    if "file_count" in manifest and manifest.get("file_count") is not None:
+        try:
+            expected = int(manifest["file_count"])
+        except (TypeError, ValueError):
+            raise SeriesLibraryError("file_count must be an integer")
+        if expected != len(declared):
+            raise SeriesLibraryError(
+                f"manifest file_count is {expected} but {len(declared)} files were declared")
+    if not manifest.get("require_sha256"):
+        return
+    for info in declared:
+        digest = str(info.get("sha256") or "").strip().lower()
+        path = info.get("path")
+        if len(digest) != 64 or any(char not in "0123456789abcdef" for char in digest):
+            raise SeriesLibraryError(f"sha256 required for {path}")
+
+
+def _reject_excluded_manifest(manifest: dict, *, allow_excluded: bool) -> None:
+    if allow_excluded:
+        return
+    excluded = {
+        str(item) for item in (asset_store_policy().get("excluded_projects") or [])
+    }
+    series = manifest.get("series") if isinstance(manifest.get("series"), dict) else {}
+    found = set()
+    for value in (
+        series.get("id"),
+        series.get("project_id"),
+        manifest.get("project"),
+    ):
+        text = str(value or "").strip()
+        if text:
+            found.add(text)
+    hit = sorted(found & excluded)
+    if hit:
+        raise SeriesLibraryError(
+            f"project {hit[0]} is excluded from import",
+            status=409,
+        )
 
 
 def _check_id_kind(asset_id: str, kind: str) -> None:

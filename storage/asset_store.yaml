@@ -1,0 +1,34 @@
+# ComfyTV asset store policy. Spark is the source of truth after a
+# migration; box paths below are backup notes and are not read or written.
+truth: comfytv
+series_root_template: /home/nodecloud/ComfyUI/input/comfytv/series/{series_id}
+project_root_template: /home/nodecloud/ComfyUI/input/comfytv/projects/{project_id}
+output_root_template: /home/nodecloud/ComfyUI/output/comfytv/projects/{project_id}
+index_filename: library.yaml
+history_dirname: library.history
+version_dir_template: "{id}/v{version}"
+ref_template: "{id}@v{version}#{view}"
+statuses:
+  - draft
+  - candidate
+  - locked
+lock_approver: 张景
+kinds:
+  character: CHR_
+  outfit: OUT_
+  look: LOOK_
+  location: LOC_
+  camera: LOC_
+  prop: PRP_
+  voice: VOX_
+  style: STY_
+  bible: BIB_
+projects:
+  gumu-shuangxiu:
+    series_id: gumu-sx
+    series_code: SER_gumu_sx
+    box_project_root: /workspace/vp/projects/gumu-shuangxiu
+    box_series_root: /workspace/vp/series/gumu-sx
+excluded_projects:
+  - gumu-bixie
+box_is_backup: true

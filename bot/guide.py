@@ -15,6 +15,7 @@ CORE_MCP_TOOLS = [
     "assets",
     "asset_edit",
     "series_library",
+    "character_studio",
     "entries",
     "add_stage",
     "set_stage",
