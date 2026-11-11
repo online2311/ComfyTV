@@ -103,6 +103,7 @@ async def invoke_runner(
     custom_params=None,
     option_defaults=None,
     progress=None,
+    force_run_token=None,
 ):
     try:
         return await _invoke_runner(
@@ -114,6 +115,7 @@ async def invoke_runner(
             custom_params=custom_params,
             option_defaults=option_defaults,
             progress=progress,
+            force_run_token=force_run_token,
         )
     except Exception as e:
         set_last_provenance(None)
@@ -133,6 +135,7 @@ async def _invoke_runner(
     custom_params=None,
     option_defaults=None,
     progress=None,
+    force_run_token=None,
 ):
     runner = RUNNER_REGISTRY.by_label(label, kind)
     if runner is None:
@@ -156,6 +159,8 @@ async def _invoke_runner(
         ctx_kwargs['main_prompt'] = main_prompt
     if progress is not None:
         ctx_kwargs['progress'] = progress
+    if force_run_token is not None:
+        ctx_kwargs['force_run_token'] = force_run_token
 
     ctx = RunnerContext(**ctx_kwargs)
 

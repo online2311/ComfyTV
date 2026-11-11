@@ -98,6 +98,81 @@ def headless(reset_db):
     clear_canvas_state()
 
 
+class TestJobClockAndNodes:
+    async def test_done_job_has_utc_timestamps_and_nodes(self, headless):
+        from ComfyTV import storage
+        from ComfyTV.api.headless_queue import list_queue
+        from ComfyTV.api.headless_queue import queue_status as _queue_status
+        from ComfyTV.api.mcp_tools import _graph_run
+
+        queued = await _graph_run({"prompt": PROMPT})
+        waiting = storage.get_headless_job(queued["job_id"])
+        assert waiting["status"] == "queued"
+        assert waiting["created_at"].endswith("+00:00")
+        assert waiting["updated_at"].endswith("+00:00")
+        assert waiting.get("started_at") is None
+        assert waiting.get("finished_at") is None
+
+        running = await _queue_status({"job_id": queued["job_id"]})
+        assert running["job"]["status"] == "running"
+        assert running["job"]["started_at"].endswith("+00:00")
+        assert running["job"].get("finished_at") is None
+
+        prompt_id = headless["comfy"].submitted[0]["prompt_id"]
+        headless["comfy"].completed[prompt_id] = {
+            "1": {"value": "/view?filename=live.png", "slot": 0, "slots": {"0": "/view?filename=live.png"}},
+        }
+        await headless["queue"].tick()
+        progressed = await _queue_status({"job_id": queued["job_id"]})
+        assert progressed["job"]["completed_nodes"] == ["1"]
+
+        headless["comfy"].finish(prompt_id, SUCCESS)
+        done = await _queue_status({"job_id": queued["job_id"]})
+        assert done["job"]["status"] == "done"
+        assert done["job"]["finished_at"].endswith("+00:00")
+        assert done["job"]["started_at"] <= done["job"]["finished_at"]
+        assert "1" in done["job"]["completed_nodes"]
+        listed = await list_queue({})
+        listed_job = next(job for job in listed["jobs"] if job["job_id"] == queued["job_id"])
+        assert listed_job["finished_at"].endswith("+00:00")
+        assert "1" in listed_job["completed_nodes"]
+
+    async def test_cancel_and_error_set_finished_at(self, headless):
+        from ComfyTV.api.headless_queue import queue_status as _queue_status
+        from ComfyTV.api.mcp_tools import _add_stage, _cancel_stage, _graph_run, _run_stage
+
+        added = await _add_stage({"node_class": "ImageStage", "prompt": "x"})
+        queued = await _run_stage({"node": added["graph_node_id"]})
+        await _cancel_stage({"node": added["graph_node_id"]})
+        cancelled = await _queue_status({"job_id": queued["job_id"]})
+        assert cancelled["job"]["status"] == "cancelled"
+        assert cancelled["job"].get("started_at") is None
+        assert cancelled["job"]["finished_at"].endswith("+00:00")
+
+        failed = await _graph_run({"prompt": PROMPT})
+        await headless["queue"].tick()
+        prompt_id = headless["comfy"].running[0]
+        headless["comfy"].finish(prompt_id, ERROR)
+        errored = await _queue_status({"job_id": failed["job_id"]})
+        assert errored["job"]["status"] == "error"
+        assert errored["job"]["finished_at"].endswith("+00:00")
+        assert errored["job"]["completed_nodes"] == []
+
+    def test_naive_timestamps_parse_as_utc(self):
+        from datetime import datetime, timezone
+
+        from ComfyTV.storage.headless import format_utc_timestamp, parse_utc_timestamp
+
+        naive = "2026-11-11T11:39:03.218265"
+        parsed = parse_utc_timestamp(naive)
+        assert parsed == datetime(2026, 11, 11, 11, 39, 3, 218265, tzinfo=timezone.utc)
+        assert format_utc_timestamp(naive) == "2026-11-11T11:39:03.218265+00:00"
+        assert format_utc_timestamp(naive + "Z") == "2026-11-11T11:39:03.218265+00:00"
+        assert format_utc_timestamp(naive + "+00:00") == "2026-11-11T11:39:03.218265+00:00"
+        shifted = parse_utc_timestamp("2026-11-11T19:39:03.218265+08:00")
+        assert shifted == datetime(2026, 11, 11, 11, 39, 3, 218265, tzinfo=timezone.utc)
+
+
 class TestApplyCompleted:
     def test_rewires_downstream_and_drops_finished_node(self):
         prompt = {

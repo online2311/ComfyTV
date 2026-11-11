@@ -159,6 +159,56 @@ def view_urls(entry: dict | None) -> list[str]:
     return _collect_urls(entry.get("outputs"))
 
 
+def _history_node_ids(entry: dict | None) -> list[str]:
+    """Node ids ComfyUI reported as executed or cached, plus history output keys."""
+    if not isinstance(entry, dict):
+        return []
+    found: list[str] = []
+    status = entry.get("status") or {}
+    for msg in status.get("messages") or []:
+        if not isinstance(msg, (list, tuple)) or len(msg) != 2:
+            continue
+        kind, data = msg
+        if not isinstance(data, dict):
+            continue
+        if kind == "execution_cached":
+            found.extend(str(node) for node in (data.get("nodes") or []))
+        elif kind == "executed" and data.get("node") is not None:
+            found.append(str(data["node"]))
+    outputs = entry.get("outputs")
+    if isinstance(outputs, dict):
+        found.extend(str(node) for node in outputs)
+    return found
+
+
+def merge_completed_nodes(row: dict, entry: dict | None, live: dict | None, *,
+                          success: bool) -> dict:
+    """Nodes to report as completed.
+
+    Progress snapshots win over a bare id. On success the prompt's own node
+    list is included, so a fast job that never emitted progress is not left
+    at ``[]``.
+    """
+    current = _loads(row.get("completed_json"), {})
+    if not isinstance(current, dict):
+        current = {}
+    merged: dict = {}
+    for nid, info in current.items():
+        if isinstance(info, dict):
+            merged[str(nid)] = info
+    for nid, info in (live or {}).items():
+        if isinstance(info, dict):
+            merged[str(nid)] = info
+    for nid in _history_node_ids(entry):
+        merged.setdefault(nid, {"node": nid})
+    if success:
+        prompt = _loads(row.get("prompt_json"), {})
+        if isinstance(prompt, dict):
+            for nid in prompt:
+                merged.setdefault(str(nid), {"node": str(nid)})
+    return merged
+
+
 def history_error(entry: dict) -> str:
     status = entry.get("status") or {}
     for msg in status.get("messages") or []:
@@ -363,8 +413,10 @@ def public_job(row: dict) -> dict:
         "error": row.get("error_text"),
         "completed_nodes": sorted(str(k) for k in completed.keys()),
         "attempt": row.get("attempt") or 1,
-        "created_at": row.get("created_at"),
-        "updated_at": row.get("updated_at"),
+        "created_at": storage.format_utc_timestamp(row.get("created_at")),
+        "updated_at": storage.format_utc_timestamp(row.get("updated_at")),
+        "started_at": storage.format_utc_timestamp(row.get("started_at")),
+        "finished_at": storage.format_utc_timestamp(row.get("finished_at")),
         "headless": True,
     }
 
@@ -470,10 +522,13 @@ class HeadlessQueue:
         if state == "unknown":
             return "skipped"
         if state in ("running", "pending"):
+            fields: dict = {}
             if row.get("status") != "running" or row.get("prompt_id") != prompt_id:
-                storage.update_headless_job(
-                    row["id"], status="running", prompt_id=prompt_id, error_text=None,
-                )
+                fields.update(status="running", prompt_id=prompt_id, error_text=None)
+            if not row.get("started_at"):
+                fields["started_at"] = storage.utcnow()
+            if fields:
+                storage.update_headless_job(row["id"], **fields)
             _log.info(
                 "[ComfyTV/headless] job %s still %s as prompt %s",
                 row["id"], state, prompt_id,
@@ -544,6 +599,8 @@ class HeadlessQueue:
             row["id"],
             status="queued",
             clear_prompt_id=True,
+            clear_started_at=True,
+            clear_finished_at=True,
             attempt=(row.get("attempt") or 1) + 1,
             error_text=None,
         )
@@ -590,12 +647,22 @@ class HeadlessQueue:
     def _finish_history(self, row: dict, entry: dict) -> None:
         status = (entry.get("status") or {}).get("status_str")
         outputs = view_urls(entry)
-        if status == "error":
+        success = status != "error"
+        completed = merge_completed_nodes(
+            row,
+            entry,
+            self.client.completed_for(row.get("prompt_id") or ""),
+            success=success,
+        )
+        finished = storage.utcnow()
+        if not success:
             storage.update_headless_job(
                 row["id"],
                 status="error",
                 error_text=history_error(entry)[:4000],
                 outputs_json=json.dumps(outputs),
+                completed_json=json.dumps(completed),
+                finished_at=finished,
             )
             _log.info("[ComfyTV/headless] job %s failed", row["id"])
             return
@@ -604,6 +671,8 @@ class HeadlessQueue:
             status="done",
             error_text=None,
             outputs_json=json.dumps(outputs),
+            completed_json=json.dumps(completed),
+            finished_at=finished,
         )
         _log.info("[ComfyTV/headless] job %s done (%d outputs)", row["id"], len(outputs))
 
@@ -615,11 +684,16 @@ class HeadlessQueue:
                 value.startswith("/view?") or value.startswith("http")
             ):
                 urls.append(value)
+        recorded = dict(row)
+        recorded["completed_json"] = json.dumps(completed)
+        merged = merge_completed_nodes(recorded, None, None, success=True)
         storage.update_headless_job(
             row["id"],
             status="done",
             error_text=None,
             outputs_json=json.dumps(urls),
+            completed_json=json.dumps(merged),
+            finished_at=storage.utcnow(),
             clear_prompt_id=True,
         )
         _log.info(
@@ -662,11 +736,13 @@ class HeadlessQueue:
             storage.claim_headless_job(
                 row["id"], expect="submitting", become="error",
                 error_text=str(e)[:4000],
+                finished_at=storage.utcnow(),
             )
             _log.info("[ComfyTV/headless] job %s rejected: %s", row["id"], type(e).__name__)
             return
         storage.claim_headless_job(
             row["id"], expect="submitting", become="running", prompt_id=prompt_id,
+            started_at=storage.utcnow(), clear_finished_at=True,
         )
 
     async def wait_for_stage(self, project_id: str, node_ref: str, timeout_s: float) -> dict | None:
@@ -858,6 +934,7 @@ def cancel_queued_stage(payload: dict) -> dict:
         claimed = storage.claim_headless_job(
             row["id"], expect="queued", become="cancelled",
             error_text="cancelled before submit",
+            finished_at=storage.utcnow(),
         )
         if claimed is None:
             raise ValueError(

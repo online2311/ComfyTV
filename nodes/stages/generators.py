@@ -185,6 +185,7 @@ class ImageStage(io.ComfyNode):
                 'batch_size':   int(batch_size or 1),
             },
             custom_params=custom_params,
+            force_run_token=force_run_token,
         )
         picked_idx = int(selected_index or 1)
         picked_url = _pick_image_from_batch(payload, picked_idx)

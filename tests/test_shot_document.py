@@ -134,4 +134,43 @@ class TestValidate:
         errors, warns = validate_shots_document(json.loads(FIXTURE.read_text(encoding="utf-8")))
         assert isinstance(errors, list)
         assert isinstance(warns, list)
-        assert errors == []
+        assert errors == ["M episode: total 126.0s vs target 90s (±15%)"]
+
+    def test_episode_total_sums_duration_s_not_cut_to(self):
+        doc = _valid_doc(duration_s=6, cut_to=5)
+        second = dict(doc["shots"][0])
+        second.update({
+            "shot_id": "E01S01_02",
+            "order": 2,
+            "duration_s": 6,
+            "cut_to": 5,
+            "continuity": {"prev": "E01S01_01", "cut_motive": "next"},
+        })
+        doc["shots"].append(second)
+        doc["target_duration_s"] = 10
+        errors, _warns = validate_shots_document(doc)
+        assert any("total 12.0s vs target 10s" in error for error in errors)
+        assert not any("total 10.0s" in error for error in errors)
+
+    def test_single_shot_skips_episode_target(self):
+        doc = _valid_doc(duration_s=6, cut_to=5)
+        doc["target_duration_s"] = 90
+        errors, warns = validate_shots_document(doc)
+        assert not any("episode:" in item for item in errors + warns)
+
+    def test_partial_board_skips_episode_target(self):
+        doc = _valid_doc(duration_s=6, cut_to=5)
+        second = dict(doc["shots"][0])
+        second.update({
+            "shot_id": "E01S01_02",
+            "order": 2,
+            "continuity": {"prev": "E01S01_01", "cut_motive": "next"},
+        })
+        doc["shots"].append(second)
+        doc["target_duration_s"] = 90
+        errors, warns = validate_shots_document(doc)
+        assert not any("episode:" in item for item in errors + warns)
+
+    def test_full_episode_total_uses_duration_s(self):
+        errors, _warns = validate_shots_document(json.loads(FIXTURE.read_text(encoding="utf-8")))
+        assert any("total 126.0s vs target 90s" in error for error in errors)

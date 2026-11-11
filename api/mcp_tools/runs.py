@@ -244,6 +244,11 @@ TOOLS: dict[str, dict] = {
             "no ComfyTV page is open: status (queued, running, done, error, "
             "cancelled), progress {value, max, node} when ComfyUI has reported "
             "it, outputs as /view URLs, prompt_id, completed_nodes, and error. "
+            "created_at, updated_at, started_at, and finished_at are UTC "
+            "ISO-8601 with a numeric offset. started_at is when the job is "
+            "handed to ComfyUI; finished_at is set on done, error, or cancel. "
+            "completed_nodes comes from execution progress, and on success "
+            "includes every node in the prompt. "
             "Pass job_id (returned at submit) or prompt_id. Does not block. "
             "A page-owned run is still observed with wait_stage."
         ),

@@ -100,13 +100,15 @@ accordingly.
 | `asset_edit` | Save outputs into the asset library, rename, categorize |
 | `series_library` | Read and update a series folder's `library.yaml` (stable `ID@vN#view` codes, lock, new version, resolve, JSON manifest import) |
 
+`resolve` (a code, a list, or shot mode) returns the view written on the code. Omit `#view` and a character, look, or outfit uses `#front` when that file exists. It does not also attach `#headshot`. series-kit `compile` mounts `#headshot` for characters in addition to `#front`; pass `CHR_…@vN#headshot` to `resolve` when you want that file. Shot mode resolves only the codes already stored on the shot, including STY, LOC, and PRP.
+
 **Rich editors**
 
 | Tool | What it does |
 |---|---|
 | `scene_get/edit/capture/record` | Drive a Scene 3D stage: characters, lights, cameras, animation clips, camera paths and the multi-shot director timeline (add_shot/patch_shot/set_path) |
 | `director_get/director_edit` | Read and edit the Director clip timeline |
-| `storyboard` | Read, replace, or validate a Storyboard stage's full shot document (`shots.json` fields and custom keys). `get_stage` only previews a large `storyboard_data` value |
+| `storyboard` | Read, replace, or validate a Storyboard stage's full shot document (`shots.json` fields and custom keys). `get_stage` only previews a large `storyboard_data` value. `validate` sums `duration_s` for the episode total (`cut_to` is only checked against that shot). The `target_duration_s` comparison is skipped when the board cannot reach the target even at 15s per shot (a single shot or a short partial extract) |
 
 ## Patterns that matter
 
@@ -133,7 +135,7 @@ With no ComfyTV page open:
 1. `add_stage` / `set_stage` / `connect_stages` / `graph_edit` edit a graph stored per project in the ComfyTV database (`comfytv_headless_graphs`). `graph_get` reads it back. An open, freshly mirroring page is still the source of truth for that project — close it (or let the mirror go stale) before driving the headless graph.
 2. `run_stage` and `graph_run` insert a row in `comfytv_headless_jobs` and return `{job_id, status: "queued"}` without waiting. `graph_run` accepts an API-format `prompt` (what you would POST to `/prompt`) or a UI-format `workflow`. Omit both to run the stored graph.
 3. A worker submits **one** job to ComfyUI's in-process prompt queue — the same queue `GET /queue` reads — and only when that queue has nothing running and nothing pending. ComfyTV never calls `/interrupt` or `/free`.
-4. Poll `queue_status` (or `list_queue`) for `queued` / `running` / `done` / `error`, plus `progress` and `outputs`. There is no fixed timeout to wait out.
+4. Poll `queue_status` (or `list_queue`) for `queued` / `running` / `done` / `error`, plus `progress` and `outputs`. `created_at` / `updated_at` / `started_at` / `finished_at` are UTC ISO-8601 with an offset (`+00:00`). `started_at` is when the job is handed to ComfyUI; `finished_at` is set on done, error, or cancel. `completed_nodes` is filled from execution progress, and on success lists every node in the prompt. There is no fixed timeout to wait out.
 5. Jobs survive a process restart. Startup checks `GET /queue` (running and pending) and `GET /history/{prompt_id}` before doing anything else. A prompt still in the queue is re-attached and watched. A prompt already in history has its outputs collected and is not submitted again. A prompt ComfyUI has no record of is **not** submitted again unless you call `resume_queue` or turn on the `headless-auto-resume` setting (default off). That resubmit drops stages whose outputs were already saved and rewires downstream inputs to those outputs. Passing an `error` job id to `resume_queue` queues that job again only after the same queue and history check.
 
 The new tables are created by the existing startup `create_all`. Nothing in this path binds a port; ComfyUI stays on `127.0.0.1`.

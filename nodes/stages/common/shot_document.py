@@ -260,11 +260,23 @@ def _character_ids(shot: dict) -> set[str]:
     return found
 
 
+# Per-shot length bounds. The episode-target check uses the max: a board
+# that cannot reach target_duration_s even if every shot were this long is a
+# single shot or a partial extract, not a failed episode.
+_SHOT_S_MIN = 5
+_SHOT_S_MAX = 15
+
+
 def validate_shots_document(doc: dict) -> tuple[list[str], list[str]]:
     """Mechanical checks from the production ``validate_shots.py``.
 
     Returns ``(errors, warnings)``. Schema-file checks are not included.
     A duration outside 5–15s is an error, matching that script's stated rule.
+
+    The episode total sums ``duration_s`` (the shot length). ``cut_to`` is
+    only compared with that length; it is not the shot's contribution to the
+    episode. The comparison with ``target_duration_s`` is skipped when the
+    board cannot reach the target even at 15s per shot.
     """
     errors: list[str] = []
     warns: list[str] = []
@@ -281,6 +293,7 @@ def validate_shots_document(doc: dict) -> tuple[list[str], list[str]]:
     seen: set[str] = set()
     prev_by_scene: dict[str, dict] = {}
     total = 0.0
+    counted = 0
     for index, shot in enumerate(shots):
         if not isinstance(shot, dict):
             errors.append(f"M shots[{index}] must be an object")
@@ -304,12 +317,13 @@ def validate_shots_document(doc: dict) -> tuple[list[str], list[str]]:
         if isinstance(duration, bool) or not isinstance(duration, (int, float)):
             errors.append(f"M {tag}: duration_s must be a number")
             continue
-        if duration < 5 or duration > 15:
+        if duration < _SHOT_S_MIN or duration > _SHOT_S_MAX:
             errors.append(f"M {tag}: duration_s {duration} outside 5–15s")
         cut = shot.get("cut_to")
         if cut is not None and isinstance(cut, (int, float)) and not isinstance(cut, bool) and cut > duration:
             errors.append(f"M {tag}: cut_to {cut} > duration {duration}")
-        total += cut if isinstance(cut, (int, float)) and not isinstance(cut, bool) else duration
+        total += float(duration)
+        counted += 1
         expected_frames = frames_for(duration)
         if shot.get("frames") not in (None, expected_frames):
             warns.append(
@@ -338,7 +352,12 @@ def validate_shots_document(doc: dict) -> tuple[list[str], list[str]]:
                     errors.append(f"M {tag}: content red line '{found.group(0)}' in {field}")
                     break
     target = doc.get("target_duration_s")
-    if isinstance(target, (int, float)) and not isinstance(target, bool) and target:
+    if (
+        isinstance(target, (int, float))
+        and not isinstance(target, bool)
+        and target
+        and counted * _SHOT_S_MAX >= float(target)
+    ):
         if abs(total - target) > 0.15 * target:
             errors.append(f"M episode: total {total:.1f}s vs target {target}s (±15%)")
         elif abs(total - target) > 0.05 * target:
