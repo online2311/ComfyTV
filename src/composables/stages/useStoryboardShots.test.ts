@@ -115,6 +115,35 @@ describe('useStoryboardShots', () => {
     expect(shots.value[0].image_prompt).toBe('from-state')
   })
 
+  it('keeps a saved board when an older execution snapshot arrives', async () => {
+    const saved = {
+      shots: [{ shot_no: '1', image_prompt: 'kept', seed: 3,
+                reference_images: ['/view?filename=kept.png&type=input'] }],
+    }
+    const node = makeNode([makeWidget('storyboard_data', JSON.stringify(saved))])
+    const state = makeState()
+    const { shots } = useStoryboardShots(node, state)
+    state.output = JSON.stringify({ shots: [{ shot_no: '1', image_prompt: 'from db' }] })
+    await nextTick()
+    expect(shots.value[0].image_prompt).toBe('kept')
+    expect(shots.value[0].seed).toBe(3)
+    expect(state.output).toContain('kept.png')
+  })
+
+  it('adopts the storyboard produced by a finished run', async () => {
+    const node = makeNode([makeWidget('storyboard_data', JSON.stringify({
+      shots: [{ shot_no: '1', image_prompt: 'old' }],
+    }))])
+    const state = makeState()
+    const { shots } = useStoryboardShots(node, state)
+    state.running = true
+    await nextTick()
+    state.running = false
+    state.output = JSON.stringify({ shots: [{ shot_no: '1', image_prompt: 'fresh' }] })
+    await nextTick()
+    expect(shots.value[0].image_prompt).toBe('fresh')
+  })
+
   it('watch on state.output re-loads when an upstream payload arrives', async () => {
     const node = makeNode([makeWidget('storyboard_data', '')])
     const state = makeState()

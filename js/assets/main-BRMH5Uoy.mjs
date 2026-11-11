@@ -59817,7 +59817,7 @@ class ArrayStream {
 }
 let sparkPromise = null;
 function loadSpark() {
-  return sparkPromise ?? (sparkPromise = import("./spark.module-B4ouEb_c.mjs"));
+  return sparkPromise ?? (sparkPromise = import("./spark.module-eI_i6li5.mjs"));
 }
 const MESH_MODEL_EXTENSIONS = [".glb", ".gltf", ".fbx", ".obj", ".stl", ".dae"];
 const SPLAT_MODEL_EXTENSIONS = [".spz", ".splat", ".ksplat"];
@@ -87123,7 +87123,7 @@ const _sfc_main$4v = /* @__PURE__ */ defineComponent({
       }
     });
     const AgentPanelRoot = /* @__PURE__ */ defineAsyncComponent({
-      loader: () => import("./AgentPanelRoot-C33wc-8p.mjs"),
+      loader: () => import("./AgentPanelRoot-BV2pEgHs.mjs"),
       errorComponent: AgentPanelLoadError,
       onError: (error2, _retry, fail) => {
         reportError(error2, { errorType: "agent_panel_load_failure" });
@@ -149812,7 +149812,7 @@ async function parseToObject(file) {
     return new OBJLoader2().parse(await file.text());
   }
   if (lower.endsWith(".stl")) {
-    const { STLLoader } = await import("./STLLoader-BdOHVBCj.mjs");
+    const { STLLoader } = await import("./STLLoader-BlwhTpSg.mjs");
     const geometry = new STLLoader().parse(await file.arrayBuffer());
     const material = new MeshStandardMaterial({ color: 13421772 });
     const group = new Group();
@@ -149820,7 +149820,7 @@ async function parseToObject(file) {
     return group;
   }
   if (lower.endsWith(".dae")) {
-    const { ColladaLoader } = await import("./ColladaLoader-CKPtSOD6.mjs");
+    const { ColladaLoader } = await import("./ColladaLoader-cUvkfFou.mjs");
     const collada = new ColladaLoader().parse(await file.text(), "");
     if (!(collada == null ? void 0 : collada.scene)) throw new Error(`failed to parse ${file.name}`);
     return collada.scene;
@@ -156398,6 +156398,8 @@ function useStoryboardShots(node, state2) {
   let pendingUploadShotId = null;
   let pendingAppendRef = false;
   let lastWritten = "";
+  let ignoreExternalOutput = false;
+  let pendingRunResult = false;
   function serialize2() {
     return JSON.stringify({
       shots: shots.value.map((s, i) => ({
@@ -156624,15 +156626,27 @@ function useStoryboardShots(node, state2) {
     }
   }
   restore();
+  ignoreExternalOutput = lastWritten !== "";
   if (node) {
     const origOnConfigure = node.onConfigure;
     node.onConfigure = function(info) {
       origOnConfigure == null ? void 0 : origOnConfigure.call(this, info);
       restore();
+      ignoreExternalOutput = lastWritten !== "";
     };
   }
+  watch(() => state2.running, (running, was) => {
+    if (was && !running) pendingRunResult = true;
+  });
   watch(() => state2.output, (out) => {
     if (!out || out === lastWritten) return;
+    if (pendingRunResult) {
+      pendingRunResult = false;
+      ignoreExternalOutput = false;
+    } else if (ignoreExternalOutput && lastWritten) {
+      store2.setOutputSlot(state2, 0, lastWritten);
+      return;
+    }
     if (loadFromJson(String(out))) {
       lastWritten = String(out);
       writeWidget(node, "storyboard_data", out);
@@ -247501,4 +247515,4 @@ export {
   DropdownMenuRoot_default as y,
   DropdownMenuTrigger_default as z
 };
-//# sourceMappingURL=main-DGbi-nQT.mjs.map
+//# sourceMappingURL=main-BRMH5Uoy.mjs.map

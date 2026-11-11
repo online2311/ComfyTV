@@ -104,6 +104,8 @@ export function useStoryboardShots(node: LGraphNode, state: StageState) {
   let pendingUploadShotId: string | null = null
   let pendingAppendRef = false
   let lastWritten = ''
+  let ignoreExternalOutput = false
+  let pendingRunResult = false
 
   function serialize(): string {
     return JSON.stringify({
@@ -329,16 +331,29 @@ export function useStoryboardShots(node: LGraphNode, state: StageState) {
   }
 
   restore()
+  ignoreExternalOutput = lastWritten !== ''
   if (node) {
     const origOnConfigure = node.onConfigure
     node.onConfigure = function (info: any) {
       origOnConfigure?.call(this, info)
       restore()
+      ignoreExternalOutput = lastWritten !== ''
     }
   }
 
+  watch(() => state.running, (running, was) => {
+    if (was && !running) pendingRunResult = true
+  })
+
   watch(() => state.output, (out) => {
     if (!out || out === lastWritten) return
+    if (pendingRunResult) {
+      pendingRunResult = false
+      ignoreExternalOutput = false
+    } else if (ignoreExternalOutput && lastWritten) {
+      store.setOutputSlot(state, 0, lastWritten)
+      return
+    }
     if (loadFromJson(String(out))) {
       lastWritten = String(out)
       writeWidget(node, 'storyboard_data', out)
