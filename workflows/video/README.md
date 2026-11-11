@@ -10,7 +10,8 @@ Workflows in this folder appear in the **Video Stage** dropdown. Take 0..N text 
 - **Upstream images**, **upstream videos**, **upstream text**, **upstream audio** (all optional) — consume as needed; e.g. i2v uses the first image, ia2v uses image + audio together.
 - **Resolution** (`480P` / `720P` / `1080P`), **aspect ratio** (`16:9` / `9:16` / `1:1`, etc.).
 - **Duration** (seconds).
-- **Generate audio** (toggle), **random seed**, **negative prompt** (all optional).
+- **Generate audio** (toggle) and **seed** (a stage widget; `-1` means unset). Older projects that stored `seed` inside `custom_params` still run: the value is read and then saved on the widget. Negative prompt and other extras stay in `custom_params`.
+- **Reference images**, up to 9. Slot order is `<Picture 1>`..`<Picture N>` (`@image_N` in the prompt is the same order). A workflow that accepts fewer images — LTX I2V is 1, MiniMax H3 first/last frame is 2, a 3-input graph is 3, MiniMax H3 reference-to-video and Wan 2.7 video-edit are 9 and 4 — raises an error instead of dropping the extras. Set `meta.max_reference_images` on a workflow when its graph binds more inputs than the model node actually reads.
 
 ## What your workflow needs
 

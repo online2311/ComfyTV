@@ -14,6 +14,7 @@ CORE_MCP_TOOLS = [
     "outputs",
     "assets",
     "asset_edit",
+    "series_library",
     "entries",
     "add_stage",
     "set_stage",

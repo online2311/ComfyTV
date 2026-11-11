@@ -1,6 +1,10 @@
 import logging
 
 from ._common import *  # noqa: F401, F403
+from .common.ref_slots import (
+    ReferenceSlotError, UNSET_SEED, align_picture_prompt, load_image_cap,
+    prepare_references,
+)
 from .common.shot_document import shot_image_prompt
 from .common.shot_inputs import shot_reference_images, shot_seed
 
@@ -222,6 +226,13 @@ class VideoStage(io.ComfyNode):
                 io.Autogrow.Input("images", template=_image_template(9)),
                 io.Autogrow.Input("videos", template=_video_template(4)),
                 io.Autogrow.Input("audio",  template=_audio_template(3)),
+                io.Int.Input(
+                    "seed",
+                    default=UNSET_SEED, min=UNSET_SEED, max=2_147_483_647, step=1,
+                    tooltip="Generation seed. -1 keeps the workflow default, or a "
+                            "seed still stored in custom_params on older projects. "
+                            "A set value is what gets saved.",
+                ),
                 _custom_params_input(),
             ],
             outputs=[COMFYTV_VIDEO.Output("video")],
@@ -233,10 +244,31 @@ class VideoStage(io.ComfyNode):
     async def execute(cls, force_run_token=0, project_id="", parent_output_id=0,workflow="", resolution="",
                 aspect_ratio="", duration_s=VIDEO_DURATION_DEFAULT_S,
                 generate_audio=False, main_prompt="",
-                texts=None, images=None, videos=None, audio=None, custom_params="{}"):
+                texts=None, images=None, videos=None, audio=None,
+                seed=UNSET_SEED, custom_params="{}"):
 
         text_vals = _autogrow_values(texts)
-        combined_prompt = _combine_prompt(main_prompt, text_vals)
+        try:
+            image_vals, resolved_seed, custom_params = prepare_references(
+                images,
+                seed_field=seed,
+                custom_params=custom_params,
+                cap=load_image_cap('video', workflow),
+                where=f"VideoStage {workflow!r}",
+            )
+            combined_prompt = align_picture_prompt(
+                _combine_prompt(main_prompt, text_vals), len(image_vals),
+            )
+        except ReferenceSlotError as exc:
+            raise RuntimeError(str(exc)) from exc
+        options = {
+            'resolution':     resolution,
+            'aspect_ratio':   aspect_ratio,
+            'duration_s':     duration_s,
+            'generate_audio': generate_audio,
+        }
+        if resolved_seed is not None:
+            options['seed'] = resolved_seed
         return await run_stage_workflow(
             cls,
             custom_params=custom_params,
@@ -247,17 +279,12 @@ class VideoStage(io.ComfyNode):
             main_prompt=combined_prompt,
             upstream={
                 'texts':  text_vals,
-                'images': _autogrow_values(images),
+                'images': image_vals,
                 'videos': _autogrow_values(videos),
                 'audio':  _autogrow_values(audio) if not isinstance(audio, str)
                           else audio,
             },
-            options={
-                'resolution':     resolution,
-                'aspect_ratio':   aspect_ratio,
-                'duration_s':     duration_s,
-                'generate_audio': generate_audio,
-            },
+            options=options,
         )
 
 
@@ -499,7 +526,13 @@ class ShotImagesStage(io.ComfyNode):
                 io.Combo.Input("aspect_ratio", options=ASPECT_RATIOS, default="1:1",
                                tooltip="Target output aspect ratio for every shot."),
                 COMFYTV_STORYBOARD.Input("storyboard", optional=True),
-                io.Autogrow.Input("images", template=_image_template(8)),
+                io.Autogrow.Input("images", template=_image_template(9)),
+                io.Int.Input(
+                    "seed",
+                    default=UNSET_SEED, min=UNSET_SEED, max=2_147_483_647, step=1,
+                    tooltip="Stage seed for shots that do not set their own. "
+                            "-1 keeps a seed still stored in custom_params on older projects.",
+                ),
                 _selected_index_input(),
                 _custom_params_input(),
             ],
@@ -512,7 +545,8 @@ class ShotImagesStage(io.ComfyNode):
     @classmethod
     async def execute(cls, force_run_token=0, project_id="", parent_output_id=0,
                       workflow="", resolution="", aspect_ratio="",
-                      storyboard=None, images=None, selected_index=1, custom_params="{}"):
+                      storyboard=None, images=None, seed=UNSET_SEED,
+                      selected_index=1, custom_params="{}"):
 
         shots: list[dict] = []
         if storyboard:
@@ -536,7 +570,16 @@ class ShotImagesStage(io.ComfyNode):
                 f"added or renamed after startup? (restart ComfyUI to pick up new "
                 f"workflow files, or re-open the workflow in the sidebar editor)"
             )
-        shared_refs = _autogrow_values(images)
+        try:
+            shared_refs, stage_seed, custom_params = prepare_references(
+                images,
+                seed_field=seed,
+                custom_params=custom_params,
+                cap=None,
+                where="ShotImagesStage",
+            )
+        except ReferenceSlotError as exc:
+            raise RuntimeError(str(exc)) from exc
         out_images: list[dict] = []
         any_real = False
         last_error: Exception | None = None
@@ -560,21 +603,26 @@ class ShotImagesStage(io.ComfyNode):
                     'aspect_ratio': aspect_ratio,
                     'batch_size':   1,
                 }
-                seed = shot_seed(shot)
-                if seed is not None:
-                    options['seed'] = seed
+                own_seed = shot_seed(shot)
+                use_seed = own_seed if own_seed is not None else stage_seed
+                if use_seed is not None:
+                    options['seed'] = use_seed
                 try:
+                    shot_images = shot_reference_images(shot, shared_refs)
+                    prompt = align_picture_prompt(prompt, len(shot_images))
                     shot_payload = await invoke_runner(
                         kind='shot-images',
                         label=workflow,
                         main_prompt=prompt,
                         upstream={
                             'texts': [],
-                            'images': shot_reference_images(shot, shared_refs),
+                            'images': shot_images,
                         },
                         options=options,
                         custom_params=custom_params,
                     )
+                except ReferenceSlotError:
+                    raise
                 except StageNotImplemented as e:
                     last_error = e
                     shot_payload = None

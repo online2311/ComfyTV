@@ -207,6 +207,9 @@ function mediaSummary(node: any, graph: any): Record<string, unknown[]> {
       const row: Record<string, unknown> = {
         position: i + 1, mention: `@${type}_${i + 1}`, source: e.src,
       }
+      if (type === 'image' && PICTURE_CLASSES.has(String(node?.comfyClass ?? ''))) {
+        row.picture = `<Picture ${i + 1}>`
+      }
       if (e.src === 'link') {
         const srcNode = mediaEntrySourceNode(node, e, graph)
         if (srcNode) row.from_node = String(srcNode.id)
@@ -225,6 +228,12 @@ function mediaSummary(node: any, graph: any): Record<string, unknown[]> {
   }
   return out
 }
+
+const PICTURE_CLASSES = new Set([
+  'ComfyTV.VideoStage',
+  'ComfyTV.DirectorStage',
+  'ComfyTV.ShotImagesStage',
+])
 
 const MENTION_TOKEN_RE = /@(image|video|audio)_(\d+)(?![0-9a-zA-Z_-])/g
 

@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "series": {
+    "id": "gumu-sx",
+    "code": "SER_gumu_sx",
+    "title_zh": "古墓双修"
+  },
+  "assets": [
+    {
+      "id": "CHR_yangguo",
+      "version": 1,
+      "kind": "character",
+      "status": "draft",
+      "name_zh": "杨过",
+      "desc_en": "A man about 25 years old, clearly adult.",
+      "lock_en": "adult man about 25",
+      "files": {
+        "front": {
+          "path": "CHR_yangguo/v1/front.png",
+          "media_type": "image",
+          "usage": ["identity_video", "image_ref", "review"]
+        }
+      }
+    }
+  ]
+}

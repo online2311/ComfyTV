@@ -95,6 +95,7 @@ accordingly.
 | `workflow_get` / `workflow_edit` | Read a workflow's input bindings and node inventory; bind/unbind stage values to workflow inputs, validated against the real graph |
 | `stage_params` | Define custom stage parameters, then bind them as `option:<key>` |
 | `asset_edit` | Save outputs into the asset library, rename, categorize |
+| `series_library` | Read and update a series folder's `library.yaml` (stable `ID@vN#view` codes, lock, new version, resolve, JSON manifest import) |
 
 **Rich editors**
 
@@ -110,7 +111,7 @@ accordingly.
 
 **Waiting without polling.** `wait_stage` blocks server-side (default 25 s per call, max 170 s) and returns the new output the second it lands. On timeout it returns `after_output_id` — call again with it to keep waiting. Total wait is unbounded; long renders just take a few re-calls.
 
-**Mentions are 1-based positions.** Every stage keeps one ordered media list per type — wired inputs and `asset_refs` together, in the order `get_stage` reports under `media`. Prompt tokens like `@image_1` / `@video_1` address that list by position (`@image_1` is the first image). Removing or reordering media renumbers the tokens in the stage's prompt for you; `set_stage` `media_order` reorders a list, and `connect_stages` reports the position of the connection it made. Out-of-range tokens expand to nothing — and the tools warn you when that happens.
+**Mentions are 1-based positions.** Every stage keeps one ordered media list per type — wired inputs and `asset_refs` together, in the order `get_stage` reports under `media`. Prompt tokens like `@image_1` / `@video_1` address that list by position (`@image_1` is the first image). On `VideoStage`, `DirectorStage` and `ShotImagesStage` that same image order is `<Picture 1>`..`<Picture 9>`: `get_stage` adds `picture` on each image entry, and a video workflow that accepts fewer than 9 images errors instead of dropping the extras. `VideoStage` and `ShotImagesStage` store the seed on the `seed` widget (`widgets.seed`; `-1` means unset). A seed still sitting in `custom_params` is read once and written onto that widget. Removing or reordering media renumbers the tokens in the stage's prompt for you; `set_stage` `media_order` reorders a list, and `connect_stages` reports the position of the connection it made. Out-of-range tokens expand to nothing — and the tools warn you when that happens.
 
 **Real vision.** `view_image` is the only tool that returns pixels. For video QC: `media_frame` to pull a frame, then `view_image` to actually look at it. Never judge an image by its filename.
 

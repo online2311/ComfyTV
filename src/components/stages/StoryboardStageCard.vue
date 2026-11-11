@@ -131,7 +131,7 @@
             class="ctv:py-0.5 ctv:px-1.5 ctv:text-2xs ctv:rounded ctv:cursor-pointer
                    ctv:bg-secondary-background ctv:border ctv:border-border-subtle ctv:text-base-foreground
                    ctv:disabled:opacity-40 ctv:disabled:cursor-default"
-            :disabled="shot.reference_images.length >= 8 || uploadingId === shot.id"
+            :disabled="shot.reference_images.length >= MAX_SHOT_REFS || uploadingId === shot.id"
             @click="pickExtra(shot.id)"
           >+ {{ $t('storyboard.addRef') }}</button>
           <button
@@ -139,7 +139,7 @@
             :key="`${shot.id}-${ri}`"
             type="button"
             class="ctv:relative ctv:w-8 ctv:h-8 ctv:p-0 ctv:rounded ctv:overflow-hidden ctv:border ctv:border-border-subtle ctv:cursor-pointer"
-            :title="$t('storyboard.removeRef')"
+            :title="`${$t('storyboard.pictureSlot', { n: ri + 1 })} — ${$t('storyboard.removeRef')}`"
             @click="removeRef(shot.id, ri)"
           >
             <img :src="url" alt="" class="ctv:size-full ctv:object-cover" draggable="false" />
@@ -325,7 +325,7 @@
 <script setup lang="ts">
 import StageCard from '@/components/stages/StageCard.vue'
 import ViewFullButton from '@/components/ViewFullButton.vue'
-import { useStoryboardShots, type Shot } from '@/composables/stages/useStoryboardShots'
+import { MAX_SHOT_REFS, useStoryboardShots, type Shot } from '@/composables/stages/useStoryboardShots'
 import {
   characterRows,
   customKeys,

@@ -44,7 +44,7 @@ export interface Shot {
   [k: string]: unknown
 }
 
-const MAX_SHOT_REFS = 8
+export const MAX_SHOT_REFS = 9
 const LEGACY_WRITE_KEYS = [
   'shot_no', 'duration', 'prompt', 'image_prompt', 'scene_purpose', 'character',
   'character_desc', 'shot_size', 'action', 'emotion', 'scene_tags', 'lighting',
@@ -79,7 +79,6 @@ function urlsFrom(raw: unknown): string[] {
   for (const item of raw) {
     const url = asRefUrl(item)
     if (url && !out.includes(url)) out.push(url)
-    if (out.length >= MAX_SHOT_REFS) break
   }
   return out
 }
@@ -289,9 +288,11 @@ export function useStoryboardShots(node: LGraphNode, state: StageState) {
   function setImage(id: string, url: string | null) {
     const shot = findShot(id); if (!shot) return
     const tail = shot.reference_images.slice(1)
-    shot.reference_images = url
-      ? [url, ...tail.filter(item => item !== url)].slice(0, MAX_SHOT_REFS)
+    const next = url
+      ? [url, ...tail.filter(item => item !== url)]
       : tail
+    if (next.length > MAX_SHOT_REFS && next.length > shot.reference_images.length) return
+    shot.reference_images = next
     syncPrimary(shot)
     commit()
   }

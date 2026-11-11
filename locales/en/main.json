@@ -271,7 +271,8 @@
       "voice": "Voice",
       "speed": "Speed",
       "referenceText": "Reference transcript",
-      "variantCount": "Variant count"
+      "variantCount": "Variant count",
+      "seed": "Seed"
     },
     "toolbar": {
       "hd": "HD",
@@ -1793,7 +1794,8 @@
     "clearRef": "Clear reference",
     "addRef": "Add reference",
     "removeRef": "Remove this reference",
-    "refsCount": "{n}/8 refs",
+    "refsCount": "{n}/9 refs",
+    "pictureSlot": "<Picture {n}>",
     "seed": "Seed",
     "seedAuto": "stage",
     "seedHint": "Leave empty to use the stage seed",
