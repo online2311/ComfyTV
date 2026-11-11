@@ -109,12 +109,11 @@ async def _load_document(args: dict) -> dict:
 
 
 def _plan_kwargs(args: dict, work: Path) -> dict:
-    shots = args.get("shots")
     return {
         "library_root": args.get("library_root"),
         "frames_root": args.get("frames_root"),
         "base_seed": args.get("base_seed"),
-        "shots": shots if isinstance(shots, list) else None,
+        "shots": args["shots"] if "shots" in args else None,
         "workflows": args.get("workflows"),
         "audio": args.get("audio"),
         "resolution": str(args.get("resolution") or "720P"),
@@ -263,6 +262,9 @@ async def _submit_serial(
                 "node": node_id,
                 "project_id": project_id,
             })
+            if shot_id in rerun:
+                state["completed"].pop(shot_id, None)
+                _save_state(state_path, state)
             row = await _wait_job(runner, queued["job_id"])
         if row["status"] != "done":
             _save_state(state_path, state)
@@ -377,6 +379,7 @@ async def _ensure_node(
         "widgets": stage.get("widgets") or {},
     }
     if node_id:
+        _clear_batch_media(project_id, str(node_id))
         payload = dict(payload)
         payload.pop("node_class", None)
         payload["node"] = str(node_id)
@@ -390,6 +393,28 @@ async def _ensure_node(
     except ValueError as exc:
         raise EpisodeBatchError(f"{shot['shot_id']}: {exc}") from exc
     return str(added["graph_node_id"])
+
+
+_MEDIA_PREFIXES = ("images.image", "videos.video", "audio.audio")
+
+
+def _clear_batch_media(project_id: str, node_id: str) -> None:
+    """Drop image, video, and audio widgets this batch wrote on an earlier run.
+
+    ``set_stage`` only overlays named widgets, so a shorter reference list or
+    a shot that no longer has dialogue would otherwise keep the old slots.
+    """
+    doc = graph.load_document(project_id)
+    node = graph.find_node(doc, node_id)
+    if node is None:
+        return
+    widgets = node.get("widgets")
+    if not isinstance(widgets, dict):
+        return
+    for key in list(widgets):
+        if key.startswith(_MEDIA_PREFIXES):
+            widgets.pop(key, None)
+    graph.save_document(project_id, doc)
 
 
 @routes.post("/comfytv/episode_batch")

@@ -480,6 +480,92 @@ class TestShotRules:
         assert "longer than cut_to 3.00s" in warning
         assert "not trimmed" in warning
 
+    def test_duplicate_shot_id_is_rejected(self):
+        from ComfyTV.nodes.stages.common.episode_video import (
+            EpisodeBatchError,
+            plan_episode_videos,
+        )
+
+        doc = self._shot()
+        twin = dict(doc["shots"][0])
+        twin["order"] = 2
+        doc["shots"].append(twin)
+        with pytest.raises(EpisodeBatchError, match="duplicate shot id E01S09_01"):
+            plan_episode_videos(doc)
+
+    def test_views_stay_separate_and_files_become_view_urls(self, tmp_path):
+        from ComfyTV.nodes.stages.common.episode_video import plan_episode_videos
+        from ComfyTV.storage.series_library import import_series_manifest
+
+        root = tmp_path / "lib"
+        root.mkdir()
+        for view in ("front", "back"):
+            _png(root / "CHR_a" / "v1" / f"{view}.png")
+        import_series_manifest(root, {
+            "schema_version": 1,
+            "series": {"id": "demo"},
+            "assets": [{
+                "id": "CHR_a",
+                "version": 1,
+                "kind": "character",
+                "status": "locked",
+                "approved_by": "test",
+                "files": {
+                    "front": {"path": "CHR_a/v1/front.png", "media_type": "image"},
+                    "back": {"path": "CHR_a/v1/back.png", "media_type": "image"},
+                },
+            }],
+        })
+        planned = plan_episode_videos(
+            self._shot(mode="Ref2VA", refs=[
+                {"role": "identity", "src": "CHR_a@v1", "view": "front"},
+                {"role": "identity", "src": "CHR_a@v1", "view": "back"},
+            ]),
+            library_root=str(root),
+        )
+        assert planned["ok"] is True, planned["errors"]
+        urls = [image["url"] for image in planned["shots"][0]["images"]]
+        assert len(urls) == 2
+        assert urls[0] != urls[1]
+        assert all(url.startswith("/view?") for url in urls)
+
+    def test_each_concatenation_keeps_its_own_file(self, tmp_path):
+        from ComfyTV.nodes.stages.common.episode_video import plan_episode_videos
+
+        first_line = tmp_path / "l1.wav"
+        second_line = tmp_path / "l2.wav"
+        _wav(first_line, 0.3)
+        _wav(second_line, 0.3)
+        doc = self._shot(
+            mode="Ref2VA",
+            dialogue=[
+                {"line_id": "L001", "text": "第一句。"},
+                {"line_id": "L002", "text": "第二句。"},
+            ],
+        )
+        audio = {"by_shot": {"E01S09_01": [str(first_line), str(second_line)]}}
+        work = str(tmp_path / "work")
+        earlier = plan_episode_videos(doc, audio=audio, work_dir=work)
+        kept = Path(earlier["shots"][0]["audio"]["path"])
+        size = kept.stat().st_size
+        later = plan_episode_videos(doc, audio=audio, work_dir=work)
+        fresh = Path(later["shots"][0]["audio"]["path"])
+        assert kept != fresh
+        assert kept.is_file()
+        assert kept.stat().st_size == size
+        assert fresh.is_file()
+
+    async def test_a_string_shot_list_is_rejected(self):
+        from ComfyTV.api.episode_batch import run_episode_batch
+        from ComfyTV.nodes.stages.common.episode_video import EpisodeBatchError
+
+        with pytest.raises(EpisodeBatchError, match="shots must be a list"):
+            await run_episode_batch({
+                "action": "plan",
+                "document": self._shot(),
+                "shots": "E01S09_01",
+            })
+
     def test_subset_keeps_order(self):
         from ComfyTV.nodes.stages.common.episode_video import plan_episode_videos
 
@@ -726,6 +812,78 @@ class TestSerialSubmit:
         assert "last.png" in node["inputs"]["images.image1"]
         assert node["inputs"]["audio.audio0"]
         assert "<Audio 1>" in node["inputs"]["main_prompt"]
+
+    async def test_failed_rerun_is_not_left_completed(self, headless, tmp_path):
+        from ComfyTV.api.episode_batch import run_episode_batch
+
+        _doc, args = self._doc(tmp_path)
+        args["shots"] = [1]
+        task = asyncio.create_task(run_episode_batch({"action": "run", **args}))
+        await self._finish(headless["comfy"], 1)
+        await task
+        saved = json.loads(Path(args["state_path"]).read_text(encoding="utf-8"))
+        assert "E01S01_01" in saved["completed"]
+
+        task = asyncio.create_task(run_episode_batch({
+            "action": "run", "rerun": ["E01S01_01"], **args,
+        }))
+        await self._finish(headless["comfy"], 1, fail_first=True)
+        from ComfyTV.nodes.stages.common.episode_video import EpisodeBatchError
+        with pytest.raises(EpisodeBatchError, match="E01S01_01 failed"):
+            await task
+        saved = json.loads(Path(args["state_path"]).read_text(encoding="utf-8"))
+        assert "E01S01_01" not in saved["completed"]
+
+        task = asyncio.create_task(run_episode_batch({"action": "run", **args}))
+        await self._finish(headless["comfy"], 1)
+        result = await task
+        assert result["results"][0]["status"] == "done"
+
+    async def test_rerun_drops_stale_media_slots(self, headless, tmp_path):
+        from ComfyTV.api.episode_batch import run_episode_batch
+
+        speech = tmp_path / "L001.wav"
+        _wav(speech, 0.4)
+        doc = {
+            "episode": "E01",
+            "shots": [{
+                "shot_id": "E01S01_01",
+                "order": 1,
+                "duration_s": 5,
+                "mode": "Ref2VA",
+                "dialogue": [{"line_id": "L001", "text": "你好。"}],
+                "refs": [
+                    {"role": "first_frame", "src": "/view?filename=a.png&type=input"},
+                    {"role": "ref", "src": "/view?filename=b.png&type=input"},
+                ],
+                "video_prompt": "wide",
+            }],
+        }
+        args = {
+            "document": doc,
+            "audio": {"by_line": {"L001": str(speech)}},
+            "work_dir": str(tmp_path / "work"),
+            "state_path": str(tmp_path / "state.json"),
+        }
+        task = asyncio.create_task(run_episode_batch({"action": "run", **args}))
+        await self._finish(headless["comfy"], 1)
+        await task
+
+        doc["shots"][0]["dialogue"] = []
+        doc["shots"][0]["refs"] = [
+            {"role": "first_frame", "src": "/view?filename=a.png&type=input"},
+        ]
+        doc["shots"][0]["video_prompt"] = "tight"
+        task = asyncio.create_task(run_episode_batch({
+            "action": "run", "rerun": True, **args,
+        }))
+        await self._finish(headless["comfy"], 1)
+        await task
+        inputs = next(iter(headless["comfy"].submitted[-1]["prompt"].values()))["inputs"]
+        assert "images.image1" not in inputs
+        assert "audio.audio0" not in inputs
+        assert "a.png" in inputs["images.image0"]
+        assert inputs["main_prompt"] == "tight"
 
     async def test_http_plan_does_not_require_a_model(self, reset_db):
         from ComfyTV import api  # noqa: F401

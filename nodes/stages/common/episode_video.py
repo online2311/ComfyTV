@@ -37,6 +37,7 @@ import json
 import re
 import shutil
 import subprocess
+import uuid
 import wave
 from pathlib import Path
 from typing import Any
@@ -234,10 +235,12 @@ def _library_root(explicit: str | None, series: Any) -> Path | None:
         return None
 
 
-def _select_shots(doc: dict, shots: list | None) -> list[dict]:
+def _select_shots(doc: dict, shots: Any) -> list[dict]:
     all_shots = [shot for shot in doc.get("shots") or [] if isinstance(shot, dict)]
     if shots is None:
-        return all_shots
+        chosen = all_shots
+        _reject_duplicate_shots(chosen)
+        return chosen
     if not isinstance(shots, list):
         raise EpisodeBatchError("shots must be a list of shot_id or 1-based order")
     if not shots:
@@ -287,7 +290,21 @@ def _select_shots(doc: dict, shots: list | None) -> list[dict]:
             + ", ".join(missing)
             + f". Orders are 1..{len(all_shots)}. Known shot_id values start with {known}."
         )
+    _reject_duplicate_shots(chosen)
     return chosen
+
+
+def _reject_duplicate_shots(shots: list[dict]) -> None:
+    seen: dict[str, int] = {}
+    for index, shot in enumerate(shots):
+        tag = _tag(shot, index)
+        previous = seen.get(tag)
+        if previous is not None:
+            raise EpisodeBatchError(
+                f"duplicate shot id {tag} (shots {previous} and {index + 1}). "
+                "Each planned shot needs its own shot_id."
+            )
+        seen[tag] = index + 1
 
 
 def _plan_shot(
@@ -684,18 +701,20 @@ def _image_slots(shot: dict, mode: str, tag: str, errors: list[str]) -> list[dic
         sequence.append(ref)
     for ref in sequence:
         src = str(ref.get("src") or "").strip()
-        if src in seen:
+        key = _slot_identity(src, ref.get("view"))
+        if key in seen:
             continue
-        seen.add(src)
+        seen.add(key)
         ordered.append(ref)
     for parsed in iter_shot_refs(shot):
         src = str(parsed.get("ref") or "").strip()
-        if not src or src in seen or parsed.get("kind") in ("episode", "invalid"):
+        key = _slot_identity(src, parsed.get("view"))
+        if not src or key in seen or parsed.get("kind") in ("episode", "invalid"):
             continue
         identity = parsed.get("id") or parsed.get("proposed_id") or ""
         if any(str(identity).startswith(prefix) or src.startswith(prefix) for prefix in _SKIP_PREFIXES):
             continue
-        seen.add(src)
+        seen.add(key)
         ordered.append({
             "role": parsed.get("kind") or "ref",
             "src": src,
@@ -704,6 +723,17 @@ def _image_slots(shot: dict, mode: str, tag: str, errors: list[str]) -> list[dic
     if not ordered:
         errors.append(f"{tag}: no reference image slots or asset codes")
     return ordered
+
+
+def _slot_identity(src: str, view: Any) -> str:
+    """Dedup key. The same code with two views is two pictures."""
+    view_name = str(view).strip() if isinstance(view, str) and view.strip() else ""
+    if not view_name:
+        return src
+    parsed = parse_series_ref(src)
+    if parsed.get("kind") in ("asset", "unresolved") and not parsed.get("view"):
+        return f"{src}#{view_name}"
+    return src
 
 
 def _resolve_image(
@@ -758,9 +788,12 @@ def _resolve_asset(code: str, library: Path | None, require_locked: bool, src: s
         raise EpisodeBatchError(
             f"{code} is {resolved.get('media_type')}, not an image"
         )
-    url = resolved.get("payload_url") or resolved.get("absolute_path")
+    url = resolved.get("payload_url")
+    absolute = resolved.get("absolute_path")
     if not url:
-        raise EpisodeBatchError(f"{code} resolved without a file")
+        if not absolute:
+            raise EpisodeBatchError(f"{code} resolved without a file")
+        url = _stage_url(Path(absolute))
     return {
         "ref": src,
         "url": str(url),
@@ -984,7 +1017,7 @@ def _combine_audio(
             f"{tag}: work_dir is required to concatenate {len(paths)} dialogue files"
         )
     safe = _SAFE_NAME.sub("_", tag) or "shot"
-    dest = work / f"{safe}.dialogue.wav"
+    dest = work / f"{safe}.{uuid.uuid4().hex[:12]}.dialogue.wav"
     dest.parent.mkdir(parents=True, exist_ok=True)
     if _wav_params(paths) is not None:
         _concat_wavs(paths, dest)
