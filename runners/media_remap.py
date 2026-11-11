@@ -228,6 +228,7 @@ def render_sequence(segments, *, progress=None, video_encoder=None, report=None)
         joined = concat_videos(g, video_encoder=video_encoder, report=group_report)
         if encoder_report is not None and group_report:
             encoder_report["video_encoder"] = group_report.get("video_encoder")
+            encoder_report["audio_encoder"] = group_report.get("audio_encoder")
         return joined
 
     result = _render_group(groups[0])

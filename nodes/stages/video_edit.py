@@ -1,4 +1,5 @@
 from ._common import *  # noqa: F401, F403
+from .common.emit import _encoder_report
 from .common.fx_helpers import (  # noqa: F401
     _progress_cb, _need_video, _simple_video_op, _hidden_combo, _hidden_float,
 )
@@ -186,9 +187,7 @@ class VideoConcatStage(io.ComfyNode):
         payload = concat_videos(
             urls, progress=_progress, video_encoder=video_encoder, report=report,
         )
-        encoder = report.get("video_encoder")
-        extra_ui = {"video_encoder": [encoder]} if encoder else None
-        params = {"video_encoder": encoder} if encoder else None
+        params, extra_ui = _encoder_report(report)
         return _stage_emit_auto(cls, project_id=project_id, payload_str=payload,
                                 parent_output_id=parent_output_id,
                                 params=params, extra_ui=extra_ui)

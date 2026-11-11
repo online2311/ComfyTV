@@ -17,13 +17,17 @@ whether a clip has audio are read with PyAV. When the container omits a video
 duration (Matroska and WebM often do, and then report the longer audio track
 as the container duration), the picture length is the end of the video packet
 timestamps. Clips that already share codec, size, frame rate, pixel format,
-and audio layout are joined with ``-c copy``. Copied AAC keeps each clip's
-priming. When that leaves the audio more than one frame off the picture, the
-audio is padded or trimmed to the picture and encoded once; the picture stays
-a stream copy. Anything else is normalized by its own ffmpeg subprocess
-(h264_nvenc when the probe succeeds, otherwise libx264), then the concat
-demuxer stream-copies those parts. The binary comes from
-``ffmpeg_bin.find_ffmpeg``.
+and audio layout are joined with a video stream copy. AAC packets still carry
+each clip's encoder priming; the MP4 edit list hides it, so a joined file's
+container duration (and ``ffmpeg -f null`` timestamps) can sit within one
+frame of the picture while a decoder emits every clip's priming. With more
+than one AAC clip the picture stays a stream copy and the audio is rebuilt:
+each clip is decoded on its own, padded and trimmed to that clip's picture
+length in samples, the PCM is concatenated, and AAC is encoded once. Clips
+with no audio stay a pure stream copy. Anything else is normalized by its
+own ffmpeg subprocess (h264_nvenc when the probe succeeds, otherwise
+libx264), then the concat demuxer stream-copies those parts. The binary
+comes from ``ffmpeg_bin.find_ffmpeg``.
 """
 from __future__ import annotations
 
@@ -54,8 +58,6 @@ except ImportError:  # optional; probe falls back to ffprobe
     _av = None
 
 _MAX_FPS = 480
-# Stream-copied AAC may sit this far from the picture (about one frame).
-_AUDIO_SLACK_S = 0.05
 
 
 @dataclass(frozen=True)
@@ -108,28 +110,34 @@ def concat_videos(view_urls: list, progress=None, *,
 
     out = fresh_output_path(".mp4")
     try:
-        used = _concat_sources(
+        used, audio_mode = _concat_sources(
             ffmpeg, probed, target, want_audio, out, progress, video_encoder,
         )
     except Exception:
         out.unlink(missing_ok=True)
         raise
     _log.info("concat: video encoder %s", used)
+    _log.info("concat: audio encoder %s", audio_mode)
     if report is not None:
         report["video_encoder"] = used
+        report["audio_encoder"] = audio_mode
     return path_to_view_url(out)
 
 
 def _concat_sources(ffmpeg, probed, target, want_audio, out, progress,
-                    video_encoder) -> str:
+                    video_encoder) -> tuple[str, str]:
     if _can_stream_copy(probed, target, want_audio):
         try:
+            # Copy-compatible audio is AAC, and concat only runs with at least
+            # two clips. Rebuild that audio instead of trusting the joined
+            # container duration: edit lists make it look aligned.
+            if want_audio:
+                _copy_video_refit_audio(ffmpeg, probed, out)
+                return "copy", "reencode"
             _concat_copy(
                 ffmpeg, [item["path"] for item in probed], out, faststart=True,
             )
-            if want_audio:
-                _fit_copied_audio(ffmpeg, out)
-            return "copy"
+            return "copy", "copy"
         except RuntimeError as exc:
             _log.warning("concat: stream copy failed, re-encoding: %s", exc)
             out.unlink(missing_ok=True)
@@ -150,7 +158,7 @@ def _concat_sources(ffmpeg, probed, target, want_audio, out, progress,
         joined = tmp_dir / "joined.mov"
         _concat_copy(ffmpeg, parts, joined)
         _remux(ffmpeg, joined, out, want_audio)
-    return encoder
+    return encoder, "reencode" if want_audio else "copy"
 
 
 def _parse_rate(raw) -> Fraction | None:
@@ -563,14 +571,26 @@ def _concat_line(path: Path) -> str:
 
 
 def _concat_copy(ffmpeg: str, parts: list[Path], dest: Path, *,
-                 faststart: bool = False) -> None:
+                 faststart: bool = False, audio: bool = True,
+                 durations: list[float] | None = None) -> None:
+    lines: list[str] = []
+    for index, path in enumerate(parts):
+        lines.append(_concat_line(path))
+        # The concat demuxer spaces segments by container duration. A clip
+        # whose audio is longer than its picture would stretch the copied
+        # video timeline unless the picture length is written here.
+        if durations is not None:
+            lines.append(f"duration {float(durations[index]):.6f}\n")
     listing = dest.with_name(f"{dest.stem}-concat.txt")
-    listing.write_text("".join(_concat_line(p) for p in parts), encoding="utf-8")
+    listing.write_text("".join(lines), encoding="utf-8")
     cmd = [
         ffmpeg, "-y", "-hide_banner", "-loglevel", "error",
         "-f", "concat", "-safe", "0", "-i", str(listing),
-        "-c", "copy",
     ]
+    if audio:
+        cmd += ["-c", "copy"]
+    else:
+        cmd += ["-map", "0:v:0", "-c:v", "copy", "-an"]
     if faststart:
         cmd += ["-movflags", "+faststart"]
     cmd.append(str(dest))
@@ -580,49 +600,62 @@ def _concat_copy(ffmpeg: str, parts: list[Path], dest: Path, *,
         listing.unlink(missing_ok=True)
 
 
-def _fit_copied_audio(ffmpeg: str, path: Path) -> None:
-    """Make a stream-copied audio track the same length as the picture.
+def _copy_video_refit_audio(ffmpeg: str, probed: list, out: Path) -> None:
+    """Stream-copy the picture and encode one AAC track fitted to it.
 
-    ``-c copy`` cannot cut inside an AAC frame, and each clip's priming is
-    kept, so the joined audio runs long. Video packets stay copied. The
-    audio is padded or trimmed to the picture duration and encoded once.
+    Decoding the joined AAC and trimming on timestamps does not drop the
+    extra samples: those samples share a shorter timestamp span than their
+    count. Each source is decoded while its own edit list still applies, then
+    padded or trimmed to that picture's sample count.
     """
-    info = _probe(path, 0)
-    if info["audio"] is None:
-        return
-    video_s = float(info["duration"])
-    if video_s <= 0:
-        raise RuntimeError("concat: copied picture has no duration")
-    heard = _audio_duration(info["audio"])
-    if heard is not None and abs(heard - video_s) <= _AUDIO_SLACK_S:
-        return
-    duration = f"{video_s:.6f}"
-    dest = path.with_name(f"{path.stem}-audiofit{path.suffix}")
+    with tempfile.TemporaryDirectory(prefix="comfytv-concat-") as tmp:
+        tmp_dir = Path(tmp)
+        wavs: list[Path] = []
+        for i, item in enumerate(probed):
+            wav = tmp_dir / f"a{i:04d}.wav"
+            _fit_clip_audio(ffmpeg, item, wav)
+            wavs.append(wav)
+        audio = tmp_dir / "audio.wav"
+        _concat_copy(ffmpeg, wavs, audio)
+        video = tmp_dir / "video.mp4"
+        _concat_copy(
+            ffmpeg, [item["path"] for item in probed], video, audio=False,
+            durations=[float(item["duration"]) for item in probed],
+        )
+        _mux_copied_video(ffmpeg, video, audio, out)
+
+
+def _fit_clip_audio(ffmpeg: str, item: dict, dest: Path) -> None:
+    audio = item["audio"] or {}
+    rate = _as_int(audio.get("sample_rate")) or _AUDIO_RATE
+    channels = _as_int(audio.get("channels")) or 2
+    samples = max(1, int(round(float(item["duration"]) * rate)))
     cmd = [
         ffmpeg, "-y", "-hide_banner", "-loglevel", "error",
-        "-i", str(path),
-        "-map", "0:v:0", "-c:v", "copy",
-        "-map", "0:a:0",
+        "-i", str(item["path"]),
+        "-vn",
         "-af", (
-            f"apad=whole_dur={duration},atrim=end={duration},"
+            f"apad=pad_len={samples},atrim=end_sample={samples},"
             "asetpts=PTS-STARTPTS"
         ),
-        "-c:a", "aac", "-b:a", "160k",
+        "-ar", str(rate),
+        "-ac", str(channels),
+        str(dest),
+    ]
+    _run(cmd, "fit clip audio")
+
+
+def _mux_copied_video(ffmpeg: str, video: Path, audio: Path, dest: Path) -> None:
+    cmd = [
+        ffmpeg, "-y", "-hide_banner", "-loglevel", "error",
+        "-i", str(video),
+        "-i", str(audio),
+        "-map", "0:v:0", "-c:v", "copy",
+        "-map", "1:a:0", "-c:a", "aac", "-b:a", "160k",
         "-movflags", "+faststart",
         str(dest),
     ]
-    try:
-        _run(cmd, "fit audio")
-        dest.replace(path)
-    finally:
-        dest.unlink(missing_ok=True)
-    if heard is None:
-        _log.info("concat: fitted audio to picture %.3fs", video_s)
-    else:
-        _log.info(
-            "concat: fitted audio to picture %.3fs (audio was %.3fs)",
-            video_s, heard,
-        )
+    _run(cmd, "mux audio")
 
 
 def _remux(ffmpeg: str, src: Path, dest: Path, want_audio: bool) -> None:

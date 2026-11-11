@@ -69,6 +69,53 @@ def _stream_durations(url):
     return video_s, audio_s
 
 
+def _decoded_audio_seconds(url):
+    """Samples the decoder actually emits, divided by the sample rate.
+
+    Stream duration and the MP4 edit list can hide AAC priming. ``frame.samples``
+    does not.
+    """
+    import av as avlib
+    from ComfyTV.runners import media
+    with avlib.open(str(media.localize(url))) as container:
+        stream = container.streams.audio[0]
+        rate = stream.sample_rate or 44100
+        samples = 0
+        for frame in container.decode(stream):
+            samples += frame.samples
+    return samples / rate
+
+
+def _mono_pcm(url):
+    import av as avlib
+    from ComfyTV.runners import media
+    chunks = []
+    with avlib.open(str(media.localize(url))) as container:
+        stream = container.streams.audio[0]
+        rate = stream.sample_rate or 44100
+        resampler = avlib.AudioResampler(format="fltp", layout="mono", rate=rate)
+        for frame in container.decode(stream):
+            for resampled in resampler.resample(frame):
+                chunks.append(resampled.to_ndarray()[0])
+        for resampled in resampler.resample(None):
+            chunks.append(resampled.to_ndarray()[0])
+    if not chunks:
+        return np.zeros(0, dtype=np.float32), rate
+    return np.concatenate(chunks), rate
+
+
+def _tone_hz(samples, rate, start_s, end_s):
+    window = samples[int(start_s * rate):int(end_s * rate)]
+    if window.size < 8:
+        return 0.0
+    signs = np.sign(window)
+    signs[signs == 0] = 1
+    crossings = np.where(np.diff(signs))[0]
+    if crossings.size < 2:
+        return 0.0
+    return float(rate / (2 * np.mean(np.diff(crossings))))
+
+
 def _mono_rms(url, start_s, end_s):
     import av as avlib
     from ComfyTV.runners import media
@@ -314,16 +361,24 @@ def test_stream_copy_aac_duration_stays_within_one_frame():
     report = {}
     out = media.concat_videos(_urls(paths), report=report)
     assert report["video_encoder"] == "copy"
+    assert report["audio_encoder"] == "reencode"
     video_s, audio_s = _stream_durations(out)
     assert audio_s is not None
     assert video_s >= 8 * 0.5 - 0.05
     assert abs(video_s - audio_s) <= 0.05
+    assert abs(_decoded_audio_seconds(out) - video_s) <= 0.05
 
 
-def test_aligned_aac_stays_a_pure_stream_copy(monkeypatch):
-    """Audio already within one frame of the picture is left as the stream
-    copy. ``video_encoder == copy`` is also true after an audio re-encode,
-    so this checks that the fit subprocess never runs."""
+def test_matching_aac_reencodes_audio_and_copies_video(monkeypatch):
+    """Matching AAC clips no longer stay a byte-identical stream copy.
+
+    PR #22 left the audio untouched when the container durations were
+    already within one frame. That comparison misses encoder priming: the
+    edit list keeps the container aligned while the decoded samples run
+    long once several clips are joined. ``video_encoder`` stays ``copy``
+    because the picture is not re-encoded. The audio is rebuilt, so the
+    output is not the pure ``ffmpeg -c copy`` file.
+    """
     from ComfyTV.runners import media
 
     src = _src_dir("concat-aac-pure-copy")
@@ -345,16 +400,19 @@ def test_aligned_aac_stays_a_pure_stream_copy(monkeypatch):
     report = {}
     out = media.concat_videos(_urls(paths), report=report)
     assert report["video_encoder"] == "copy"
+    assert report["audio_encoder"] == "reencode"
     video_s, audio_s = _stream_durations(out)
     assert audio_s is not None
     assert abs(video_s - audio_s) <= 0.05
+    assert abs(_decoded_audio_seconds(out) - video_s) <= 0.05
 
     ffmpeg_cmds = [c for c in commands if c and Path(c[0]).name.startswith("ffmpeg")]
-    assert len(ffmpeg_cmds) == 1
-    joined = ffmpeg_cmds[0]
-    assert "concat" in joined and "copy" in joined
-    assert "-af" not in joined
-    assert not any("apad" in arg or "atrim" in arg for arg in joined)
+    assert any("concat" in cmd and "copy" in cmd for cmd in ffmpeg_cmds)
+    assert any("apad" in arg or "atrim" in arg for cmd in ffmpeg_cmds for arg in cmd)
+    assert any(arg == "aac" for cmd in ffmpeg_cmds for arg in cmd)
+    assert not any(
+        arg in ("libx264", "h264_nvenc") for cmd in ffmpeg_cmds for arg in cmd
+    )
 
     copied = media.localize(out)
     reference = src / "reference-copy.mp4"
@@ -365,7 +423,75 @@ def test_aligned_aac_stays_a_pure_stream_copy(monkeypatch):
         "-f", "concat", "-safe", "0", "-i", str(listing),
         "-c", "copy", "-movflags", "+faststart", str(reference),
     ], check=True)
-    assert hashlib.sha256(copied.read_bytes()).digest() == hashlib.sha256(reference.read_bytes()).digest()
+    assert hashlib.sha256(copied.read_bytes()).digest() != hashlib.sha256(reference.read_bytes()).digest()
+
+
+def test_many_aac_segments_match_picture_by_decoded_samples():
+    """22 short AAC clips: the joined container looks aligned, the decoder does not.
+
+    Each source edit list hides about one AAC frame of priming. Stream-copy
+    concat drops those lists, so ffprobe still reports audio within one frame
+    of the picture while the samples PyAV emits run long. The copy path has
+    to rebuild that audio. A pure ``-c copy`` of the same clips is the
+    before-fix witness and must stay long.
+    """
+    from ComfyTV.runners import media
+
+    n = 22
+    segment_s = 0.5
+    src = _src_dir("concat-aac-decoded")
+    paths = []
+    freqs = []
+    for i in range(n):
+        freq = 440 + (i % 5) * 220
+        freqs.append(freq)
+        path = src / f"s{i:02d}.mp4"
+        subprocess.check_call([
+            _ffmpeg(), "-y", "-hide_banner", "-loglevel", "error",
+            "-f", "lavfi", "-t", str(segment_s), "-i", "color=c=red:s=64x48:r=24",
+            "-f", "lavfi", "-t", str(segment_s), "-i",
+            f"sine=frequency={freq}:sample_rate=44100",
+            "-c:v", "libx264", "-pix_fmt", "yuv420p", "-bf", "0",
+            "-c:a", "aac", "-b:a", "160k", "-ar", "44100", "-ac", "2",
+            "-map", "0:v:0", "-map", "1:a:0",
+            str(path),
+        ])
+        paths.append(path)
+
+    raw = src / "raw-copy.mp4"
+    listing = src / "raw-concat.txt"
+    listing.write_text(
+        "".join(f"file '{p.resolve().as_posix()}'\n" for p in paths),
+        encoding="utf-8",
+    )
+    subprocess.check_call([
+        _ffmpeg(), "-y", "-hide_banner", "-loglevel", "error",
+        "-f", "concat", "-safe", "0", "-i", str(listing),
+        "-c", "copy", "-movflags", "+faststart", str(raw),
+    ])
+    raw_url = _urls([raw])[0]
+    raw_video, raw_audio = _stream_durations(raw_url)
+    raw_decoded = _decoded_audio_seconds(raw_url)
+    assert abs(raw_video - raw_audio) <= 0.05
+    assert raw_decoded - raw_video > 0.2
+
+    report = {}
+    out = media.concat_videos(_urls(paths), report=report)
+    assert report["video_encoder"] == "copy"
+    video_s, _audio_s = _stream_durations(out)
+    decoded = _decoded_audio_seconds(out)
+    expected = n * segment_s
+    assert abs(video_s - expected) <= 0.05
+    assert abs(decoded - video_s) <= 0.05
+    assert abs(decoded - expected) <= 0.05
+    assert report["audio_encoder"] == "reencode"
+
+    pcm, rate = _mono_pcm(out)
+    for i, freq in enumerate(freqs):
+        start = i * segment_s + 0.12
+        end = i * segment_s + 0.38
+        heard = _tone_hz(pcm, rate, start, end)
+        assert abs(heard - freq) < 40, f"segment {i}: heard {heard:.1f} Hz, expected {freq}"
 
 
 def test_all_silent_sources_stay_silent():

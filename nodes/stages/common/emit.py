@@ -100,6 +100,25 @@ def _persist(
         return None
 
 
+def _encoder_report(report: dict) -> tuple[dict | None, dict | None]:
+    """Params and UI for a concat run.
+
+    ``video_encoder`` stays the picture path: ``copy``, ``libx264``, or
+    ``h264_nvenc``. ``audio_encoder`` is ``copy`` or ``reencode``.
+    """
+    extra_ui: dict = {}
+    params: dict = {}
+    video = report.get("video_encoder")
+    audio = report.get("audio_encoder")
+    if video:
+        extra_ui["video_encoder"] = [video]
+        params["video_encoder"] = video
+    if audio:
+        extra_ui["audio_encoder"] = [audio]
+        params["audio_encoder"] = audio
+    return (params or None), (extra_ui or None)
+
+
 def _stage_emit_auto(cls, *, project_id, payload_str, params=None, emit_ui: bool = True,
                      parent_output_id=None, picked_payload=None, picked_index=None,
                      extra_outputs=None, duration_ms=None, extra_ui=None):

@@ -3,6 +3,7 @@ from ...runners.media_filter import xfade_videos, XFADE_TRANSITIONS
 from ...runners.media_remap import time_remap, frame_hold, render_sequence
 from ...runners.luma_maps import LUMA_MAP_KINDS
 
+from .common.emit import _encoder_report
 from .common.fx_helpers import (  # noqa: F401
     _need_video, _progress_cb, _f, _parse_json,
     _hidden_float, _hidden_int, _hidden_str, _hidden_combo,
@@ -214,9 +215,7 @@ class SequenceStage(io.ComfyNode):
         payload = render_sequence(
             segs, progress=_progress_cb(cls), video_encoder=video_encoder, report=report,
         )
-        encoder = report.get("video_encoder")
-        extra_ui = {"video_encoder": [encoder]} if encoder else None
-        params = {"video_encoder": encoder} if encoder else None
+        params, extra_ui = _encoder_report(report)
         return _stage_emit_auto(cls, project_id=project_id, payload_str=payload,
                                 parent_output_id=parent_output_id,
                                 params=params, extra_ui=extra_ui)
