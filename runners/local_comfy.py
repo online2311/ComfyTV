@@ -82,15 +82,31 @@ def _custom_multi_result(config: dict) -> dict:
     return result_meta_for(normalize_custom_io(custom_io))
 
 
+def _is_cached_loader(class_type: str) -> bool:
+    """Weight and media loaders keep their output cache across a force re-run.
+
+    ``CheckpointLoaderSimple``, ``UNETLoader``, ``CLIPLoader``, ``VAELoader``,
+    ``LoadImage``, and pack names such as ``VHS_LoadVideo`` do not depend on
+    the run token. A downstream sampler's cache key includes its own inputs,
+    so stamping the sampler (or any custom node that is not a loader) misses
+    that cache without reloading weights.
+    """
+    name = str(class_type or "")
+    if "loader" in name.lower():
+        return True
+    short = name.rsplit("|", 1)[-1].rsplit(".", 1)[-1]
+    return short.startswith("Load") or short.startswith("load") or "_Load" in short
+
+
 def _stamp_force_run_token(workflow: dict, token) -> None:
-    """Put the token on every nested node as a literal input.
+    """Put the token on generation nodes as a literal input.
 
     ComfyUI v0.45 hashes every non-link input in ``CacheKeySetInputSignature``.
     ``fingerprint_inputs`` on ImageStage would only change the outer node, and
     the nested ``PromptExecutor`` keeps its own classic cache. A new token
     therefore has to be inside the sub-prompt. Seed and the other declared
-    widgets are left as they are, so the re-run uses the same sample settings.
-    Nodes that do not declare this input ignore it at execution time.
+    widgets are left as they are. Loaders are not stamped, so their cached
+    weights stay loaded. Nodes that do not declare this input ignore it.
     """
     if token is None:
         return
@@ -100,6 +116,8 @@ def _stamp_force_run_token(workflow: dict, token) -> None:
         return
     for node in workflow.values():
         if not isinstance(node, dict):
+            continue
+        if _is_cached_loader(str(node.get("class_type") or "")):
             continue
         inputs = node.get("inputs")
         if not isinstance(inputs, dict):

@@ -175,6 +175,11 @@ def _history_node_ids(entry: dict | None) -> list[str]:
             found.extend(str(node) for node in (data.get("nodes") or []))
         elif kind == "executed" and data.get("node") is not None:
             found.append(str(data["node"]))
+        elif kind in ("execution_error", "execution_interrupted"):
+            failed = data.get("node_id")
+            for node in data.get("executed") or []:
+                if failed is None or str(node) != str(failed):
+                    found.append(str(node))
     outputs = entry.get("outputs")
     if isinstance(outputs, dict):
         found.extend(str(node) for node in outputs)

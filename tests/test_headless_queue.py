@@ -158,6 +158,52 @@ class TestJobClockAndNodes:
         assert errored["job"]["finished_at"].endswith("+00:00")
         assert errored["job"]["completed_nodes"] == []
 
+    async def test_error_keeps_nodes_finished_before_the_failure(self, headless):
+        from ComfyTV.api.headless_queue import queue_status as _queue_status
+        from ComfyTV.api.mcp_tools import _graph_run
+
+        failed = await _graph_run({"prompt": {
+            "1": {"class_type": "CheckpointLoaderSimple", "inputs": {}},
+            "2": {"class_type": "CLIPTextEncode", "inputs": {}},
+            "3": {"class_type": "KSampler", "inputs": {}},
+        }})
+        await headless["queue"].tick()
+        prompt_id = headless["comfy"].running[0]
+        headless["comfy"].finish(prompt_id, {
+            "outputs": {},
+            "status": {
+                "status_str": "error",
+                "messages": [[
+                    "execution_error",
+                    {
+                        "node_id": "3",
+                        "node_type": "KSampler",
+                        "executed": ["1", "2", "3"],
+                        "exception_message": "boom",
+                    },
+                ]],
+            },
+        })
+        errored = await _queue_status({"job_id": failed["job_id"]})
+        assert errored["job"]["status"] == "error"
+        assert errored["job"]["completed_nodes"] == ["1", "2"]
+
+        stopped = await _graph_run({"prompt": PROMPT})
+        await headless["queue"].tick()
+        prompt_id = headless["comfy"].running[0]
+        headless["comfy"].finish(prompt_id, {
+            "outputs": {},
+            "status": {
+                "status_str": "error",
+                "messages": [[
+                    "execution_interrupted",
+                    {"node_id": "1", "node_type": "KSampler", "executed": ["9"]},
+                ]],
+            },
+        })
+        interrupted = await _queue_status({"job_id": stopped["job_id"]})
+        assert interrupted["job"]["completed_nodes"] == ["9"]
+
     def test_naive_timestamps_parse_as_utc(self):
         from datetime import datetime, timezone
 
