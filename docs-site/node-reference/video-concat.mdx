@@ -51,7 +51,8 @@ after the ordered ones.
 - **Size and frame rate follow the first clip.** Later clips are stretched to that even
   width and height and retimed to that frame rate. If the first clip has no readable
   size or frame rate, or the frame rate is above 480 fps, the run stops with an error
-  instead of guessing. Matching size and fps on the way in still looks cleanest.
+  instead of guessing. A clip shorter than one output frame is held for that single
+  frame instead of being dropped. Matching size and fps on the way in still looks cleanest.
 - **Audio stays locked to the picture.** If any clip has sound, a clip with no soundtrack
   gets silence of the same length, and a short or long soundtrack is padded or trimmed
   to the picture. Later clips therefore don't start early. If every clip is silent, the

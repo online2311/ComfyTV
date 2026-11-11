@@ -126,13 +126,20 @@ def _parse_rate(raw) -> Fraction | None:
 
 
 def _positive(raw) -> float | None:
+    value = _nonnegative(raw)
+    if value is None or value <= 0:
+        return None
+    return value
+
+
+def _nonnegative(raw) -> float | None:
     if raw in (None, "", "N/A"):
         return None
     try:
         value = float(raw)
     except (TypeError, ValueError):
         return None
-    return value if value > 0 else None
+    return value if value >= 0 else None
 
 
 def _probe(ffprobe: str, path: Path, index: int) -> dict:
@@ -156,21 +163,59 @@ def _probe(ffprobe: str, path: Path, index: int) -> dict:
     if video is None:
         raise RuntimeError(f"concat: clip {index + 1} has no video stream")
     fps = _parse_rate(video.get("avg_frame_rate")) or _parse_rate(video.get("r_frame_rate"))
-    duration = _positive(video.get("duration"))
-    if duration is None and fps is not None:
-        nb = video.get("nb_frames")
-        if nb not in (None, "", "N/A"):
-            try:
-                frames = int(nb)
-            except ValueError:
-                frames = 0
-            if frames > 0:
-                duration = frames / float(fps)
+    duration = _video_duration(video, fps)
     if duration is None:
-        duration = _positive((data.get("format") or {}).get("duration"))
+        # Container duration can be the longer audio track (common on Matroska).
+        # Read the video packets instead of extending the picture to that length.
+        duration = _video_packet_end(ffprobe, path, fps)
     if not duration:
         raise RuntimeError(f"concat: clip {index + 1} has no duration")
     return {"path": path, "video": video, "audio": audio, "duration": duration}
+
+
+def _video_duration(stream: dict, fps: Fraction | None) -> float | None:
+    duration = _positive(stream.get("duration"))
+    if duration is not None:
+        return duration
+    if fps is None:
+        return None
+    nb = stream.get("nb_frames")
+    if nb in (None, "", "N/A"):
+        return None
+    try:
+        frames = int(nb)
+    except ValueError:
+        return None
+    if frames <= 0:
+        return None
+    return frames / float(fps)
+
+
+def _video_packet_end(ffprobe: str, path: Path, fps: Fraction | None) -> float | None:
+    proc = subprocess.run(
+        [
+            ffprobe, "-v", "error", "-select_streams", "v:0",
+            "-show_entries", "packet=pts_time,duration_time",
+            "-of", "csv=p=0", str(path),
+        ],
+        capture_output=True, text=True, stdin=subprocess.DEVNULL,
+    )
+    if proc.returncode != 0:
+        return None
+    frame_dur = (1.0 / float(fps)) if fps else 0.0
+    end = 0.0
+    saw = False
+    for line in proc.stdout.splitlines():
+        if not line.strip():
+            continue
+        parts = line.split(",")
+        pts = _nonnegative(parts[0] if parts else None)
+        if pts is None:
+            continue
+        pkt_dur = _positive(parts[1]) if len(parts) > 1 else None
+        saw = True
+        end = max(end, pts + (pkt_dur if pkt_dur is not None else frame_dur))
+    return end if saw and end > 0 else None
 
 
 def _fps_arg(fps: Fraction) -> str:
@@ -201,7 +246,8 @@ def _normalize(ffmpeg: str, item: dict, target: TargetFormat, want_audio: bool,
     samples = int(round(frames / float(target.fps_fraction) * _AUDIO_RATE))
     fps_arg = _fps_arg(target.fps_fraction)
     video = (
-        f"[0:v]scale={target.width}:{target.height}:flags=bilinear,fps={fps_arg},"
+        f"[0:v]scale={target.width}:{target.height}:flags=bilinear,"
+        f"fps={fps_arg}:eof_action=pass,"
         f"setsar=1,format=yuv420p,setpts=PTS-STARTPTS,"
         f"tpad=stop_mode=clone:stop_duration=1,trim=end_frame={frames},"
         f"setpts=PTS-STARTPTS[v]"

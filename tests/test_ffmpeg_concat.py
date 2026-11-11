@@ -226,6 +226,58 @@ def test_all_silent_sources_stay_silent():
     assert info["has_audio"] is False
 
 
+def test_long_audio_does_not_freeze_the_picture():
+    """A Matroska file can omit the video duration and report the longer
+    audio track as the container duration. The picture length stays the
+    video timeline, and the extra audio is cut to match."""
+    from ComfyTV.runners import media
+
+    src = _src_dir("concat-long-audio")
+    long = src / "long-audio.mkv"
+    other = src / "other.mp4"
+    if not long.exists():
+        subprocess.check_call([
+            "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
+            "-f", "lavfi", "-i", "color=c=red:s=64x48:r=24:d=0.5",
+            "-f", "lavfi", "-i", "sine=frequency=440:sample_rate=44100:duration=1.5",
+            "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac",
+            "-map", "0:v", "-map", "1:a", str(long),
+        ])
+    if not other.exists():
+        _write_clip(other, w=64, h=48, fps=24, seconds=0.5, with_audio=True)
+    out = media.concat_videos(_urls([long, other]))
+    video_s, audio_s = _stream_durations(out)
+    assert 0.9 <= video_s <= 1.2
+    assert audio_s is not None
+    assert abs(video_s - audio_s) < 0.04
+
+
+def test_clip_shorter_than_half_a_frame_is_kept():
+    """A 0.25s clip after a 1 fps leader is under half a target frame.
+    It is held for one output frame instead of disappearing."""
+    from ComfyTV.runners import media
+
+    src = _src_dir("concat-short")
+    slow = src / "onefps.mp4"
+    brief = src / "quarter.mp4"
+    if not slow.exists():
+        subprocess.check_call([
+            "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
+            "-f", "lavfi", "-i", "color=c=red:s=64x48:r=1:d=1",
+            "-c:v", "libx264", "-pix_fmt", "yuv420p", "-an", str(slow),
+        ])
+    if not brief.exists():
+        subprocess.check_call([
+            "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
+            "-f", "lavfi", "-i", "color=c=blue:s=80x48:r=24:d=0.25",
+            "-c:v", "libx264", "-pix_fmt", "yuv420p", "-an", str(brief),
+        ])
+    out = media.concat_videos(_urls([slow, brief]))
+    video_s, audio_s = _stream_durations(out)
+    assert audio_s is None
+    assert 1.8 <= video_s <= 2.2
+
+
 def test_missing_video_stream_is_an_error():
     from ComfyTV.runners import media
 
