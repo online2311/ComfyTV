@@ -10,7 +10,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Optional
 
-from sqlalchemy import func, select
+from sqlalchemy import exists, func, select
 
 from .. import db
 from ..db import HeadlessJob, ScheduleAffinity, ScheduleUnit
@@ -90,6 +90,8 @@ def _unit_to_dict(row: ScheduleUnit) -> dict:
         "client_id": row.client_id,
         "post_started": bool(row.post_started),
         "discard_outputs": bool(row.discard_outputs),
+        "cancel_intent": bool(row.cancel_intent),
+        "deadline_at": _aware(row.deadline_at),
         "error_text": row.error_text,
         "waiting_reason": row.waiting_reason,
         "outputs_json": row.outputs_json,
@@ -138,6 +140,10 @@ def _apply(row: ScheduleUnit, fields: dict) -> None:
         row.post_started = bool(fields["post_started"])
     if "discard_outputs" in fields:
         row.discard_outputs = bool(fields["discard_outputs"])
+    if "cancel_intent" in fields:
+        row.cancel_intent = bool(fields["cancel_intent"])
+    if "deadline_at" in fields:
+        row.deadline_at = _aware(fields["deadline_at"])
     if "error_text" in fields:
         text = fields["error_text"]
         row.error_text = None if text is None else str(text)[:4000]
@@ -200,20 +206,62 @@ def unit_for_headless(job_id: str) -> Optional[dict]:
         return _unit_to_dict(row) if row else None
 
 
+def _unit_query(
+    *,
+    status: Optional[str] = None,
+    statuses: Optional[tuple[str, ...]] = None,
+    newest: bool = False,
+):
+    q = select(ScheduleUnit)
+    if status:
+        q = q.where(ScheduleUnit.status == status)
+    elif statuses:
+        q = q.where(ScheduleUnit.status.in_(tuple(statuses)))
+    order = ScheduleUnit.seq.desc() if newest else ScheduleUnit.seq.asc()
+    return q.order_by(order)
+
+
 def list_schedule_units(
     *,
     status: Optional[str] = None,
     statuses: Optional[tuple[str, ...]] = None,
     limit: int = 200,
+    offset: int = 0,
+    newest: bool = False,
 ) -> list[dict]:
     with db.get_session() as s:
-        q = select(ScheduleUnit)
-        if status:
-            q = q.where(ScheduleUnit.status == status)
-        elif statuses:
-            q = q.where(ScheduleUnit.status.in_(tuple(statuses)))
-        q = q.order_by(ScheduleUnit.seq.asc()).limit(max(1, min(int(limit), 200)))
+        q = _unit_query(status=status, statuses=statuses, newest=newest)
+        q = q.offset(max(0, int(offset))).limit(max(1, min(int(limit), 500)))
         return [_unit_to_dict(row) for row in s.execute(q).scalars().all()]
+
+
+def each_schedule_unit(
+    *,
+    status: Optional[str] = None,
+    statuses: Optional[tuple[str, ...]] = None,
+    page: int = 200,
+):
+    """Every matching row, in pages, so a full earlier page cannot hide later work."""
+    offset = 0
+    size = max(1, min(int(page), 200))
+    while True:
+        batch = list_schedule_units(
+            status=status, statuses=statuses, limit=size, offset=offset,
+        )
+        if not batch:
+            return
+        yield from batch
+        if len(batch) < size:
+            return
+        offset += len(batch)
+
+
+def recent_terminal_units(limit: int = 50) -> list[dict]:
+    return list_schedule_units(
+        statuses=("done", "error", "cancelled"),
+        limit=max(1, min(int(limit), 50)),
+        newest=True,
+    )
 
 
 def claim_schedule_unit(unit_id: str, *, expect: str, become: str) -> Optional[dict]:
@@ -241,7 +289,7 @@ def update_schedule_unit(unit_id: str, **fields) -> Optional[dict]:
 def executor_loads() -> dict[str, int]:
     """In-flight units per executor. Queued units are not counted."""
     counts: dict[str, int] = {}
-    for unit in list_schedule_units(statuses=_ACTIVE):
+    for unit in each_schedule_unit(statuses=_ACTIVE):
         executor_id = unit.get("executor_id")
         if executor_id:
             counts[executor_id] = counts.get(executor_id, 0) + 1
@@ -251,7 +299,7 @@ def executor_loads() -> dict[str, int]:
 def load_breakdown() -> dict[str, dict[str, int]]:
     blank = {"submitting": 0, "running": 0, "cancel_requested": 0}
     found: dict[str, dict[str, int]] = {}
-    for unit in list_schedule_units(statuses=_ACTIVE):
+    for unit in each_schedule_unit(statuses=_ACTIVE):
         executor_id = unit.get("executor_id")
         if not executor_id:
             continue
@@ -336,18 +384,17 @@ def adopt_headless_jobs() -> list[str]:
         return []
     created: list[str] = []
     with db.get_session() as s:
+        already = exists(
+            select(ScheduleUnit.id).where(ScheduleUnit.headless_job_id == HeadlessJob.id)
+        )
         jobs = s.execute(
             select(HeadlessJob)
             .where(HeadlessJob.status.in_(("queued", "delegated")))
+            .where(~already)
             .order_by(HeadlessJob.seq.asc())
             .limit(50)
         ).scalars().all()
         for job in jobs:
-            existing = s.execute(
-                select(ScheduleUnit.id).where(ScheduleUnit.headless_job_id == job.id)
-            ).scalar_one_or_none()
-            if existing is not None:
-                continue
             prompt = _loads(job.prompt_json, {})
             if not isinstance(prompt, dict) or not prompt:
                 continue
@@ -372,3 +419,27 @@ def adopt_headless_jobs() -> list[str]:
         if created:
             s.commit()
     return created
+
+
+def request_cancel(unit_id: str) -> Optional[dict]:
+    """Record cancellation without waiting for an in-flight scheduler tick.
+
+    A unit that has not been sent is cancelled here. One that might already
+    be on a host keeps its client id so a later read can still find it.
+    """
+    with db.get_session() as s:
+        row = s.get(ScheduleUnit, unit_id)
+        if row is None:
+            return None
+        if row.status in ("done", "error", "cancelled"):
+            return _unit_to_dict(row)
+        row.cancel_intent = True
+        row.discard_outputs = True
+        if row.status in ("queued", "submitting") and not row.post_started:
+            row.status = "cancelled"
+            row.executor_id = None
+            row.error_text = "cancelled before submit"
+            row.waiting_reason = None
+        row.updated_at = _now()
+        s.commit()
+        return _unit_to_dict(row)

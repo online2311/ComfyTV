@@ -62,6 +62,9 @@ class Host:
         self.files = {"frame.png": b"frame-bytes", "cancel-me.png": b"nope"}
         self.fail_post = None
         self.fail_get_queue = False
+        self.fail_delete = False
+        self.fail_queue_after = None
+        self.queue_gets = 0
         self.autocomplete = False
         self.posts = 0
         self._n = 0
@@ -83,10 +86,15 @@ class Host:
         if "interrupt" in parts or "free" in parts:
             raise AssertionError(url)
         if path.endswith("/queue") and method == "GET":
-            if self.fail_get_queue:
+            self.queue_gets += 1
+            if self.fail_get_queue or (
+                self.fail_queue_after is not None and self.queue_gets > self.fail_queue_after
+            ):
                 return 500, None
             return 200, {"queue_running": self.running, "queue_pending": self.pending}
         if path.endswith("/queue") and method == "POST":
+            if self.fail_delete:
+                return 500, None
             delete = list((json_body or {}).get("delete") or [])
             self.pending = [item for item in self.pending if str(item[1]) not in set(map(str, delete))]
             return 200, {"delete": delete}
@@ -113,8 +121,12 @@ class Host:
         if path.endswith("/history") and method == "GET":
             return 200, dict(self.history)
         if path.endswith("/view") and method == "GET":
-            name = parse_qs(urlsplit(url).query).get("filename", [""])[0]
-            body = self.files.get(name)
+            query = parse_qs(urlsplit(url).query)
+            name = query.get("filename", [""])[0]
+            sub = query.get("subfolder", [""])[0]
+            body = self.files.get(f"{sub}/{name}" if sub else name)
+            if body is None:
+                body = self.files.get(name)
             if body is None:
                 return 404, b""
             return 200, body
@@ -613,6 +625,230 @@ class TestSingleHost:
         assert unit["shot_id"] == "ep01_sc01_sh01"
         assert unit["gpu_class"] == "gb10-128g"
         assert unit["status"] == "done"
+
+
+class TestReviewFixes:
+    async def test_failed_delete_does_not_release_the_unit(self, fleet):
+        from ComfyTV import storage
+
+        _row, host = _register(storage, fleet["fleet"], "a1", "gb10-128g", "http://10.0.0.1:8188")
+        unit = _enqueue(gpu="gb10-128g")
+        await fleet["scheduler"].tick()
+        host.fail_delete = True
+        await fleet["scheduler"].cancel_unit(unit["id"])
+        fresh = storage.get_schedule_unit(unit["id"])
+        assert fresh["status"] == "cancel-requested"
+        assert host.pending
+
+    async def test_partial_targets_are_sent_with_the_prompt(self, fleet):
+        from ComfyTV.api.scheduler import enqueue_unit
+        from ComfyTV import storage
+
+        _register(storage, fleet["fleet"], "a1", "gb10-128g", "http://10.0.0.1:8188")
+        enqueue_unit(
+            project_id="default", shot_id="ep01_sc01_sh01", stage="video",
+            gpu_class="gb10-128g", prompt=PROMPT, partial=["9"],
+        )
+        await fleet["scheduler"].tick()
+        posts = [
+            call for call in fleet["fleet"].calls
+            if call[0] == "POST" and call[1].endswith("/prompt")
+        ]
+        assert posts[0][2]["partial_execution_targets"] == ["9"]
+
+    async def test_distinct_subfolders_are_not_overwritten(self, fleet):
+        import folder_paths
+        from ComfyTV import storage
+
+        _row, host = _register(storage, fleet["fleet"], "a1", "gb10-128g", "http://10.0.0.1:8188")
+        host.files["a/frame.png"] = b"aaa"
+        host.files["b/frame.png"] = b"bbb"
+        unit = _enqueue(gpu="gb10-128g")
+        await fleet["scheduler"].tick()
+        prompt_id = storage.get_schedule_unit(unit["id"])["prompt_id"]
+        host.pending = []
+        host.history[prompt_id] = {
+            "outputs": {"9": {"images": [
+                {"filename": "frame.png", "subfolder": "a", "type": "output"},
+                {"filename": "frame.png", "subfolder": "b", "type": "output"},
+            ]}},
+            "status": {"status_str": "success", "completed": True, "messages": []},
+        }
+        await fleet["scheduler"].tick()
+        root = Path(folder_paths.get_output_directory()) / "comfytv" / "remote"
+        saved = [path for path in root.rglob("frame.png") if unit["id"][:8] in path.as_posix()]
+        bodies = {path.read_bytes() for path in saved}
+        assert bodies == {b"aaa", b"bbb"}
+        assert len(saved) == 2
+
+    async def test_unreadable_executor_does_not_block_the_other(self, fleet):
+        from ComfyTV import storage
+
+        _a, first = _register(storage, fleet["fleet"], "a1", "gb10-128g", "http://10.0.0.1:8188")
+        _b, second = _register(storage, fleet["fleet"], "a2", "gb10-128g", "http://10.0.0.2:8188")
+        first.fail_get_queue = True
+        unit = _enqueue(gpu="gb10-128g")
+        await fleet["scheduler"].tick()
+        fresh = storage.get_schedule_unit(unit["id"])
+        assert first.posts == 0
+        assert second.posts == 1
+        assert fresh["executor_id"] == _b["id"]
+
+    async def test_stalled_queue_read_is_bounded_and_skips(self, fleet):
+        import asyncio
+        from ComfyTV import storage
+
+        storage.set_settings({"remote-connect-timeout-s": 1, "remote-job-timeout-s": 30})
+        board = fleet["fleet"]
+        _register(storage, board, "a1", "gb10-128g", "http://10.0.0.1:8188")
+        _b, second = _register(storage, board, "a2", "gb10-128g", "http://10.0.0.2:8188")
+
+        async def hanging(method, url, json_body=None):
+            if url.startswith("http://10.0.0.1") and method == "GET" and url.split("?", 1)[0].rstrip("/").endswith("/queue"):
+                await asyncio.sleep(30)
+            return await board(method, url, json_body)
+
+        fleet["scheduler"].transport = hanging
+        unit = _enqueue(gpu="gb10-128g")
+        await fleet["scheduler"].tick()
+        fresh = storage.get_schedule_unit(unit["id"])
+        assert second.posts == 1
+        assert fresh["executor_id"] == _b["id"]
+
+    async def test_local_validation_error_is_terminal(self, fleet):
+        from ComfyTV import storage
+
+        row = storage.ensure_default_executor()
+        _admit(storage, row)
+
+        class Local:
+            def queue_ids(self):
+                return [], []
+
+            def find_client(self, _client_id):
+                return None
+
+            def history_for(self, _prompt_id):
+                return None
+
+            async def submit(self, prompt, partial=None, client_id=None):
+                raise ValueError("prompt rejected by validation")
+
+        unit = _enqueue(stage="first_frame")
+        await fleet["scheduler"].tick(local_client=Local())
+        fresh = storage.get_schedule_unit(unit["id"])
+        assert fresh["status"] == "error"
+        assert "unreachable" not in (fresh["error_text"] or "")
+
+    async def test_cancel_during_history_read_does_not_save_outputs(self, fleet):
+        import folder_paths
+        from ComfyTV import storage
+
+        _row, host = _register(storage, fleet["fleet"], "a1", "gb10-128g", "http://10.0.0.1:8188")
+        board = fleet["fleet"]
+        unit = _enqueue(gpu="gb10-128g")
+        await fleet["scheduler"].tick()
+        host.finish()
+
+        async def wrapping(method, url, json_body=None):
+            if "/history/" in urlsplit(url).path:
+                storage.request_cancel(unit["id"])
+            return await board(method, url, json_body)
+
+        fleet["scheduler"].transport = wrapping
+        await fleet["scheduler"].tick()
+        fresh = storage.get_schedule_unit(unit["id"])
+        assert fresh["status"] == "cancelled"
+        assert json.loads(fresh["outputs_json"] or "[]") == []
+        root = Path(folder_paths.get_output_directory()) / "comfytv" / "remote"
+        own = [path for path in root.rglob("*") if path.is_file() and unit["id"][:8] in path.as_posix()]
+        assert own == []
+
+    async def test_cancel_without_prompt_id_is_resolved_later(self, fleet):
+        from ComfyTV import storage
+
+        _row, host = _register(storage, fleet["fleet"], "a1", "gb10-128g", "http://10.0.0.1:8188")
+        host.fail_post = "after"
+        host.fail_queue_after = 2
+        unit = _enqueue(gpu="gb10-128g")
+        await fleet["scheduler"].tick()
+        fresh = storage.get_schedule_unit(unit["id"])
+        assert fresh["post_started"] is True
+        assert fresh["prompt_id"] is None
+        assert host.posts == 1
+        await fleet["scheduler"].cancel_unit(unit["id"])
+        assert storage.get_schedule_unit(unit["id"])["prompt_id"] is None
+        assert host.posts == 1
+        host.fail_queue_after = None
+        host.fail_post = None
+        await fleet["scheduler"].tick()
+        resolved = storage.get_schedule_unit(unit["id"])
+        assert host.posts == 1
+        assert resolved["prompt_id"]
+        assert resolved["status"] in ("cancelled", "cancel-requested")
+
+    async def test_later_queued_unit_is_not_hidden_by_blocked_ones(self, fleet):
+        from ComfyTV import storage
+        from ComfyTV.api.scheduler import scheduler_status
+
+        _register(storage, fleet["fleet"], "a1", "gb10-128g", "http://10.0.0.1:8188")
+        for index in range(200):
+            storage.create_schedule_unit(
+                project_id="default",
+                shot_id=f"blocked-{index}",
+                stage="first_frame",
+                gpu_class="no-such-class",
+                prompt=PROMPT,
+            )
+        runnable = _enqueue(shot="ep01_sc09_sh01", stage="video", gpu="gb10-128g")
+        await fleet["scheduler"].tick()
+        assert storage.get_schedule_unit(runnable["id"])["status"] == "running"
+        for index in range(200):
+            storage.create_schedule_unit(
+                project_id="default",
+                shot_id=f"done-{index}",
+                stage="first_frame",
+                gpu_class="gb10-128g",
+                prompt=PROMPT,
+            )
+            # The rows just created are the newest; mark every done-* row done below.
+        for row in storage.each_schedule_unit(status="queued"):
+            if row["shot_id"].startswith("done-"):
+                storage.update_schedule_unit(row["id"], status="done", outputs_json="[]")
+        waiting = _enqueue(shot="ep01_sc09_sh02", stage="lipsync", gpu="rtx5090-32g")
+        body = scheduler_status()
+        assert any(row["id"] == waiting["id"] for row in body["queue"])
+
+    async def test_adopted_jobs_do_not_fill_the_adoption_page(self, fleet):
+        from ComfyTV import storage
+
+        _register(storage, fleet["fleet"], "a1", "gb10-128g", "http://10.0.0.1:8188")
+        for index in range(50):
+            job = storage.create_headless_job(
+                project_id="default",
+                kind="stage",
+                prompt={"1": {"class_type": "X", "inputs": {"shot_id": f"old-{index}"}}},
+                stage_ref=str(index),
+            )
+            storage.update_headless_job(job["id"], status="delegated")
+            storage.create_schedule_unit(
+                project_id="default",
+                shot_id=f"old-{index}",
+                stage="first_frame",
+                gpu_class="gb10-128g",
+                prompt=PROMPT,
+                headless_job_id=job["id"],
+            )
+        extra = storage.create_headless_job(
+            project_id="default",
+            kind="stage",
+            prompt={"1": {"class_type": "X", "inputs": {
+                "shot_id": "ep01_sc01_sh01", "gpu_class": "gb10-128g",
+            }}},
+            stage_ref="9",
+        )
+        await fleet["scheduler"].tick()
+        assert storage.unit_for_headless(extra["id"]) is not None
 
 
 class TestStatusApi:

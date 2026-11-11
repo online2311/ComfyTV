@@ -379,6 +379,8 @@ class ScheduleUnit(Base):
     client_id:         Mapped[Optional[str]] = mapped_column(String, nullable=True)
     post_started:      Mapped[bool] = mapped_column(Boolean, default=False)
     discard_outputs:   Mapped[bool] = mapped_column(Boolean, default=False)
+    cancel_intent:     Mapped[bool] = mapped_column(Boolean, default=False)
+    deadline_at:       Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     error_text:        Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     waiting_reason:    Mapped[Optional[str]] = mapped_column(String, nullable=True)
     outputs_json:      Mapped[Optional[str]] = mapped_column(Text, nullable=True)
@@ -643,6 +645,22 @@ def _migrate_additive_columns(engine) -> None:
                         "INTEGER NOT NULL DEFAULT 0"
                     ))
                 logging.info("[ComfyTV] migrated: comfytv_executors + obs_generation")
+
+        if insp.has_table("comfytv_schedule_units"):
+            unit_cols = {c["name"] for c in insp.get_columns("comfytv_schedule_units")}
+            if "cancel_intent" not in unit_cols:
+                with engine.begin() as conn:
+                    conn.execute(text(
+                        "ALTER TABLE comfytv_schedule_units ADD COLUMN cancel_intent "
+                        "BOOLEAN NOT NULL DEFAULT 0"
+                    ))
+                logging.info("[ComfyTV] migrated: comfytv_schedule_units + cancel_intent")
+            if "deadline_at" not in unit_cols:
+                with engine.begin() as conn:
+                    conn.execute(text(
+                        "ALTER TABLE comfytv_schedule_units ADD COLUMN deadline_at DATETIME"
+                    ))
+                logging.info("[ComfyTV] migrated: comfytv_schedule_units + deadline_at")
     except Exception as e:
         logging.warning("[ComfyTV] additive migration failed: %s", e)
 

@@ -60,20 +60,27 @@ async def _queue_state(transport, base_url: str, prompt_id: str) -> str:
     return "absent"
 
 
-async def _delete_pending(transport, base_url: str, prompt_id: str) -> None:
+async def _delete_pending(transport, base_url: str, prompt_id: str) -> bool:
     url = base_url.rstrip("/") + "/queue"
     assert_not_stopped(url)
     try:
         status, _body = await transport("POST", url, {"delete": [str(prompt_id)]})
     except Exception:
         _log.warning("[ComfyTV/scheduler] pending delete failed")
-        return
+        return False
     if status != 200:
         _log.warning("[ComfyTV/scheduler] pending delete returned HTTP %s", status)
+        return False
+    return True
 
 
 async def cancel_owned_prompt(transport, base_url: str, prompt_id: str) -> str:
     """Return deleted, cancel_requested, or absent.
+
+    ``deleted`` requires the delete call to succeed and a later queue read
+    to show the prompt gone. A failed delete, a follow-up that still lists
+    it, or a follow-up that cannot be read is ``cancel_requested`` so the
+    unit keeps its load until the prompt is actually gone.
 
     ``transport(method, url, json_body=None)`` returns ``(status, body)``.
     """
@@ -82,13 +89,12 @@ async def cancel_owned_prompt(transport, base_url: str, prompt_id: str) -> str:
     try:
         state = await _queue_state(transport, base_url, prompt_id)
         if state == "pending":
-            await _delete_pending(transport, base_url, prompt_id)
-            # A follow-up read that still says pending is the queue view
-            # lagging the delete. Only a prompt that has since started
-            # must be left running.
-            if await _queue_state(transport, base_url, prompt_id) == "running":
+            if not await _delete_pending(transport, base_url, prompt_id):
                 return "cancel_requested"
-            return "deleted"
+            follow = await _queue_state(transport, base_url, prompt_id)
+            if follow == "absent":
+                return "deleted"
+            return "cancel_requested"
         if state == "running":
             return "cancel_requested"
         if state == "unknown":

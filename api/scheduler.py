@@ -21,7 +21,7 @@ import logging
 import os
 import re
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Optional
 from urllib.parse import quote, urlencode, urlsplit
@@ -45,6 +45,10 @@ _QUEUE_STATUSES = ("queued", "submitting", "running", "cancel-requested")
 
 class _Unreachable(Exception):
     pass
+
+
+class _Deadline(_Unreachable):
+    """The unit's job deadline ran out while waiting on one host call."""
 
 
 def scheduler_limits() -> dict[str, Any]:
@@ -311,8 +315,18 @@ def _public_unit(unit: dict, names: dict[str, str]) -> dict:
 
 def scheduler_status() -> dict:
     names = {row["id"]: row["name"] for row in storage.list_executors(ensure_default=True)}
-    units = [_public_unit(row, names) for row in storage.list_schedule_units()]
-    queue = [row for row in units if row["status"] in _QUEUE_STATUSES]
+    active = [
+        _public_unit(row, names)
+        for row in storage.each_schedule_unit(statuses=_QUEUE_STATUSES)
+    ]
+    seen = {row["id"] for row in active}
+    recent = [
+        _public_unit(row, names)
+        for row in storage.recent_terminal_units()
+        if row["id"] not in seen
+    ]
+    units = active + recent
+    queue = active
     assignments = [
         row for row in units
         if row["executor_id"] and row["status"] in _ACTIVE
@@ -418,12 +432,22 @@ class Scheduler:
         if storage.foreign_executors_registered():
             storage.adopt_headless_jobs()
         await self._reconcile(transport, local_client)
-        for unit in storage.list_schedule_units(status="queued"):
+        for unit in storage.each_schedule_unit(status="queued"):
             await self._place(transport, local_client, unit["id"])
-        for unit in storage.list_schedule_units(statuses=("running", "cancel-requested")):
+        for unit in storage.each_schedule_unit(statuses=("running", "cancel-requested", "submitting")):
             await self._poll(transport, local_client, unit["id"])
 
     async def cancel_unit(self, unit_id: str) -> dict:
+        # The flag is stored before taking the tick lock, so a poll that is
+        # already inside a history read can see it and skip the download.
+        marked = storage.request_cancel(unit_id)
+        if marked is None:
+            raise ValueError("unit not found")
+        if marked["status"] in ("done", "error"):
+            raise ValueError(f"unit is {marked['status']}")
+        if marked["status"] == "cancelled" and not marked.get("post_started"):
+            self._sync_headless(marked)
+            return marked
         async with self._lock:
             if self.transport is not None:
                 return await self._apply_cancel(self.transport, None, unit_id)
@@ -431,6 +455,61 @@ class Scheduler:
                 async def transport(method, url, json_body=None):
                     return await _http(session, method, url, json_body)
                 return await self._apply_cancel(transport, None, unit_id)
+
+    def _ensure_deadline(self, unit: dict) -> dict:
+        if unit.get("deadline_at"):
+            return unit
+        limit = float(scheduler_limits()["job"])
+        updated = storage.update_schedule_unit(
+            unit["id"],
+            deadline_at=self.clock() + timedelta(seconds=limit),
+        )
+        return updated or unit
+
+    def _remaining(self, unit: dict) -> float:
+        deadline = unit.get("deadline_at")
+        if deadline is None:
+            return float(scheduler_limits()["job"])
+        if deadline.tzinfo is None:
+            deadline = deadline.replace(tzinfo=timezone.utc)
+        return (deadline - self.clock()).total_seconds()
+
+    def _bound(self, transport, unit: dict):
+        """Stop one host call at the connect cap or the unit's job deadline."""
+
+        async def wrapped(method, url, json_body=None):
+            path = urlsplit_path(url)
+            transfer = path.endswith("/view") or "/history" in path
+            remaining = self._remaining(unit)
+            if transfer:
+                cap = remaining
+            else:
+                cap = min(remaining, float(scheduler_limits()["connect"]))
+            if cap <= 0:
+                raise _Deadline()
+            # A TimeoutError raised by the host call itself is a failed
+            # attempt, not the job deadline. Only the wait limit is.
+            task = asyncio.ensure_future(transport(method, url, json_body))
+            try:
+                done, _pending = await asyncio.wait({task}, timeout=cap)
+            except asyncio.CancelledError:
+                task.cancel()
+                raise
+            if not done:
+                task.cancel()
+                raise _Deadline()
+            return task.result()
+
+        return wrapped
+
+    def _wants_discard(self, unit: Optional[dict]) -> bool:
+        if not unit:
+            return False
+        return bool(
+            unit.get("cancel_intent")
+            or unit.get("discard_outputs")
+            or unit.get("status") == "cancel-requested"
+        )
 
     def _sync_headless(self, unit: Optional[dict]) -> None:
         if not unit or not unit.get("headless_job_id"):
@@ -459,15 +538,18 @@ class Scheduler:
 
     def _bind_running(self, unit: dict, executor: dict, prompt_id: str, required) -> dict:
         locked = required if required is not None else (executor.get("gpu_class") or "")
+        fresh = storage.get_schedule_unit(unit["id"]) or unit
+        intent = bool(fresh.get("cancel_intent"))
         updated = storage.update_schedule_unit(
             unit["id"],
-            status="running",
+            status="cancel-requested" if intent else "running",
             executor_id=executor["id"],
             prompt_id=prompt_id,
             post_started=True,
+            discard_outputs=True if intent else bool(fresh.get("discard_outputs")),
             waiting_reason=None,
-            error_text=None,
-            submitted_at=unit.get("submitted_at") or self.clock(),
+            error_text="cancel requested; remote prompt left running" if intent else None,
+            submitted_at=fresh.get("submitted_at") or unit.get("submitted_at") or self.clock(),
         )
         storage.lock_affinity(unit["project_id"], unit["shot_id"], locked, executor["id"])
         self._sync_headless(updated)
@@ -554,6 +636,8 @@ class Scheduler:
         url = base_url.rstrip("/") + "/queue"
         try:
             status, body = await transport("GET", url)
+        except _Deadline:
+            return "unknown", None
         except Exception as exc:
             if _unreachable(exc):
                 return "unknown", None
@@ -581,6 +665,8 @@ class Scheduler:
         url = base_url.rstrip("/") + "/history"
         try:
             status, body = await transport("GET", url)
+        except _Deadline:
+            return "unknown"
         except Exception as exc:
             if _unreachable(exc):
                 return "unknown"
@@ -647,14 +733,18 @@ class Scheduler:
         if executor.get("is_default"):
             return await self._submit_local(local_client, prompt, partial, unit["client_id"])
         url = executor["base_url"].rstrip("/") + "/prompt"
+        body: dict[str, Any] = {"prompt": prompt, "client_id": unit["client_id"]}
+        if partial:
+            body["partial_execution_targets"] = [str(node) for node in partial]
         try:
-            status, body = await transport(
-                "POST", url, {"prompt": prompt, "client_id": unit["client_id"]},
-            )
+            status, payload = await transport("POST", url, body)
+        except _Deadline:
+            raise
         except Exception as exc:
             if _unreachable(exc):
                 raise _Unreachable() from None
             raise
+        body = payload
         if status >= 500:
             raise _Unreachable()
         if status != 200 or not isinstance(body, dict) or not body.get("prompt_id"):
@@ -673,6 +763,8 @@ class Scheduler:
             return await client.submit(prompt, partial, client_id)
         except QueueBusy as exc:
             raise _Busy() from exc
+        except ValueError as exc:
+            raise _Rejected(_safe_detail(str(exc)) or "prompt rejected") from None
 
     async def _attempt(self, transport, local_client, unit, executor, required) -> str:
         same = unit.get("executor_id") == executor["id"]
@@ -683,7 +775,9 @@ class Scheduler:
             need_history,
         )
         if state == "unknown":
-            return "held"
+            if unit.get("post_started") and same:
+                return "held"
+            return "skip"
         if state == "found" and found:
             self._bind_running(unit, executor, found, required)
             return "placed"
@@ -692,12 +786,16 @@ class Scheduler:
         if unit.get("post_started") and same:
             self._exhaust(unit, executor)
             return "failed"
+        current = storage.get_schedule_unit(unit["id"]) or unit
+        if current.get("cancel_intent"):
+            return "rejected" if current["status"] in ("done", "error", "cancelled") else "held"
         minted = self._mint(unit, executor)
         state, found = await self._inspect(
             transport, local_client, executor, minted["client_id"], None, False,
         )
         if state == "unknown":
-            return "held"
+            self._rollback_mint(minted)
+            return "skip"
         if state == "found" and found:
             self._bind_running(minted, executor, found, required)
             return "placed"
@@ -713,6 +811,15 @@ class Scheduler:
         except _Rejected as exc:
             self._reject(minted, str(exc) or "prompt rejected")
             return "rejected"
+        except _Deadline:
+            fresh = storage.get_schedule_unit(minted["id"]) or minted
+            state, found = await self._inspect(
+                transport, local_client, executor, fresh.get("client_id"), None, True,
+            )
+            if state == "found" and found:
+                self._bind_running(fresh, executor, found, required)
+                return "placed"
+            return "held"
         except _Unreachable:
             state, found = await self._inspect(
                 transport, local_client, executor, minted["client_id"], None, True,
@@ -732,6 +839,10 @@ class Scheduler:
         unit = storage.get_schedule_unit(unit_id)
         if unit is None or unit["status"] != "queued":
             return
+        if unit.get("cancel_intent"):
+            return
+        unit = self._ensure_deadline(unit)
+        transport = self._bound(transport, unit)
         executors = storage.list_executors(ensure_default=False)
         affinity = storage.get_affinity(unit["project_id"], unit["shot_id"])
         required, blocked = _required_class(unit, affinity)
@@ -776,7 +887,20 @@ class Scheduler:
             )
 
     async def _reconcile(self, transport, local_client) -> None:
-        for unit in storage.list_schedule_units(status="submitting"):
+        for unit in storage.each_schedule_unit(status="submitting"):
+            if unit.get("cancel_intent") and not unit.get("post_started"):
+                if unit["status"] != "cancelled":
+                    updated = storage.update_schedule_unit(
+                        unit["id"],
+                        status="cancelled",
+                        error_text="cancelled before submit",
+                        waiting_reason=None,
+                        clear_executor=True,
+                    )
+                    self._sync_headless(updated)
+                continue
+            unit = self._ensure_deadline(unit)
+            transport_one = self._bound(transport, unit)
             if not unit.get("post_started"):
                 storage.update_schedule_unit(
                     unit["id"],
@@ -786,6 +910,9 @@ class Scheduler:
                     attempt=max(0, int(unit.get("attempt") or 0) - 1),
                 )
                 continue
+            if unit.get("cancel_intent"):
+                await self._resolve_uncertain(transport_one, local_client, unit)
+                continue
             executor = storage.get_executor(unit["executor_id"]) if unit.get("executor_id") else None
             if executor is None:
                 self._exhaust(unit, {"id": unit.get("executor_id") or "", "name": ""})
@@ -793,7 +920,7 @@ class Scheduler:
             affinity = storage.get_affinity(unit["project_id"], unit["shot_id"])
             required, _blocked = _required_class(unit, affinity)
             state, found = await self._inspect(
-                transport, local_client, executor, unit.get("client_id"), unit.get("prompt_id"), True,
+                transport_one, local_client, executor, unit.get("client_id"), unit.get("prompt_id"), True,
             )
             if state == "found" and found:
                 self._bind_running(unit, executor, found, required)
@@ -803,6 +930,8 @@ class Scheduler:
                 self._exhaust(unit, executor)
 
     def _expired(self, unit: dict) -> bool:
+        if unit.get("deadline_at") and self._remaining(unit) <= 0:
+            return True
         started = unit.get("submitted_at")
         if started is None:
             return False
@@ -811,10 +940,60 @@ class Scheduler:
         limit = float(scheduler_limits()["job"])
         return (self.clock() - started).total_seconds() >= limit
 
+    async def _resolve_uncertain(self, transport, local_client, unit: dict) -> dict:
+        """Find a prompt that was sent but whose id never came back."""
+        executor = storage.get_executor(unit["executor_id"]) if unit.get("executor_id") else None
+        if executor is None or not unit.get("client_id"):
+            return unit
+        state, found = await self._inspect(
+            transport, local_client, executor, unit.get("client_id"), None, True,
+        )
+        if state == "found" and found:
+            unit = storage.update_schedule_unit(unit["id"], prompt_id=found) or unit
+            outcome = await cancel_owned_prompt(transport, executor["base_url"], found)
+            if outcome == "deleted":
+                updated = storage.update_schedule_unit(
+                    unit["id"],
+                    status="cancelled",
+                    prompt_id=found,
+                    outputs_json="[]",
+                    error_text="removed from the remote queue while pending",
+                    waiting_reason=None,
+                )
+            else:
+                updated = storage.update_schedule_unit(
+                    unit["id"],
+                    status="cancel-requested",
+                    prompt_id=found,
+                    discard_outputs=True,
+                    error_text="cancel requested; remote prompt left running",
+                    waiting_reason=None,
+                )
+            self._sync_headless(updated)
+            return updated or unit
+        if state == "empty":
+            updated = storage.update_schedule_unit(
+                unit["id"],
+                status="cancelled",
+                post_started=False,
+                outputs_json="[]",
+                error_text="cancelled before the prompt landed",
+                waiting_reason=None,
+            )
+            self._sync_headless(updated)
+            return updated or unit
+        return unit
+
     async def _poll(self, transport, local_client, unit_id: str) -> None:
         unit = storage.get_schedule_unit(unit_id)
         if unit is None or unit["status"] not in ("running", "cancel-requested"):
             return
+        unit = self._ensure_deadline(unit)
+        transport = self._bound(transport, unit)
+        if self._wants_discard(unit) and not unit.get("prompt_id") and unit.get("client_id"):
+            unit = await self._resolve_uncertain(transport, local_client, unit)
+            if unit["status"] not in ("running", "cancel-requested"):
+                return
         if unit["status"] == "running" and self._expired(unit):
             await self._apply_cancel(transport, local_client, unit_id)
             unit = storage.get_schedule_unit(unit_id)
@@ -824,15 +1003,24 @@ class Scheduler:
         if executor is None or not unit.get("prompt_id"):
             return
         entry = await self._fetch_entry(transport, local_client, executor, unit["prompt_id"])
+        unit = storage.get_schedule_unit(unit_id) or unit
         if not _history_done(entry):
             return
-        if unit["status"] == "cancel-requested" or unit.get("discard_outputs"):
+        if self._wants_discard(unit):
             self._discard(unit)
             return
         try:
             urls = await self._collect(transport, executor, unit, entry)
         except _Unreachable:
-            storage.update_schedule_unit(unit["id"], error_text="download failed")
+            fresh = storage.get_schedule_unit(unit_id) or unit
+            if self._wants_discard(fresh) or self._remaining(fresh) <= 0:
+                self._discard(fresh)
+            else:
+                storage.update_schedule_unit(unit["id"], error_text="download failed")
+            return
+        unit = storage.get_schedule_unit(unit_id) or unit
+        if self._wants_discard(unit):
+            self._discard(unit)
             return
         if _history_failed(entry):
             updated = storage.update_schedule_unit(
@@ -879,14 +1067,25 @@ class Scheduler:
         root = Path(folder_paths.get_output_directory())
         dest = root / _RESULT_SUBFOLDER / _safe_component(executor.get("name") or "") / unit["id"][:8]
         urls: list[str] = []
-        try:
-            dest.mkdir(parents=True, exist_ok=True)
-        except OSError as exc:
-            raise _Unreachable() from exc
         for item in _file_items(entry):
             name = Path(str(item.get("filename") or "")).name
             if not name or name in {".", ".."}:
                 continue
+            kind = _safe_component(str(item.get("type") or "output"))
+            parts = []
+            for part in str(item.get("subfolder") or "").replace("\\", "/").split("/"):
+                if part in ("", ".", ".."):
+                    continue
+                cleaned = _safe_component(part)
+                if cleaned:
+                    parts.append(cleaned)
+            folder = dest / kind
+            for part in parts:
+                folder = folder / part
+            try:
+                folder.mkdir(parents=True, exist_ok=True)
+            except OSError as exc:
+                raise _Unreachable() from exc
             query = urlencode({
                 "filename": item.get("filename") or name,
                 "subfolder": item.get("subfolder") or "",
@@ -901,7 +1100,7 @@ class Scheduler:
                 raise
             if status != 200 or not isinstance(body, (bytes, bytearray)):
                 raise _Unreachable()
-            target = dest / name
+            target = folder / name
             target.write_bytes(bytes(body))
             subfolder = target.parent.relative_to(root).as_posix()
             urls.append(_view_url(name, subfolder, "output"))
@@ -931,10 +1130,21 @@ class Scheduler:
         unit = storage.get_schedule_unit(unit_id)
         if unit is None:
             raise ValueError("unit not found")
-        if unit["status"] in ("done", "error", "cancelled"):
+        if unit["status"] in ("done", "error"):
             raise ValueError(f"unit is {unit['status']}")
-        if unit["status"] == "cancel-requested":
+        if unit["status"] == "cancelled":
             return unit
+        if unit["status"] == "cancel-requested" and unit.get("prompt_id"):
+            return unit
+        unit = self._ensure_deadline(unit)
+        transport = self._bound(transport, unit)
+        if (
+            self._wants_discard(unit)
+            and not unit.get("prompt_id")
+            and unit.get("client_id")
+            and unit.get("post_started")
+        ):
+            return await self._resolve_uncertain(transport, local_client, unit)
         if unit["status"] in ("queued", "submitting") and not unit.get("post_started"):
             updated = storage.update_schedule_unit(
                 unit_id,
