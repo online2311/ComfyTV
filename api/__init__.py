@@ -29,6 +29,7 @@ from . import canvas_state  # noqa: F401
 from . import collab     # noqa: F401
 from . import exec_errors   # noqa: F401
 from . import mcp        # noqa: F401
+from . import episode_batch  # noqa: F401  — registers POST /comfytv/episode_batch
 from . import mcp_commands  # noqa: F401
 from . import prompt_lint   # noqa: F401
 from . import bot        # noqa: F401
