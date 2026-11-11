@@ -17,8 +17,7 @@ from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor
 from .whisper_asr import (
     LANGUAGES,
     TARGET_SR,
-    finalize_segments,
-    pack_transcript,
+    finish_transcript,
     resolve_model_dir,
     segments_from_generate_output,
 )
@@ -88,8 +87,14 @@ def run_whisper(
     timestamps: str = "segment",
     model_dir: str = "",
     unload: bool = False,
+    normalize_punctuation: bool = False,
 ) -> tuple[str, str, str]:
-    """Transcribe mono 16 kHz audio. Returns ``(srt, text, segments_json)``."""
+    """Transcribe mono 16 kHz audio. Returns ``(srt, text, segments_json)``.
+
+    ``normalize_punctuation`` rewrites half-width sentence punctuation to
+    full-width Chinese forms. The node turns this on for language ``zh``
+    unless the widget says otherwise.
+    """
     _check_options(language, task, timestamps)
     if not torch.cuda.is_available():
         raise RuntimeError(
@@ -150,10 +155,12 @@ def run_whisper(
             timestamps=timestamps,
             duration_s=duration,
         )
-        segments = finalize_segments(
-            segments, timestamps=timestamps, duration_s=duration,
+        return finish_transcript(
+            segments,
+            timestamps=timestamps,
+            duration_s=duration,
+            normalize_punctuation=normalize_punctuation,
         )
-        return pack_transcript(segments)
     finally:
         if timestamps == "word" and previous_attn is not None:
             model.model.config._attn_implementation = previous_attn

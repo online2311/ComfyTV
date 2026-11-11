@@ -10,6 +10,7 @@ from ..runners.whisper_asr import (
     load_media_mono16k,
     register_whisper_model_folders,
     resolve_media_path,
+    write_output_srt,
 )
 
 try:
@@ -30,6 +31,18 @@ def _as_bool(value) -> bool:
     return bool(value)
 
 
+def _punctuation_enabled(option, language: str) -> bool:
+    """``auto`` follows the language: on for zh, off otherwise."""
+    if isinstance(option, bool):
+        return option
+    mode = str(option or "auto").strip().lower()
+    if mode in {"on", "true", "1", "yes"}:
+        return True
+    if mode in {"off", "false", "0", "no"}:
+        return False
+    return (language or "zh").strip().lower() == "zh"
+
+
 def _has_audio(audio) -> bool:
     if not isinstance(audio, dict) or audio.get("waveform") is None:
         return False
@@ -43,7 +56,13 @@ def _has_audio(audio) -> bool:
 
 
 class WhisperTranscribe(io.ComfyNode):
-    """Offline speech-to-text. Output slot 0 is SRT for SubtitleGenStage."""
+    """Offline speech-to-text. Output slot 0 is SRT for SubtitleGenStage.
+
+    The node is an output node, so a run with nothing wired downstream still
+    has to fill ``/history``. ``ui["text"]`` is the SRT, ``ui["segments"]`` is
+    the segments JSON, and ``ui["srt_file"]`` is the absolute path of
+    ``output/comfytv/<name>.srt``.
+    """
 
     @classmethod
     def define_schema(cls):
@@ -53,7 +72,9 @@ class WhisperTranscribe(io.ComfyNode):
             category="ComfyTV/Audio",
             description=(
                 "Local Whisper large-v3. Defaults suit a Chinese short drama "
-                f"(language zh, {TARGET_SR} Hz internally). Weights stay on disk."
+                f"(language zh, {TARGET_SR} Hz internally). Weights stay on disk. "
+                "A solo run returns the SRT and segments on the node UI and writes "
+                "output/comfytv/<name>.srt."
             ),
             is_output_node=True,
             inputs=[
@@ -102,6 +123,16 @@ class WhisperTranscribe(io.ComfyNode):
                         "/home/nodecloud/whisper-v3/models/whisper-large-v3. Never downloads."
                     ),
                 ),
+                io.Combo.Input(
+                    "normalize_punct",
+                    options=["auto", "on", "off"],
+                    default="auto",
+                    tooltip=(
+                        "auto rewrites half-width sentence punctuation to full-width "
+                        "when language is zh (, . ? ! : ; ( ) and ...). "
+                        "A decimal point between digits stays '.'. off leaves the text unchanged."
+                    ),
+                ),
             ],
             outputs=[
                 io.String.Output("srt", display_name="SRT"),
@@ -120,7 +151,11 @@ class WhisperTranscribe(io.ComfyNode):
         timestamps="segment",
         unload=False,
         model_dir="",
+        normalize_punct="auto",
     ):
+        language = language or "zh"
+        task = task or "transcribe"
+        timestamps = timestamps or "segment"
         if _has_audio(audio):
             samples = audio_dict_to_mono16k(audio)
         elif (media or "").strip():
@@ -135,10 +170,21 @@ class WhisperTranscribe(io.ComfyNode):
             )
         srt, text, segments = run_whisper(
             samples,
-            language=language or "zh",
-            task=task or "transcribe",
-            timestamps=timestamps or "segment",
+            language=language,
+            task=task,
+            timestamps=timestamps,
             model_dir=model_dir or "",
             unload=_as_bool(unload),
+            normalize_punctuation=_punctuation_enabled(normalize_punct, language),
         )
-        return io.NodeOutput(srt, text, segments)
+        path = write_output_srt(media, srt)
+        return io.NodeOutput(
+            srt,
+            text,
+            segments,
+            ui={
+                "text": [srt],
+                "segments": [segments],
+                "srt_file": [path],
+            },
+        )
