@@ -248,6 +248,50 @@ class TestSrtAndTimestamps:
         assert words == []
         assert all("\ufffd" not in w["text"] for w in words)
 
+    def test_tokens_crossing_character_boundaries_keep_complete_characters(self):
+        # One token can end a character and start the next: b'\xe4\xb8' + b'\x93\xe7'
+        # decodes to 专 plus an unfinished byte. The finished character stays.
+        from ComfyTV.runners.whisper_asr import segments_from_generate_output
+
+        token_bytes = {1: b"\xe4\xb8", 2: b"\x93\xe7"}
+        segs = segments_from_generate_output(
+            {"segments": [[{
+                "start": 0.0,
+                "end": 1.0,
+                "tokens": [1, 2],
+                "token_timestamps": [0.0, 0.4],
+                "text": "专",
+            }]]},
+            _Utf8ByteTok(token_bytes),
+            timestamps="word",
+            duration_s=1.0,
+        )
+        words = segs[0].get("words") or []
+        assert [w["text"] for w in words] == ["专"]
+        assert words[0]["start"] == 0.0
+        assert words[0]["end"] == 1.0
+
+        # The leftover byte of 练 is finished by the following token.
+        token_bytes[3] = b"\xbb\x83"
+        segs = segments_from_generate_output(
+            {"segments": [[{
+                "start": 0.0,
+                "end": 1.0,
+                "tokens": [1, 2, 3],
+                "token_timestamps": [0.0, 0.4, 0.7],
+                "text": "专练",
+            }]]},
+            _Utf8ByteTok(token_bytes),
+            timestamps="word",
+            duration_s=1.0,
+        )
+        words = segs[0]["words"]
+        assert [w["text"] for w in words] == ["专", "练"]
+        assert words[0]["start"] == 0.0
+        assert words[0]["end"] == 0.7
+        assert words[1]["start"] == 0.7
+        assert words[1]["end"] == 1.0
+
     def test_word_end_is_clamped_inside_the_segment(self):
         # System test: segment end 6.10 s, last word end 6.20 s.
         from ComfyTV.runners.whisper_asr import segments_from_generate_output
@@ -735,6 +779,12 @@ class TestNodeExecute:
 
         monkeypatch.setattr(node, "run_whisper", _fake)
         node.WhisperTranscribe.execute(media=str(wav), language="zh")
+        assert seen["normalize_punctuation"] is True
+        node.WhisperTranscribe.execute(media=str(wav), language="zh", task="translate")
+        assert seen["normalize_punctuation"] is False
+        node.WhisperTranscribe.execute(
+            media=str(wav), language="zh", task="translate", normalize_punct="on",
+        )
         assert seen["normalize_punctuation"] is True
         node.WhisperTranscribe.execute(media=str(wav), language="en")
         assert seen["normalize_punctuation"] is False

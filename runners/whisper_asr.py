@@ -591,6 +591,25 @@ def _token_window(index: int, times: list[float], segment_end: float) -> tuple[f
     return start, end
 
 
+def _append_timed_text(
+    pieces: list[tuple[str, float, float]], text: str, start: float, end: float,
+) -> None:
+    """Add ``text`` to ``pieces``. Each CJK character is its own piece."""
+    if end < start:
+        end = start
+    buf = ""
+    for ch in text:
+        if _is_cjk(ch):
+            if buf:
+                pieces.append((buf, start, end))
+                buf = ""
+            pieces.append((ch, start, end))
+        else:
+            buf += ch
+    if buf:
+        pieces.append((buf, start, end))
+
+
 def _pieces_from_tokens(
     tokenizer, ids: list[int], times: list[float], segment_end: float,
 ) -> list[tuple[str, float, float]]:
@@ -598,9 +617,11 @@ def _pieces_from_tokens(
 
     A Whisper byte-level token that is only part of a Chinese character
     decodes to U+FFFD. Consecutive fragments are merged until the span
-    decodes without U+FFFD, then emitted as one piece. The piece uses the
-    first token's start and the last token's end. A fragment that never
-    completes is dropped so a word is never U+FFFD.
+    decodes. Every character that is already valid is kept, including when
+    one token finishes a character and starts the next (``b'\\xe4\\xb8'`` +
+    ``b'\\x93\\xe7'`` is 专 plus a trailing byte). The unfinished tail is
+    dropped so a word is never U+FFFD. A piece uses the first token's start
+    and the last token's end.
     """
     pieces: list[tuple[str, float, float]] = []
     count = len(ids)
@@ -610,23 +631,33 @@ def _pieces_from_tokens(
         if single == "":
             index += 1
             continue
+        if "\ufffd" not in single:
+            start, end = _token_window(index, times, segment_end)
+            pieces.append((single, start, end))
+            index += 1
+            continue
+        start_i = index
         last = index
-        text = single
-        if "\ufffd" in text:
-            while "\ufffd" in text and last + 1 < count:
-                nxt = _decode(tokenizer, [ids[last + 1]])
-                if not nxt or "\ufffd" not in nxt:
-                    break
-                last += 1
-                text = _decode(tokenizer, ids[index:last + 1])
-            if "\ufffd" in text:
-                index = last + 1
-                continue
-        start, _ = _token_window(index, times, segment_end)
-        _, end = _token_window(last, times, segment_end)
-        if end < start:
-            end = start
-        pieces.append((text, start, end))
+        emitted = 0
+        char_from = start_i
+        while True:
+            text = _decode(tokenizer, ids[start_i:last + 1])
+            valid = text.replace("\ufffd", "")
+            if len(valid) > emitted:
+                origin = char_from if char_from <= last else last
+                start, _ = _token_window(origin, times, segment_end)
+                _, end = _token_window(last, times, segment_end)
+                _append_timed_text(pieces, valid[emitted:], start, end)
+                emitted = len(valid)
+                char_from = last + 1
+            if "\ufffd" not in text:
+                break
+            if last + 1 >= count:
+                break
+            nxt = _decode(tokenizer, [ids[last + 1]])
+            if not nxt or "\ufffd" not in nxt:
+                break
+            last += 1
         index = last + 1
     return pieces
 

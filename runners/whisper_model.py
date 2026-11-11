@@ -92,8 +92,9 @@ def run_whisper(
     """Transcribe mono 16 kHz audio. Returns ``(srt, text, segments_json)``.
 
     ``normalize_punctuation`` rewrites half-width sentence punctuation to
-    full-width Chinese forms. The node turns this on for language ``zh``
-    unless the widget says otherwise.
+    full-width Chinese forms. The node turns this on for zh transcription.
+    Auto stays off for translate, because that text is English, unless the
+    widget is set to on.
     """
     _check_options(language, task, timestamps)
     if not torch.cuda.is_available():

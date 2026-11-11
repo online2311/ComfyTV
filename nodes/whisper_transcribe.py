@@ -31,14 +31,20 @@ def _as_bool(value) -> bool:
     return bool(value)
 
 
-def _punctuation_enabled(option, language: str) -> bool:
-    """``auto`` follows the language: on for zh, off otherwise."""
+def _punctuation_enabled(option, language: str, task: str = "transcribe") -> bool:
+    """``auto`` follows the text Whisper will emit.
+
+    zh transcription uses full-width punctuation. ``translate`` always writes
+    English, so auto leaves that text alone. ``on`` and ``off`` override this.
+    """
     if isinstance(option, bool):
         return option
     mode = str(option or "auto").strip().lower()
     if mode in {"on", "true", "1", "yes"}:
         return True
     if mode in {"off", "false", "0", "no"}:
+        return False
+    if (task or "transcribe").strip().lower() == "translate":
         return False
     return (language or "zh").strip().lower() == "zh"
 
@@ -129,8 +135,9 @@ class WhisperTranscribe(io.ComfyNode):
                     default="auto",
                     tooltip=(
                         "auto rewrites half-width sentence punctuation to full-width "
-                        "when language is zh (, . ? ! : ; ( ) and ...). "
-                        "A decimal point between digits stays '.'. off leaves the text unchanged."
+                        "for Chinese transcription (language zh). translate writes English, "
+                        "so auto leaves it unchanged. on forces full-width; off leaves the text unchanged. "
+                        "A decimal point between digits stays '.'."
                     ),
                 ),
             ],
@@ -175,7 +182,7 @@ class WhisperTranscribe(io.ComfyNode):
             timestamps=timestamps,
             model_dir=model_dir or "",
             unload=_as_bool(unload),
-            normalize_punctuation=_punctuation_enabled(normalize_punct, language),
+            normalize_punctuation=_punctuation_enabled(normalize_punct, language, task),
         )
         path = write_output_srt(media, srt)
         return io.NodeOutput(
