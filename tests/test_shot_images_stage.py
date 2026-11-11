@@ -99,6 +99,65 @@ async def test_a_failed_shot_does_not_drop_the_ones_that_succeeded(shot_stage):
     assert [img["prompt"] for img in payload["images"]] == ["ok"]
 
 
+async def test_cancel_recorded_by_the_nested_executor_stops_later_shots(
+    shot_stage, monkeypatch,
+):
+    """The nested run clears the interrupt flag and reports execution_interrupted."""
+    g, calls = shot_stage
+
+    class InterruptProcessingException(Exception):
+        pass
+
+    import comfy.model_management as mm
+    monkeypatch.setattr(
+        mm, "InterruptProcessingException", InterruptProcessingException, raising=False,
+    )
+    from ComfyTV.runners._nested_exec import raise_if_nested_failed
+
+    class _Stopped:
+        success = False
+        status_messages = [
+            ("execution_interrupted", {"prompt_id": "sub", "node_id": "31"}),
+        ]
+
+    async def fake_invoke(**kwargs):
+        calls.append(kwargs)
+        if kwargs["main_prompt"] == "first":
+            raise_if_nested_failed(_Stopped(), "sub")
+        return json.dumps({"images": [{
+            "index": "1", "label": "#1", "image_url": "/view?filename=ok.png",
+        }]})
+
+    monkeypatch.setattr(g, "invoke_runner", fake_invoke)
+    with pytest.raises(InterruptProcessingException):
+        await g.ShotImagesStage.execute(
+            workflow="Flux",
+            storyboard=_storyboard(
+                {"shot_no": "1", "prompt": "first"},
+                {"shot_no": "2", "prompt": "second"},
+            ),
+        )
+    assert [c["main_prompt"] for c in calls] == ["first"]
+
+
+async def test_an_empty_image_list_is_not_blamed_on_missing_prompts(shot_stage, monkeypatch):
+    g, _calls = shot_stage
+
+    async def empty_images(**_kwargs):
+        return json.dumps({"images": []})
+
+    monkeypatch.setattr(g, "invoke_runner", empty_images)
+    with pytest.raises(RuntimeError, match="returned no shots") as raised:
+        await g.ShotImagesStage.execute(
+            workflow="Flux",
+            storyboard=_storyboard(
+                {"shot_no": "1", "scene_purpose": "no prompt"},
+                {"shot_no": "2", "prompt": "ran"},
+            ),
+        )
+    assert "none of the" not in str(raised.value)
+
+
 async def test_interrupt_stops_the_remaining_shots(shot_stage, monkeypatch):
     g, calls = shot_stage
 

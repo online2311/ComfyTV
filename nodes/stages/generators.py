@@ -597,7 +597,7 @@ class ShotImagesStage(io.ComfyNode):
                 raise RuntimeError(
                     f"ShotImagesStage: workflow {workflow!r} returned no shots: {last_error}"
                 ) from last_error
-            if skipped_empty:
+            if skipped_empty == len(shots):
                 raise RuntimeError(
                     "ShotImagesStage: none of the "
                     f"{len(shots)} shots had a prompt or image_prompt"

@@ -1,3 +1,6 @@
+import pytest
+
+
 class _Executor:
     def __init__(self, messages):
         self.status_messages = messages
@@ -28,6 +31,40 @@ def test_missing_model_reads_as_a_missing_model():
         "exception_message": "Model in folder 'diffusion_models' with filename 'q.safetensors' not found.",
     })
     assert "UNETLoader #12 raised FileNotFoundError: Model in folder" in str(err)
+
+
+def test_interrupted_subprompt_reraises_processing_interrupt(monkeypatch):
+    class InterruptProcessingException(Exception):
+        pass
+
+    import comfy.model_management as mm
+    monkeypatch.setattr(
+        mm, "InterruptProcessingException", InterruptProcessingException, raising=False,
+    )
+    from ComfyTV.runners._nested_exec import raise_if_nested_failed
+
+    ex = _Executor([
+        ("execution_start", {"prompt_id": "comfytv-stop"}),
+        ("execution_interrupted", {
+            "prompt_id": "comfytv-stop", "node_id": "9", "node_type": "KSampler",
+            "executed": ["6"],
+        }),
+    ])
+    with pytest.raises(InterruptProcessingException):
+        raise_if_nested_failed(ex, "comfytv-stop")
+
+
+def test_a_real_subprompt_error_stays_a_workflow_error():
+    from ComfyTV.runners._nested_exec import NestedWorkflowError, raise_if_nested_failed
+
+    ex = _Executor([
+        ("execution_error", {
+            "prompt_id": "comfytv-err", "node_id": "3", "node_type": "KSampler",
+            "exception_type": "RuntimeError", "exception_message": "bad latent",
+        }),
+    ])
+    with pytest.raises(NestedWorkflowError, match="bad latent"):
+        raise_if_nested_failed(ex, "comfytv-err")
 
 
 def test_without_detail_the_old_message_survives():
