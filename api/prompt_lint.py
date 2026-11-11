@@ -11,6 +11,35 @@ _log = logging.getLogger(__name__)
 _valid_keys: dict[str, set | None] = {}
 
 
+def _dynamic_subinputs(inp) -> list:
+    """Sub-widgets of a DynamicCombo. Plain combo ``options`` are strings and are skipped."""
+    options = getattr(inp, "options", None)
+    if not isinstance(options, (list, tuple)):
+        return []
+    found = []
+    for option in options:
+        nested = getattr(option, "inputs", None)
+        if isinstance(nested, (list, tuple)):
+            found.extend(nested)
+    return found
+
+
+def _add_input_keys(keys: set, inp, prefix: str = "") -> None:
+    inp_id = getattr(inp, "id", None)
+    if not inp_id:
+        return
+    full_id = f"{prefix}.{inp_id}" if prefix else str(inp_id)
+    template = getattr(inp, "template", None)
+    names = getattr(template, "names", None)
+    if isinstance(names, (list, tuple)) and names:
+        for name in names:
+            keys.add(f"{full_id}.{name}")
+        return
+    keys.add(full_id)
+    for sub in _dynamic_subinputs(inp):
+        _add_input_keys(keys, sub, full_id)
+
+
 def _keys_for(class_type: str) -> set | None:
     if class_type in _valid_keys:
         return _valid_keys[class_type]
@@ -25,16 +54,7 @@ def _keys_for(class_type: str) -> set | None:
         if schema is not None:
             keys = set()
             for inp in getattr(schema, "inputs", None) or []:
-                inp_id = getattr(inp, "id", None)
-                if not inp_id:
-                    continue
-                template = getattr(inp, "template", None)
-                names = getattr(template, "names", None)
-                if isinstance(names, (list, tuple)) and names:
-                    for name in names:
-                        keys.add(f"{inp_id}.{name}")
-                else:
-                    keys.add(str(inp_id))
+                _add_input_keys(keys, inp)
     _valid_keys[class_type] = keys
     return keys
 
