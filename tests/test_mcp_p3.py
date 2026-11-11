@@ -278,6 +278,64 @@ class TestPromptLint:
         assert findings[0]["unknown"] == ["video1", "videos.0"]
         assert findings[0]["autogrow_formats"] == ["videos.videoN"]
 
+    def test_dynamic_combo_subinputs_are_known_keys(self, client, monkeypatch):
+        class _Sub:
+            def __init__(self, id):
+                self.id = id
+
+        class _Option:
+            def __init__(self, inputs):
+                self.inputs = inputs
+
+        class _In:
+            def __init__(self, id, options=None):
+                self.id = id
+                self.options = options
+
+        class _Schema:
+            inputs = [
+                _In("prompt"),
+                _In("sampling_mode", options=[
+                    _Option([
+                        _Sub("temperature"),
+                        _Sub("top_k"),
+                        _Sub("top_p"),
+                        _Sub("min_p"),
+                        _Sub("repetition_penalty"),
+                        _Sub("presence_penalty"),
+                        _Sub("seed"),
+                    ]),
+                    _Option([]),
+                ]),
+                _In("reasoning_effort", options=["auto", "xhigh", "medium", "low", "off"]),
+            ]
+
+        class LintProbe:
+            @classmethod
+            def GET_SCHEMA(cls):
+                return _Schema()
+
+        self._register(monkeypatch, LintProbe)
+        from ComfyTV.api.prompt_lint import lint_prompt
+        clean = lint_prompt({
+            "4": {"class_type": "ComfyTV.LintProbe", "inputs": {
+                "prompt": "a rainy alley",
+                "sampling_mode": "on",
+                "sampling_mode.temperature": 0.7,
+                "sampling_mode.seed": 7,
+                "reasoning_effort": "auto",
+            }},
+        })
+        assert clean == []
+        flagged = lint_prompt({
+            "4": {"class_type": "ComfyTV.LintProbe", "inputs": {
+                "sampling_mode": "on",
+                "sampling_mode.temperature": 0.7,
+                "sampling_mode.not_a_control": 1,
+            }},
+        })
+        assert flagged[0]["unknown"] == ["sampling_mode.not_a_control"]
+
     def test_clean_prompt_and_non_comfytv_ignored(self, client, monkeypatch):
         self._register(monkeypatch, self._probe_class())
         from ComfyTV.api.prompt_lint import lint_prompt

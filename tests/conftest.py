@@ -105,6 +105,9 @@ def _ensure_comfyui_stubs():
             class TemplatePrefix(_Input):
                 pass
 
+            class TemplateNames(_Input):
+                pass
+
             class Type(_Input):
                 pass
 
@@ -129,6 +132,20 @@ def _ensure_comfyui_stubs():
         class _Audio(_Input):
             Input = _Input
             Output = _Input
+
+        class _Image(_Input):
+            Input = _Input
+            Output = _Input
+
+        class _Clip(_Input):
+            Input = _Input
+            Output = _Input
+
+        class _DynamicCombo:
+            class Option(_Input):
+                pass
+
+            Input = _Input
 
         class _Custom(_Input):
             Input = _Input
@@ -166,8 +183,8 @@ def _ensure_comfyui_stubs():
 
         io = types.SimpleNamespace(
             Int=_Int, Float=_Float, Boolean=_Boolean, String=_String,
-            Audio=_Audio,
-            Combo=_Combo, Custom=_Custom, Autogrow=_Autogrow,
+            Audio=_Audio, Image=_Image, Clip=_Clip,
+            Combo=_Combo, DynamicCombo=_DynamicCombo, Custom=_Custom, Autogrow=_Autogrow,
             Color=_Color, NumberDisplay=_NumDisplay, MultiType=_MultiType,
             Mask=_Mask,
             NodeOutput=_NodeOutput,
