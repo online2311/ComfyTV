@@ -1,0 +1,19 @@
+{
+  "_comment": "Shipped preset for local Whisper large-v3. SubtitleGenStage passes the upstream audio or video /view URL as option:source into media. Slot 0 of node 1 is SRT, read with graph_output_first. Model path is resolved by the node (env, models/whisper, models/stt, then the documented fallback). No download.",
+
+  "label": "Local Whisper large-v3",
+  "order": 10,
+  "description": "Offline Whisper large-v3 speech-to-text. SubtitleGenStage feeds an upstream video or audio file; the node returns SRT. Weights are a local Hugging Face snapshot (COMFYTV_WHISPER_MODEL, models/whisper, models/stt, or /home/nodecloud/whisper-v3/models/whisper-large-v3). Language defaults to zh.",
+
+  "result": { "type": "graph_output_first", "node": "1" },
+
+  "inputs": {
+    "1": {
+      "media": {
+        "from": "option:source",
+        "required": true,
+        "error": "Speech-to-text needs an upstream audio or video."
+      }
+    }
+  }
+}

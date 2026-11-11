@@ -1,0 +1,60 @@
+{
+  "id": "comfytv-local-whisper-large-v3",
+  "revision": 0,
+  "last_node_id": 1,
+  "last_link_id": 0,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "ComfyTV.WhisperTranscribe",
+      "pos": [80, 80],
+      "size": [440, 310],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "srt",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "text",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "segments",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ComfyTV.WhisperTranscribe"
+      },
+      "widgets_values": [
+        "",
+        "zh",
+        "transcribe",
+        "segment",
+        false,
+        ""
+      ],
+      "title": "Whisper Transcribe"
+    }
+  ],
+  "links": [],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "frontendVersion": "1.58.5"
+  },
+  "version": 0.4
+}
