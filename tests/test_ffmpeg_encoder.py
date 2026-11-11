@@ -302,6 +302,7 @@ def test_matching_files_are_copied_and_mixed_files_are_encoded(monkeypatch):
     assert "copy" in joined[0]
     assert not any("libx264" in c or "h264_nvenc" in c for c in commands)
     assert report["video_encoder"] == "copy"
+    assert report["audio_encoder"] == "copy"
 
     commands.clear()
     report.clear()
@@ -311,6 +312,33 @@ def test_matching_files_are_copied_and_mixed_files_are_encoded(monkeypatch):
     )
     assert any("libx264" in c for c in commands)
     assert report["video_encoder"] == "libx264"
+    assert report["audio_encoder"] == "copy"
+
+
+def test_sequence_report_keeps_audio_encoder(monkeypatch):
+    from ComfyTV.runners import media_remap
+
+    def fake_concat(urls, progress=None, *, video_encoder=None, report=None):
+        if report is not None:
+            report["video_encoder"] = "copy"
+            report["audio_encoder"] = "reencode"
+        return urls[0]
+
+    monkeypatch.setattr(media_remap, "concat_videos", fake_concat)
+    monkeypatch.setattr(
+        media_remap, "get_video_info",
+        lambda url: {"duration": 1.0, "fps": 24, "width": 64, "height": 48, "has_audio": True},
+    )
+    report = {}
+    media_remap.render_sequence(
+        [
+            {"url": "/view?filename/a.mp4", "transition": "cut"},
+            {"url": "/view?filename/b.mp4", "transition": "cut"},
+        ],
+        report=report,
+    )
+    assert report["video_encoder"] == "copy"
+    assert report["audio_encoder"] == "reencode"
 
 
 def test_concat_node_forwards_encoder_and_records_it(reset_db, monkeypatch):
@@ -322,6 +350,7 @@ def test_concat_node_forwards_encoder_and_records_it(reset_db, monkeypatch):
         captured["video_encoder"] = video_encoder
         if report is not None:
             report["video_encoder"] = "h264_nvenc"
+            report["audio_encoder"] = "reencode"
         return "/view?filename=out.mp4"
 
     monkeypatch.setattr(video_edit, "concat_videos", fake_concat)
@@ -335,6 +364,7 @@ def test_concat_node_forwards_encoder_and_records_it(reset_db, monkeypatch):
     )
     assert captured["video_encoder"] == "nvenc"
     assert out.ui["video_encoder"] == ["h264_nvenc"]
+    assert out.ui["audio_encoder"] == ["reencode"]
 
     def fake_default(urls, progress=None, *, video_encoder=None, report=None):
         captured["default"] = video_encoder
