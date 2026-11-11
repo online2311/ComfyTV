@@ -2,6 +2,8 @@ import { h, watch } from 'vue'
 
 import MainPromptInput from '@/components/stages/MainPromptInput.vue'
 import StagePresetBar from '@/components/stages/StagePresetBar.vue'
+import { readMediaTable } from '@/composables/stages/mediaOrder'
+import { migrateNodeSeed } from '@/composables/stages/seedField'
 import { useStageNode } from '@/composables/stages/useStageNode'
 import { t } from '@/i18n'
 import { type ComfyNode } from '@/lib/comfyApp'
@@ -50,6 +52,7 @@ interface GeneratorConfig {
   corner?: boolean
   footerExtra?: FooterExtra[]
   controls?: ControlSpec[]
+  migrateSeed?: boolean
 }
 
 const FOOTER_AUTO = ['aspect_ratio', 'resolution', 'batch_size']
@@ -106,6 +109,10 @@ function makeGeneratorShell(config: GeneratorConfig) {
     ensureMinSize(node, 320, 460)
 
     const stageApi = useStageNode(node as any, kind, variant)
+    const migrateSeed = () => {
+      if (config.migrateSeed) migrateNodeSeed(node, readMediaTable(node).image.length > 0)
+    }
+    migrateSeed()
     const { state: stageState, onRunRequest, onCancelRequest, onAction } = stageApi
     const scope = createNodeScope(node)
     scope.run(() => bindProgressRing(card, stageState))
@@ -161,6 +168,7 @@ function makeGeneratorShell(config: GeneratorConfig) {
     const prevConfigure = anyNode.onConfigure
     anyNode.onConfigure = function (...args: unknown[]) {
       prevConfigure?.apply(this, args)
+      migrateSeed()
       queueMicrotask(mountApps)
     }
 
@@ -226,7 +234,9 @@ const GENERATORS: Record<string, GeneratorConfig> = {
     controls: [
       { name: 'duration_s', control: 'slider', labelKey: 'v2.ctl.duration' },
       { name: 'generate_audio', control: 'toggle', labelKey: 'v2.ctl.generateAudio' },
+      { name: 'seed', control: 'number', labelKey: 'v2.ctl.seed' },
     ],
+    migrateSeed: true,
   },
   'ComfyTV.VideoUpscaleStage':     {
     preview: 'video', linkKind: 'upscale',

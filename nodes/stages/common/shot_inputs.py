@@ -1,15 +1,19 @@
 """Optional per-shot reference images and seeds for ShotImagesStage.
 
 A shot that carries none of these falls back to the stage-level shared
-reference list and the stage seed in custom_params. Existing storyboards
-that only have prompt / image_prompt keep that behavior.
+reference list and the stage seed field. A seed still stored in
+custom_params is read when the stage seed is unset (-1). Existing
+storyboards that only have prompt / image_prompt keep that behavior.
+At most 9 reference images; a longer list is an error.
 """
 
 from __future__ import annotations
 
 from typing import Any
 
-MAX_SHOT_REFS = 8
+from .ref_slots import MAX_REFERENCE_IMAGES, ReferenceSlotError
+
+MAX_SHOT_REFS = MAX_REFERENCE_IMAGES
 
 
 def image_ref_url(value: Any) -> str | None:
@@ -44,9 +48,17 @@ def image_ref_urls(raw: Any) -> list[str]:
         url = image_ref_url(item)
         if url and url not in out:
             out.append(url)
-        if len(out) >= MAX_SHOT_REFS:
-            break
     return out
+
+
+def _bounded_refs(urls: list[str], where: str) -> list[str]:
+    if len(urls) > MAX_SHOT_REFS:
+        raise ReferenceSlotError(
+            f"{where} accepts at most {MAX_SHOT_REFS} reference images "
+            f"(<Picture 1>..<Picture {MAX_SHOT_REFS}>); "
+            f"{len(urls)} were provided and were not dropped."
+        )
+    return urls
 
 
 def shot_reference_images(shot: Any, shared: list | None) -> list:
@@ -55,12 +67,12 @@ def shot_reference_images(shot: Any, shared: list | None) -> list:
         for key in ("reference_images", "refs"):
             urls = image_ref_urls(shot.get(key))
             if urls:
-                return urls
+                return _bounded_refs(urls, "a shot")
         for key in ("image_url", "reference_img"):
             url = image_ref_url(shot.get(key))
             if url:
                 return [url]
-    return list(shared or [])
+    return _bounded_refs(list(shared or []), "ShotImagesStage")
 
 
 def shot_seed(shot: Any) -> int | None:

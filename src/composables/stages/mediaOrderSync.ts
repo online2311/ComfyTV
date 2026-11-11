@@ -5,6 +5,7 @@ import {
   dropLegacyRefs,
   liveLinks,
   lookupLink,
+  mediaMax,
   matchLiveLink,
   type MediaEntry,
   type MediaTable,
@@ -99,6 +100,7 @@ function commit(node: unknown, prev: MediaTable, next: MediaTable): RemovedToken
 export function appendMediaEntry(node: unknown, type: MediaType, entry: MediaEntry): boolean {
   const prev = readMediaTable(node)
   if (prev[type].some(e => e.key === entry.key)) return false
+  if (prev[type].length >= mediaMax(node, type)) return false
   const next = { ...prev, [type]: [...prev[type], entry] }
   commit(node, prev, next)
   return true

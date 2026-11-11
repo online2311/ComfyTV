@@ -84,8 +84,12 @@ Workflow 说明：[workflows/video/README.zh.md](https://github.com/jtydhr88/Com
 ### texts / images / videos
 
 - **texts**：上游 Text 或 Storyboard 文本上下文。
-- **images**：I2V 1 张；FLF2V 2 张（顺序：起始 → 结束）。
+- **images**：最多 **9** 张参考图。传入顺序就是 `<Picture 1>`..`<Picture 9>`（`@image_1` 是同一张第一张图）。LTX I2V 用 1 张，FLF2V 用 2 张（起始 → 结束）。模型接受的张数少于 9 时，多传会报错，不会悄悄丢掉。MiniMax H3 参考生视频接受全部 9 张；它的首尾帧节点接受 2 张；Wan 2.7 视频编辑接受 4 张（ComfyUI v0.45.0）。
 - **videos**：部分 workflow 可作风格/运动参考（当前 LTX 内置以图为主）。
+
+### seed（种子）
+
+阶段自己的生成种子。`-1` 表示未设置（用工作流自己的默认，通常是每次随机）。旧项目写在自定义参数里的 seed 仍会生效，并改存到这个字段。
 
 ### audio（上游音频）
 
@@ -93,7 +97,7 @@ Workflow 说明：[workflows/video/README.zh.md](https://github.com/jtydhr88/Com
 
 ### 自定义参数（custom_params）
 
-侧栏可绑 seed、negative prompt 等。
+侧栏里的额外参数，例如负向提示词。种子用上面的 **seed** 字段，不再放在自定义参数里。
 
 ## 输出说明
 

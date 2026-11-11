@@ -271,7 +271,8 @@
       "voice": "音色",
       "speed": "语速",
       "referenceText": "参考文本",
-      "variantCount": "变体数量"
+      "variantCount": "变体数量",
+      "seed": "种子"
     },
     "toolbar": {
       "hd": "高清",
@@ -1793,7 +1794,8 @@
     "clearRef": "清除参考图",
     "addRef": "添加参考图",
     "removeRef": "移除这张参考图",
-    "refsCount": "参考图 {n}/8",
+    "refsCount": "参考图 {n}/9",
+    "pictureSlot": "<Picture {n}>",
     "seed": "种子",
     "seedAuto": "跟随",
     "seedHint": "留空则使用阶段上的种子",

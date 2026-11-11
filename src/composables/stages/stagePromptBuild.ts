@@ -179,8 +179,17 @@ export async function buildRunPrompt(node: any, store: Store): Promise<BuiltRunP
 
     const table = tablesByNode.get(String(nid))
     if (table) {
-      for (const w of materializeMedia(obj, graphNode, table, resolveUrl)) {
-        console.warn(`[ComfyTV/stage] node #${nid}: ${w}`)
+      const warnings = materializeMedia(obj, graphNode, table, resolveUrl)
+      const dropped = warnings.filter(w => w.includes('dropped'))
+      for (const w of warnings) console.warn(`[ComfyTV/stage] node #${nid}: ${w}`)
+      if (dropped.length) {
+        ;(app as any)?.extensionManager?.toast?.add?.({
+          severity: 'error',
+          summary: t('error.refMissing'),
+          detail: dropped.join(' '),
+          life: 8000,
+        })
+        return null
       }
     }
 
