@@ -3,6 +3,8 @@
 from pathlib import Path
 
 import folder_paths
+import pytest
+import yaml
 
 
 def test_default_root_is_the_input_comfytv_folder(monkeypatch):
@@ -80,3 +82,118 @@ def test_reshoot_records_are_not_written_beside_the_database(reset_db, monkeypat
     )
     assert Path(data_dir()) not in takes.parents
     assert not (Path(data_dir()) / "projects" / "root-check").exists()
+
+
+def test_resolve_root_defaults_to_series_dir_and_follows_spark_root(tmp_path, monkeypatch):
+    from ComfyTV.storage.series_library import SeriesLibraryError, resolve_root_arg
+
+    monkeypatch.delenv("COMFYTV_ASSET_ROOT", raising=False)
+    monkeypatch.setattr(folder_paths, "get_input_directory", lambda: str(tmp_path / "input"))
+    monkeypatch.setattr(folder_paths, "get_user_directory", lambda: str(tmp_path / "user"))
+    series = tmp_path / "input" / "comfytv" / "series" / "gumu-sx"
+    series.mkdir(parents=True)
+    (series / "library.yaml").write_text(
+        yaml.safe_dump({"schema_version": 1, "series": {"id": "gumu-sx"}, "assets": []}),
+        encoding="utf-8",
+    )
+    assert resolve_root_arg(series="gumu-sx") == series.resolve()
+
+    spark = tmp_path / "input" / "comfytv" / "series" / "spark-copy"
+    spark.mkdir()
+    (spark / "library.yaml").write_text(
+        "schema_version: 1\nseries: {id: gumu-sx}\nassets: []\n",
+        encoding="utf-8",
+    )
+    box = tmp_path / "box" / "gumu-sx"
+    box.mkdir(parents=True)
+    (box / "library.yaml").write_text(
+        yaml.safe_dump({
+            "schema_version": 1,
+            "series": {"id": "gumu-sx", "spark_root": str(spark)},
+            "assets": [],
+        }),
+        encoding="utf-8",
+    )
+    assert resolve_root_arg(root=str(box)) == spark.resolve()
+
+    outside = tmp_path / "elsewhere" / "lib"
+    outside.mkdir(parents=True)
+    (outside / "library.yaml").write_text(
+        "schema_version: 1\nseries: {id: other}\nassets: []\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(SeriesLibraryError, match="inside"):
+        resolve_root_arg(root=str(outside))
+
+    monkeypatch.setenv("COMFYTV_ASSET_ROOT", str(tmp_path / "custom"))
+    with pytest.raises(SeriesLibraryError, match="inside"):
+        resolve_root_arg(root=str(outside))
+    allowed = tmp_path / "custom" / "series" / "gumu-sx"
+    allowed.mkdir(parents=True)
+    (allowed / "library.yaml").write_text(
+        "schema_version: 1\nseries: {id: gumu-sx}\nassets: []\n",
+        encoding="utf-8",
+    )
+    assert resolve_root_arg(root=str(allowed)) == allowed.resolve()
+
+
+def test_series_name_and_spark_root_cannot_leave_the_asset_root(tmp_path, monkeypatch):
+    from ComfyTV.storage.series_library import SeriesLibraryError, resolve_root_arg
+
+    monkeypatch.delenv("COMFYTV_ASSET_ROOT", raising=False)
+    monkeypatch.setattr(folder_paths, "get_input_directory", lambda: str(tmp_path / "input"))
+    monkeypatch.setattr(folder_paths, "get_user_directory", lambda: str(tmp_path / "user"))
+    for name in ("../projects/x", "../../etc", "", "/etc", "gumu/sx"):
+        with pytest.raises(SeriesLibraryError, match="not safe"):
+            resolve_root_arg(series=name)
+
+    series = tmp_path / "input" / "comfytv" / "series" / "gumu-sx"
+    series.mkdir(parents=True)
+    outside = tmp_path / "etc"
+    outside.mkdir()
+    (series / "library.yaml").write_text(
+        yaml.safe_dump({
+            "schema_version": 1,
+            "series": {"id": "gumu-sx", "spark_root": str(outside)},
+            "assets": [],
+        }),
+        encoding="utf-8",
+    )
+    with pytest.raises(SeriesLibraryError, match="inside"):
+        resolve_root_arg(series="gumu-sx")
+
+
+def test_legacy_id_map_round_trips_and_resolves(tmp_path):
+    from ComfyTV.storage.character_studio import resolve_character_name
+    from ComfyTV.storage.series_library import get_series_asset, import_series_manifest
+
+    root = tmp_path / "gumu-sx"
+    body = b"front-map"
+    rel = "CHR_xiaolongnv/v1/front.png"
+    path = root / rel
+    path.parent.mkdir(parents=True)
+    path.write_bytes(body)
+    legacy = {
+        "front": "P01_xiaolongnv_base_outfitA_front_v3.png",
+        "side": ["P01_xiaolongnv_side", "P01_xiaolongnv_profile"],
+    }
+    imported = import_series_manifest(root, {
+        "schema_version": 1,
+        "series": {"id": "gumu-sx"},
+        "assets": [{
+            "id": "CHR_xiaolongnv",
+            "version": 1,
+            "kind": "character",
+            "status": "draft",
+            "name_zh": "小龙女",
+            "legacy_ids": legacy,
+            "files": {"front": {"path": rel, "media_type": "image"}},
+        }],
+    })
+    assert imported["added"] == ["CHR_xiaolongnv@v1"]
+    stored = get_series_asset(root, "CHR_xiaolongnv@v1")["legacy_ids"]
+    assert stored == legacy
+    assert resolve_character_name(root, "P01_xiaolongnv_side")["id"] == "CHR_xiaolongnv"
+    assert resolve_character_name(
+        root, "P01_xiaolongnv_base_outfitA_front_v3.png",
+    )["matched_by"] == "legacy_id"

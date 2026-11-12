@@ -98,7 +98,8 @@ accordingly.
 | `workflow_get` / `workflow_edit` | Read a workflow's input bindings and node inventory; bind/unbind stage values to workflow inputs, validated against the real graph |
 | `stage_params` | Define custom stage parameters, then bind them as `option:<key>` |
 | `asset_edit` | Save outputs into the asset library, rename, categorize |
-| `series_library` | Read and update a series folder's `library.yaml` (stable `ID@vN#view` codes, lock, new version, resolve, JSON manifest import) |
+| `series_library` | Read and update a series folder's `library.yaml` (stable `ID@vN#view` codes, lock, new version, resolve, JSON manifest import). Status is `draft`, `candidate` (picked, not locked), or `locked`. Default folder is `<input>/comfytv/series/<series>` (`COMFYTV_ASSET_ROOT` replaces the `comfytv` directory). A series name cannot be empty, absolute, or contain `/`, `\`, or `..`. `library.yaml` `spark_root` is followed when set, and the folder after that redirect must stay inside the asset root. `legacy_ids` may be a list or a `{view: id}` map |
+| `character_studio` | Character records on that same library: aliases, `legacy_ids` (list or per-view map), and `P01_` names, face import, H3 Image compose/sheet/derive/refine, s2pro voice audition. Finished media is written under `<output>/comfytv/projects/<project>/` (`COMFYTV_OUTPUT_ROOT` replaces the `comfytv` output directory). Image jobs and voice jobs return a `job_id`. Sheet stays out of video reference slots unless configured |
 
 `resolve` (a code, a list, or shot mode) returns the view written on the code. Omit `#view` and a character, look, or outfit uses `#front` when that file exists. It does not also attach `#headshot`. series-kit `compile` mounts `#headshot` for characters in addition to `#front`; pass `CHR_…@vN#headshot` to `resolve` when you want that file. Shot mode resolves only the codes already stored on the shot, including STY, LOC, and PRP.
 

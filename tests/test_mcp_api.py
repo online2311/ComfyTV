@@ -160,7 +160,7 @@ class TestProtocol:
             "workflow_get", "workflow_edit", "workflow_create", "node_info",
             "graph_get", "graph_edit", "graph_run",
             "canvas_command", "canvas_focus",
-            "asset_edit", "series_library", "entries",
+            "asset_edit", "series_library", "character_studio", "entries",
             "resources", "stage_params", "media_probe", "media_frame",
             "media_waveform", "media_timeline", "pick_output",
             "cancel_stage", "get_stage",

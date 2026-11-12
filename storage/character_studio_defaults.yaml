@@ -1,0 +1,72 @@
+# D3 defaults. Override per series under library.yaml comfytv.character_studio
+# or by a file at <series>/character_studio/templates/.
+sheet_in_video_ref: false
+sheet_aspect: "16:9"
+image_aspect: "16:9"
+sheet_proportion: "二八身材比例"
+accept_legacy_p_ids: true
+image_1_default: outfit_body
+batch_default: 2
+batch_min: 2
+batch_max: 4
+derive_batch: 1
+refine_batch: 1
+sheet_batch: 1
+widths:
+  "16:9": [1344, 768]
+  "3:2": [1536, 1024]
+  "2:3": [1024, 1536]
+image_vae: minimax_h3_image_vae_fp16.safetensors
+video_vae: minimax_h3_video_vae_fp16.safetensors
+unet: minimax_h3_image_pruned_int8_convrot.safetensors
+clip: qwen3vl_32b_minimax_h3_int8_convrot.safetensors
+clip_type: minimax
+weight_dtype: default
+steps: 6
+cfg: 1.0
+sampler: euler
+scheduler: simple
+denoise: 1.0
+derive_views:
+  - headshot
+  - three_quarter
+  - side
+  - back
+view_labels:
+  headshot: "面部特写"
+  three_quarter: "四分之三侧"
+  side: "正侧视图"
+  back: "后视图"
+view_instructions:
+  headshot: "取景只保留头部与肩，正面。"
+  three_quarter: "身体转到四分之三侧，脸仍可辨认。"
+  side: "正侧视图，可见轮廓。"
+  back: "后视图，背面发型与服装。"
+part_labels:
+  face: "脸"
+  hair: "发型"
+  outfit: "服饰"
+rederive_views:
+  - headshot
+  - three_quarter
+  - side
+  - back
+video_ref_views:
+  - front
+  - headshot
+voice:
+  backend: s2pro
+  class_type: ComfyTV.S2Pro
+  temperature: 0.8
+  top_p: 0.8
+  chunk_length: 200
+  inputs:
+    reference_audio: reference_audio
+    reference_text: reference_text
+    text: text
+    seed: seed
+    temperature: temperature
+    top_p: top_p
+    chunk_length: chunk_length
+audition_seeds_min: 3
+audition_seeds_max: 5

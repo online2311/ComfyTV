@@ -94,7 +94,8 @@ url = "http://127.0.0.1:8188/comfytv/mcp"
 | `workflow_get` / `workflow_edit` | 读工作流的输入绑定与节点清单;绑定/解绑 stage 值到工作流输入,按真实图校验 |
 | `stage_params` | 定义自定义参数,再以 `option:<key>` 绑定 |
 | `asset_edit` | 把产出存入资产库、改名、归类 |
-| `series_library` | 读写系列目录里的 `library.yaml`（稳定代号 `ID@vN#view`、锁定、新版本、解析到文件、JSON manifest 导入） |
+| `series_library` | 读写系列目录里的 `library.yaml`（稳定代号 `ID@vN#view`、锁定、新版本、解析到文件、JSON manifest 导入）。状态是 `draft`、`candidate`（已挑未锁）或 `locked`。默认目录是 `<input>/comfytv/series/<series>`（`COMFYTV_ASSET_ROOT` 可改 `comfytv` 这一层）。系列名不能是空串、绝对路径，也不能含 `/`、`\` 或 `..`。`library.yaml` 里的 `spark_root` 会跟着走，重定向之后的目录仍必须在资产根内。`legacy_ids` 可以是字符串列表，也可以是按视图的映射 |
+| `character_studio` | 同一份库上的角色档案：别名、`legacy_ids`（列表或按视图的映射）和 `P01_` 名、脸模导入、H3 Image 合成定妆/角色卡/派生/精修、s2pro 试音。成片写到 `<output>/comfytv/projects/<project>/`（`COMFYTV_OUTPUT_ROOT` 可改输出侧的 `comfytv` 目录）。静图和试音返回 `job_id`。角色卡默认不进视频参考槽 |
 
 `resolve`（单个代号、代号列表，或 shot 模式）返回代号上写明的视图。省略 `#view` 时，角色、造型、服装在有文件的情况下用 `#front`。它不会额外挂上 `#headshot`。series-kit 的 `compile` 会在 `#front` 之外再挂角色的 `#headshot`；要拿这张图，对 `resolve` 传入 `CHR_…@vN#headshot`。shot 模式只解析镜头上已经写下的代号，STY、LOC、PRP 也一样。
 
