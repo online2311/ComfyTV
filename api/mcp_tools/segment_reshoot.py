@@ -1,0 +1,105 @@
+"""MCP tool for planning and adopting an audio-only segment reshoot."""
+
+import asyncio
+
+from ...storage.segment_reshoot import (
+    ReshootError,
+    adopt,
+    list_reshoots,
+    plan,
+    protect,
+    rollback,
+    run,
+    status,
+)
+
+
+async def _segment_reshoot(args: dict) -> dict:
+    action = str(args.get("action") or "")
+    handlers = {
+        "plan": plan,
+        "run": run,
+        "status": status,
+        "list": list_reshoots,
+        "adopt": adopt,
+        "rollback": rollback,
+        "protect": protect,
+    }
+    handler = handlers.get(action)
+    if handler is None:
+        raise ValueError(
+            "unknown action "
+            f"{action!r} — valid: plan, run, status, list, adopt, rollback, protect"
+        )
+    try:
+        return await asyncio.to_thread(handler, args)
+    except ReshootError as exc:
+        raise ValueError(str(exc)) from exc
+
+
+TOOLS: dict[str, dict] = {
+    "segment_reshoot": {
+        "description": (
+            "Reshoot one time range inside a single take, audio only. "
+            "action 'plan' aligns [t_start, t_end) to the source frame rate, "
+            "records handles and the 17n+5 generation length, and writes a "
+            "reshoot record. It does not submit a ComfyUI prompt. "
+            "action 'run' splices head, replacement, and tail with the ffmpeg "
+            "concat runner and returns when that local splice finishes. "
+            "'status' and 'list' read the records. 'adopt' and 'rollback' "
+            "move the active version pointer and require approved_by '张景'. "
+            "Records are JSON under the ComfyUI input directory at "
+            "<input>/comfytv/projects/<project_id>/reshoots/<shot_id>/ "
+            "(COMFYTV_ASSET_ROOT overrides that comfytv folder) "
+            "(takes.json plus take_<n>_r<k>.json). New media is "
+            "<output>/comfytv/projects/<project_id>/reshoot/<shot_id>/"
+            "take_<n>_r<k>.mp4 (COMFYTV_OUTPUT_ROOT overrides that comfytv "
+            "folder). action 'protect' records glob patterns, relative to "
+            "that project output directory, for finished files such as "
+            "rough_cut*.mp4. Those files are not overwritten or deleted. "
+            "lipsync and regen are refused. "
+            "length_policy defaults to fit; ripple and allow_multiple are opt-in."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string",
+                    "enum": [
+                        "plan", "run", "status", "list", "adopt", "rollback",
+                        "protect",
+                    ],
+                },
+                "project_id": {"type": "string"},
+                "shot_id": {"type": "string"},
+                "reshoot_id": {"type": "string"},
+                "source": {"type": "object"},
+                "t_start": {"type": "number"},
+                "t_end": {"type": "number"},
+                "windows": {
+                    "type": "array",
+                    "items": {"type": "object"},
+                },
+                "mode": {"type": "string", "enum": ["audio_only", "lipsync", "regen"]},
+                "changes": {"type": "object"},
+                "audio": {"type": "string"},
+                "handles_s": {"type": "number"},
+                "length_policy": {"type": "string", "enum": ["fit", "ripple"]},
+                "allow_multiple": {"type": "boolean"},
+                "audio_fade_ms": {"type": "integer"},
+                "workflow": {"type": "string"},
+                "approved_by": {"type": "string"},
+                "to": {"type": "string"},
+                "cut_to": {"type": "number"},
+                "next_shot_id": {"type": "string"},
+                "created_by": {"type": "string"},
+                "previews": {"type": "boolean"},
+                "patterns": {"type": "array", "items": {"type": "string"}},
+                "kind": {"type": "string"},
+            },
+            "required": ["action", "project_id"],
+            "additionalProperties": False,
+        },
+        "handler": _segment_reshoot,
+    },
+}

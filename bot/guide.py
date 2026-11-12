@@ -56,6 +56,7 @@ CORE_MCP_TOOLS = [
     "arrange_canvas",
     "storyboard",
     "episode_batch",
+    "segment_reshoot",
     "skill",
     "ask_user",
     "remember",

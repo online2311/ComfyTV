@@ -551,24 +551,40 @@ def iter_shot_refs(shot: dict) -> list[dict]:
 def resolve_root_arg(root=None, series: str | None = None) -> Path:
     """Folder that holds ``library.yaml``.
 
-    An explicit ``root`` must sit inside ``comfytv_asset_root()`` unless
-    ``COMFYTV_ASSET_ROOT`` is set. With no root and no bound library, ``series``
-    selects ``series_dir(series)``. A ``spark_root`` field in that folder's
-    ``library.yaml`` (top-level or under ``series``) replaces the folder.
+    ``series`` must be a single path segment. The folder, including a
+    ``spark_root`` redirect, must stay inside ``comfytv_asset_root()``.
     """
+    if series is not None:
+        series = _require_series_name(series)
     if root:
         folder = _honor_spark_root(_as_root(root))
-        _require_explicit_inside_asset_root(folder)
-        return folder
-    try:
-        folder = _bound_root(series)
-    except SeriesLibraryError:
-        if not str(series or "").strip():
-            raise
-        folder = None
-    if folder is not None:
-        return _honor_spark_root(folder)
-    return _honor_spark_root(_as_root(series_dir(str(series).strip())))
+    else:
+        try:
+            folder = _bound_root(series)
+        except SeriesLibraryError:
+            if series is None:
+                raise
+            folder = None
+        if folder is None:
+            folder = _as_root(series_dir(series))
+        folder = _honor_spark_root(folder)
+    _require_inside_asset_root(folder)
+    return folder
+
+
+def _require_series_name(series: str) -> str:
+    """Reject empty names, absolute paths, and any ``/``, ``\\``, or ``..``."""
+    text = str(series or "").strip()
+    if (
+        not text
+        or Path(text).is_absolute()
+        or text.startswith("\\")
+        or "/" in text
+        or "\\" in text
+        or ".." in text
+    ):
+        raise SeriesLibraryError(f"series name is not safe: {series!r}")
+    return text
 
 
 def _honor_spark_root(folder: Path) -> Path:
@@ -593,9 +609,7 @@ def _honor_spark_root(folder: Path) -> Path:
     return target.resolve()
 
 
-def _require_explicit_inside_asset_root(folder: Path) -> None:
-    if os.environ.get("COMFYTV_ASSET_ROOT", "").strip():
-        return
+def _require_inside_asset_root(folder: Path) -> None:
     root = comfytv_asset_root().resolve()
     try:
         folder.resolve().relative_to(root)

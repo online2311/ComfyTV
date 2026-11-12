@@ -1,13 +1,15 @@
-"""Shared ComfyTV asset and output roots."""
+"""Project records live under the ComfyUI input tree, not the user data dir."""
 
-from __future__ import annotations
+from pathlib import Path
 
+import folder_paths
 import pytest
 import yaml
 
 
-def test_asset_root_uses_the_input_directory(tmp_path, monkeypatch):
-    import folder_paths
+def test_default_root_is_the_input_comfytv_folder(monkeypatch):
+    monkeypatch.delenv("COMFYTV_ASSET_ROOT", raising=False)
+    monkeypatch.delenv("COMFYTV_OUTPUT_ROOT", raising=False)
     from ComfyTV.storage.asset_root import (
         comfytv_asset_root,
         comfytv_output_root,
@@ -16,34 +18,73 @@ def test_asset_root_uses_the_input_directory(tmp_path, monkeypatch):
         series_dir,
     )
 
-    monkeypatch.delenv("COMFYTV_ASSET_ROOT", raising=False)
-    monkeypatch.delenv("COMFYTV_OUTPUT_ROOT", raising=False)
-    monkeypatch.setattr(folder_paths, "get_input_directory", lambda: str(tmp_path / "input"))
-    monkeypatch.setattr(folder_paths, "get_output_directory", lambda: str(tmp_path / "output"))
+    root = comfytv_asset_root()
+    assert root == Path(folder_paths.get_input_directory()) / "comfytv"
+    assert project_dir("idol-mv-hit") == root / "projects" / "idol-mv-hit"
+    assert series_dir("gumu-sx") == root / "series" / "gumu-sx"
+    output = comfytv_output_root()
+    assert output == Path(folder_paths.get_output_directory()) / "comfytv"
+    assert project_output_dir("idol-mv-hit") == output / "projects" / "idol-mv-hit"
 
-    assert comfytv_asset_root() == tmp_path / "input" / "comfytv"
-    assert series_dir("gumu-sx") == tmp_path / "input" / "comfytv" / "series" / "gumu-sx"
-    assert project_dir("gumu-shuangxiu") == (
-        tmp_path / "input" / "comfytv" / "projects" / "gumu-shuangxiu"
+
+def test_env_replaces_the_input_and_output_folders(monkeypatch, tmp_path):
+    assets = tmp_path / "assets"
+    media = tmp_path / "media"
+    monkeypatch.setenv("COMFYTV_ASSET_ROOT", str(assets))
+    monkeypatch.setenv("COMFYTV_OUTPUT_ROOT", str(media))
+    from ComfyTV.storage.asset_root import (
+        comfytv_asset_root,
+        comfytv_output_root,
+        project_dir,
+        project_output_dir,
+        series_dir,
     )
-    assert comfytv_output_root() == tmp_path / "output" / "comfytv"
-    assert project_output_dir("gumu-shuangxiu") == (
-        tmp_path / "output" / "comfytv" / "projects" / "gumu-shuangxiu"
+
+    assert comfytv_asset_root() == assets
+    assert project_dir("gumu") == assets / "projects" / "gumu"
+    assert series_dir("gumu-sx") == assets / "series" / "gumu-sx"
+    assert comfytv_output_root() == media
+    assert project_output_dir("gumu") == media / "projects" / "gumu"
+
+
+def test_reshoot_records_are_not_written_beside_the_database(reset_db, monkeypatch, tmp_path):
+    from ComfyTV.backup import data_dir
+    from ComfyTV.storage.segment_reshoot import plan
+
+    root = tmp_path / "asset-root"
+    monkeypatch.setenv("COMFYTV_ASSET_ROOT", str(root))
+    source = Path(folder_paths.get_output_directory()) / "comfytv" / "reshoot-src" / "root-src.mp4"
+    if not source.exists():
+        from test_segment_reshoot import _write_clip
+        _write_clip(source, seconds=2)
+    audio = tmp_path / "tone.wav"
+    from test_segment_reshoot import _write_tone
+    _write_tone(audio, 0.4, 440)
+    from ComfyTV.runners import media
+
+    planned = plan({
+        "project_id": "root-check",
+        "mode": "audio_only",
+        "previews": False,
+        "source": {
+            "url": media.path_to_view_url(source),
+            "shot_id": "E01S01_01",
+            "take": 1,
+        },
+        "t_start": 0.2,
+        "t_end": 0.7,
+        "audio": str(audio),
+    })
+    takes = root / "projects" / "root-check" / "reshoots" / "E01S01_01" / "takes.json"
+    assert takes.is_file()
+    assert planned["storage"]["records_dir"].endswith(
+        "projects/root-check/reshoots/E01S01_01"
     )
-
-
-def test_env_overrides_replace_the_comfytv_folder(tmp_path, monkeypatch):
-    from ComfyTV.storage.asset_root import comfytv_asset_root, comfytv_output_root, series_dir
-
-    monkeypatch.setenv("COMFYTV_ASSET_ROOT", str(tmp_path / "assets"))
-    monkeypatch.setenv("COMFYTV_OUTPUT_ROOT", str(tmp_path / "renders"))
-    assert comfytv_asset_root() == tmp_path / "assets"
-    assert series_dir("gumu-sx") == tmp_path / "assets" / "series" / "gumu-sx"
-    assert comfytv_output_root() == tmp_path / "renders"
+    assert Path(data_dir()) not in takes.parents
+    assert not (Path(data_dir()) / "projects" / "root-check").exists()
 
 
 def test_resolve_root_defaults_to_series_dir_and_follows_spark_root(tmp_path, monkeypatch):
-    import folder_paths
     from ComfyTV.storage.series_library import SeriesLibraryError, resolve_root_arg
 
     monkeypatch.delenv("COMFYTV_ASSET_ROOT", raising=False)
@@ -59,7 +100,10 @@ def test_resolve_root_defaults_to_series_dir_and_follows_spark_root(tmp_path, mo
 
     spark = tmp_path / "input" / "comfytv" / "series" / "spark-copy"
     spark.mkdir()
-    (spark / "library.yaml").write_text("schema_version: 1\nseries: {id: gumu-sx}\nassets: []\n", encoding="utf-8")
+    (spark / "library.yaml").write_text(
+        "schema_version: 1\nseries: {id: gumu-sx}\nassets: []\n",
+        encoding="utf-8",
+    )
     box = tmp_path / "box" / "gumu-sx"
     box.mkdir(parents=True)
     (box / "library.yaml").write_text(
@@ -82,7 +126,41 @@ def test_resolve_root_defaults_to_series_dir_and_follows_spark_root(tmp_path, mo
         resolve_root_arg(root=str(outside))
 
     monkeypatch.setenv("COMFYTV_ASSET_ROOT", str(tmp_path / "custom"))
-    assert resolve_root_arg(root=str(outside)) == outside.resolve()
+    with pytest.raises(SeriesLibraryError, match="inside"):
+        resolve_root_arg(root=str(outside))
+    allowed = tmp_path / "custom" / "series" / "gumu-sx"
+    allowed.mkdir(parents=True)
+    (allowed / "library.yaml").write_text(
+        "schema_version: 1\nseries: {id: gumu-sx}\nassets: []\n",
+        encoding="utf-8",
+    )
+    assert resolve_root_arg(root=str(allowed)) == allowed.resolve()
+
+
+def test_series_name_and_spark_root_cannot_leave_the_asset_root(tmp_path, monkeypatch):
+    from ComfyTV.storage.series_library import SeriesLibraryError, resolve_root_arg
+
+    monkeypatch.delenv("COMFYTV_ASSET_ROOT", raising=False)
+    monkeypatch.setattr(folder_paths, "get_input_directory", lambda: str(tmp_path / "input"))
+    monkeypatch.setattr(folder_paths, "get_user_directory", lambda: str(tmp_path / "user"))
+    for name in ("../projects/x", "../../etc", "", "/etc", "gumu/sx"):
+        with pytest.raises(SeriesLibraryError, match="not safe"):
+            resolve_root_arg(series=name)
+
+    series = tmp_path / "input" / "comfytv" / "series" / "gumu-sx"
+    series.mkdir(parents=True)
+    outside = tmp_path / "etc"
+    outside.mkdir()
+    (series / "library.yaml").write_text(
+        yaml.safe_dump({
+            "schema_version": 1,
+            "series": {"id": "gumu-sx", "spark_root": str(outside)},
+            "assets": [],
+        }),
+        encoding="utf-8",
+    )
+    with pytest.raises(SeriesLibraryError, match="inside"):
+        resolve_root_arg(series="gumu-sx")
 
 
 def test_legacy_id_map_round_trips_and_resolves(tmp_path):
