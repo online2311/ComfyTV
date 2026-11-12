@@ -425,6 +425,15 @@ class TestStudioHistoryAndWorkflows:
         assert "MiniMaxH3ImageToVideo" not in decoded
         assert "Lora" not in decoded
         assert len([node for node in prompt.values() if node["class_type"] == "SaveImage"]) == 2
+        saved = [
+            node["inputs"]["filename_prefix"]
+            for node in prompt.values()
+            if node["class_type"] == "SaveImage"
+        ]
+        assert saved
+        assert saved[0].startswith(
+            "comfytv/projects/gumu-shuangxiu/character_studio/CHR_xiaolongnv/v1/compose_outfit"
+        )
         assert [node["inputs"]["seed"] for node in prompt.values() if node["class_type"] == "KSampler"] == [11, 12]
 
         swapped = compose_outfit(

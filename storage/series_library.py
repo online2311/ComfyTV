@@ -22,6 +22,7 @@ from urllib.parse import quote
 import yaml
 
 from ..backup import data_dir
+from .asset_root import comfytv_asset_root, series_dir
 
 _WRITE_LOCK = threading.Lock()
 _SNAPSHOT_SEQ = 0
@@ -548,9 +549,59 @@ def iter_shot_refs(shot: dict) -> list[dict]:
 
 
 def resolve_root_arg(root=None, series: str | None = None) -> Path:
+    """Folder that holds ``library.yaml``.
+
+    An explicit ``root`` must sit inside ``comfytv_asset_root()`` unless
+    ``COMFYTV_ASSET_ROOT`` is set. With no root and no bound library, ``series``
+    selects ``series_dir(series)``. A ``spark_root`` field in that folder's
+    ``library.yaml`` (top-level or under ``series``) replaces the folder.
+    """
     if root:
-        return _as_root(root)
-    return _bound_root(series)
+        folder = _honor_spark_root(_as_root(root))
+        _require_explicit_inside_asset_root(folder)
+        return folder
+    try:
+        folder = _bound_root(series)
+    except SeriesLibraryError:
+        if not str(series or "").strip():
+            raise
+        folder = None
+    if folder is not None:
+        return _honor_spark_root(folder)
+    return _honor_spark_root(_as_root(series_dir(str(series).strip())))
+
+
+def _honor_spark_root(folder: Path) -> Path:
+    library = folder / "library.yaml"
+    if not library.is_file():
+        return folder
+    try:
+        loaded = yaml.safe_load(library.read_text(encoding="utf-8"))
+    except (OSError, yaml.YAMLError):
+        return folder
+    if not isinstance(loaded, dict):
+        return folder
+    series = loaded.get("series") if isinstance(loaded.get("series"), dict) else {}
+    raw = series.get("spark_root")
+    if not isinstance(raw, str) or not raw.strip():
+        raw = loaded.get("spark_root")
+    if not isinstance(raw, str) or not raw.strip():
+        return folder
+    target = Path(raw).expanduser()
+    if not target.is_dir():
+        raise SeriesLibraryError(f"spark_root is not a directory: {raw}", status=404)
+    return target.resolve()
+
+
+def _require_explicit_inside_asset_root(folder: Path) -> None:
+    if os.environ.get("COMFYTV_ASSET_ROOT", "").strip():
+        return
+    root = comfytv_asset_root().resolve()
+    try:
+        folder.resolve().relative_to(root)
+    except ValueError:
+        raise SeriesLibraryError(
+            f"series folder must be inside {root}", status=400)
 
 
 def _resolve_parsed(folder: Path, doc: dict, parsed: dict, *,
@@ -857,30 +908,74 @@ def _resolve_dependency(doc: dict, ref: str) -> dict:
     }
 
 
+def legacy_id_names(value) -> list[str]:
+    """Flat legacy ids from a list or a ``{view: id | [id, ...]}`` map."""
+    if isinstance(value, str):
+        text = value.strip()
+        return [text] if text else []
+    if isinstance(value, list):
+        return _dedupe_strings(value)
+    if isinstance(value, dict):
+        names: list[str] = []
+        for item in value.values():
+            names.extend(legacy_id_names(item))
+        return _dedupe_strings(names)
+    return []
+
+
+def _dedupe_strings(raw) -> list[str]:
+    seen: list[str] = []
+    if not isinstance(raw, list):
+        return seen
+    for item in raw:
+        if not isinstance(item, str):
+            continue
+        text = item.strip()
+        if text and text not in seen:
+            seen.append(text)
+    return seen
+
+
 def _normalize_name_lists(record: dict) -> None:
-    for key in ("aliases", "legacy_ids"):
-        raw = record.get(key)
-        if raw is None:
-            continue
-        if not isinstance(raw, list):
-            continue
-        seen: list[str] = []
-        for item in raw:
-            if not isinstance(item, str):
-                continue
+    aliases = record.get("aliases")
+    if isinstance(aliases, list):
+        record["aliases"] = _dedupe_strings(aliases)
+    legacy = record.get("legacy_ids")
+    if isinstance(legacy, list):
+        record["legacy_ids"] = _dedupe_strings(legacy)
+    elif isinstance(legacy, dict):
+        record["legacy_ids"] = _normalize_legacy_map(legacy)
+
+
+def _normalize_legacy_map(raw: dict) -> dict:
+    cleaned: dict = {}
+    for view, item in raw.items():
+        key = str(view).strip()
+        if not key:
+            raise SeriesLibraryError("legacy_ids view names must be strings")
+        if isinstance(item, str):
             text = item.strip()
-            if text and text not in seen:
-                seen.append(text)
-        record[key] = seen
+            if text:
+                cleaned[key] = text
+        elif isinstance(item, list):
+            cleaned[key] = _dedupe_strings(item)
+        else:
+            raise SeriesLibraryError(
+                "legacy_ids values must be a string or a list of strings")
+    return cleaned
 
 
 def _validate_record_extras(record: dict) -> None:
     legacy = record.get("legacy_ids")
-    if legacy is not None and (
-        not isinstance(legacy, list)
-        or not all(isinstance(item, str) and item.strip() for item in legacy)
+    if legacy is not None and not isinstance(legacy, (list, dict)):
+        raise SeriesLibraryError(
+            "legacy_ids must be a list of strings or a view map")
+    if isinstance(legacy, list) and not all(
+        isinstance(item, str) and item.strip() for item in legacy
     ):
         raise SeriesLibraryError("legacy_ids must be a list of strings")
+    if isinstance(legacy, dict):
+        _normalize_legacy_map(legacy)
     aliases = record.get("aliases")
     if aliases is not None and (
         not isinstance(aliases, list)
@@ -908,14 +1003,12 @@ def _alias_claims(record: dict) -> set[str]:
     name_zh = str(record.get("name_zh") or "").strip()
     if name_zh:
         names.add(name_zh)
-    for key in ("aliases", "legacy_ids"):
-        raw = record.get(key) or []
-        if not isinstance(raw, list):
-            continue
-        for item in raw:
-            text = str(item or "").strip()
-            if text:
-                names.add(text)
+    for item in record.get("aliases") or []:
+        text = str(item or "").strip()
+        if text:
+            names.add(text)
+    for text in legacy_id_names(record.get("legacy_ids")):
+        names.add(text)
     return names
 
 

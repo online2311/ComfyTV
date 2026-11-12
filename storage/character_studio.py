@@ -20,13 +20,16 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
+import folder_paths
 import yaml
 
+from .asset_root import project_output_dir
 from .series_library import (
     SeriesLibraryError,
     _as_root,
     character_dependencies,
     get_series_asset,
+    legacy_id_names,
     new_series_asset_version,
     parse_series_ref,
     read_series_document,
@@ -96,7 +99,7 @@ def resolve_character_name(root, name: str) -> dict:
             reasons.append("name_zh")
         if text in _strings(record.get("aliases")):
             reasons.append("alias")
-        if text in _strings(record.get("legacy_ids")):
+        if text in legacy_id_names(record.get("legacy_ids")):
             reasons.append("legacy_id")
         if reasons:
             owners.setdefault(str(record.get("id")), []).extend(reasons)
@@ -230,7 +233,7 @@ def compose_outfit(root, code: str, face: str, outfit_body: str, *,
         "outfit_picture": slots["outfit_body"],
     })
     width, height = _canvas(config, str(config.get("image_aspect") or "16:9"))
-    prefix = _prefix(record, "compose_outfit")
+    prefix = _prefix(doc, record, "compose_outfit")
     prompt, outputs = build_h3_image_workflow(
         doc, ordered, [text], seeds, width, height, prefix, config)
     entry = _history(
@@ -271,7 +274,7 @@ def make_sheet(root, code: str, *, source: str | None = None, seed: int | None =
     seeds = _seed_run(seed, _batch_count(config, None, kind="sheet"))
     width, height = _canvas(config, str(config.get("sheet_aspect") or "16:9"))
     prompt, outputs = build_h3_image_workflow(
-        doc, [("front", rel)], [text], seeds, width, height, _prefix(record, "sheet"), config)
+        doc, [("front", rel)], [text], seeds, width, height, _prefix(doc, record, "sheet"), config)
     entry = _history(
         op="sheet",
         inputs=[f"from={view}", rel],
@@ -313,7 +316,7 @@ def derive_views(root, code: str, views: list | None = None, *,
     width, height = _canvas(config, str(config.get("image_aspect") or "16:9"))
     prompt, outputs = build_h3_image_workflow(
         doc, [("front", rel)], texts, seeds, width, height,
-        _prefix(record, "derive_view"), config)
+        _prefix(doc, record, "derive_view"), config)
     entry = _history(
         op="derive_view",
         inputs=[f"from=front", *requested],
@@ -349,7 +352,7 @@ def refine(root, code: str, part: str, instruction: str, *,
     width, height = _canvas(config, str(config.get("image_aspect") or "16:9"))
     prompt, outputs = build_h3_image_workflow(
         doc, [("root", root_rel)], [rendered], seeds, width, height,
-        _prefix(record, _REFINE_OPS[part]), config)
+        _prefix(doc, record, _REFINE_OPS[part]), config)
     entry = _history(
         op=_REFINE_OPS[part],
         inputs=[f"part={part}", text_instruction, root_rel],
@@ -396,7 +399,7 @@ def voice_audition(root, voice_code: str, text: str, seeds: list, *,
     seed_values = [int(item) for item in seeds]
     prompt, outputs = build_s2pro_workflow(
         doc, audio_rel, reference_text, line, seed_values, params,
-        _prefix(record, "voice_audition"), config)
+        _prefix(doc, record, "voice_audition"), config)
     entry = _history(
         op="voice_audition",
         inputs=[line, audio_rel],
@@ -805,8 +808,21 @@ def _code(record: dict) -> str:
     return f"{record['id']}@v{int(record['version'])}"
 
 
-def _prefix(record: dict, op: str) -> str:
-    return f"comfytv/character_studio/{record['id']}/v{int(record['version'])}/{op}"
+def _prefix(doc: dict, record: dict, op: str) -> str:
+    series = doc.get("series") if isinstance(doc.get("series"), dict) else {}
+    project = str(series.get("project_id") or series.get("id") or "default")
+    target = (
+        project_output_dir(project)
+        / "character_studio"
+        / str(record["id"])
+        / f"v{int(record['version'])}"
+        / op
+    )
+    output = Path(folder_paths.get_output_directory()).resolve()
+    try:
+        return target.resolve().relative_to(output).as_posix()
+    except ValueError:
+        return target.as_posix()
 
 
 def _batch_count(config: dict, requested: int | None, *, kind: str) -> int:

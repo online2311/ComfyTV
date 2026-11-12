@@ -1,5 +1,6 @@
-# ComfyTV asset store policy. Spark is the source of truth after a
-# migration; box paths below are backup notes and are not read or written.
+# ComfyTV asset store policy. Runtime paths come from storage/asset_root.py:
+# <input>/comfytv and <output>/comfytv, overridable with COMFYTV_ASSET_ROOT
+# and COMFYTV_OUTPUT_ROOT. Box paths below are backup notes only.
 truth: comfytv
 series_root_template: /home/nodecloud/ComfyUI/input/comfytv/series/{series_id}
 project_root_template: /home/nodecloud/ComfyUI/input/comfytv/projects/{project_id}

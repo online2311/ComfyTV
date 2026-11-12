@@ -12,6 +12,14 @@ import pytest
 os.environ["COMFYTV_TESTING"] = "1"
 
 
+@pytest.fixture(autouse=True)
+def _comfytv_asset_root_override(monkeypatch, tmp_path_factory):
+    """Let tests pass a temporary series folder. Production rejects roots outside input/comfytv."""
+    root = tmp_path_factory.getbasetemp() / "comfytv-asset-root"
+    root.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setenv("COMFYTV_ASSET_ROOT", str(root))
+
+
 def _has_module(name: str) -> bool:
     return importlib.util.find_spec(name) is not None
 
