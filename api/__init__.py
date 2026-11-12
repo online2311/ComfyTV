@@ -3,6 +3,7 @@ from . import entries    # noqa: F401
 from . import assets     # noqa: F401
 from . import series_library  # noqa: F401
 from . import script_writer  # noqa: F401
+from . import segment_reshoot  # noqa: F401
 from . import outputs    # noqa: F401
 from . import stages     # noqa: F401
 from . import stage_params  # noqa: F401

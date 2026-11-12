@@ -94,7 +94,8 @@ url = "http://127.0.0.1:8188/comfytv/mcp"
 | `workflow_get` / `workflow_edit` | 读工作流的输入绑定与节点清单;绑定/解绑 stage 值到工作流输入,按真实图校验 |
 | `stage_params` | 定义自定义参数,再以 `option:<key>` 绑定 |
 | `asset_edit` | 把产出存入资产库、改名、归类 |
-| `series_library` | 读写系列目录里的 `library.yaml`（稳定代号 `ID@vN#view`、锁定、新版本、解析到文件、JSON manifest 导入） |
+| `series_library` | 读写系列目录里的 `library.yaml`（稳定代号 `ID@vN#view`、锁定、新版本、解析到文件、JSON manifest 导入）。状态是 `draft`、`candidate`（已挑未锁）或 `locked`。默认目录是 `<input>/comfytv/series/<series>`（`COMFYTV_ASSET_ROOT` 可改 `comfytv` 这一层）。系列名不能是空串、绝对路径，也不能含 `/`、`\` 或 `..`。`library.yaml` 里的 `spark_root` 会跟着走，重定向之后的目录仍必须在资产根内。`legacy_ids` 可以是字符串列表，也可以是按视图的映射 |
+| `character_studio` | 同一份库上的角色档案：别名、`legacy_ids`（列表或按视图的映射）和 `P01_` 名、脸模导入、H3 Image 合成定妆/角色卡/派生/精修、s2pro 试音。成片写到 `<output>/comfytv/projects/<project>/`（`COMFYTV_OUTPUT_ROOT` 可改输出侧的 `comfytv` 目录）。静图和试音返回 `job_id`。角色卡默认不进视频参考槽 |
 
 `resolve`（单个代号、代号列表，或 shot 模式）返回代号上写明的视图。省略 `#view` 时，角色、造型、服装在有文件的情况下用 `#front`。它不会额外挂上 `#headshot`。series-kit 的 `compile` 会在 `#front` 之外再挂角色的 `#headshot`；要拿这张图，对 `resolve` 传入 `CHR_…@vN#headshot`。shot 模式只解析镜头上已经写下的代号，STY、LOC、PRP 也一样。
 
@@ -104,9 +105,10 @@ url = "http://127.0.0.1:8188/comfytv/mcp"
 |---|---|
 | `scene_get/edit/capture/record` | 驱动 Scene 3D:角色、灯光、相机、动画 clip、相机路径与多镜导演时间轴(add_shot/patch_shot/set_path) |
 | `director_get/director_edit` | 读写导演台 clip 时间线 |
-| `storyboard` | 读取、替换或校验分镜阶段的完整镜头文档（`shots.json` 字段和自定义键）。`get_stage` 对很长的 `storyboard_data` 只给预览。`validate` 的整集总时长按每镜 `duration_s` 相加，`cut_to` 只和该镜时长比较。镜头少到即使每镜 15 秒也达不到 `target_duration_s` 时（单镜或很短的片段），不再拿整集目标来比 |
+| `storyboard` | 读取、替换或校验分镜阶段的完整镜头文档（`shots.json` 字段和自定义键）。`get_stage` 对很长的 `storyboard_data` 只给预览。`validate` 的整集总时长按每镜 `duration_s` 相加，`cut_to` 只和该镜时长比较。镜头少到即使每镜 15 秒也达不到 `target_duration_s` 时（单镜或很短的片段），不再拿整集目标来比。可选的分镜提示词字段（`aspect_ratio`、`refs.slot`、`subjects`、H3 的 `summary_tasks` / retention / `align_s`）出现时才检查；`strict` 额外要求开场画面、结尾画面、`end_hold` 和至少一段 segment。图片 `src` 是 ComfyTV 资产代号或 `episode:` 路径。`workflow` 决定图片上限（FL2VA 为 2，Ref2VA 为 9） |
 | `episode_batch` | 按分镜为每镜准备或提交一个 VideoStage。`plan` 用系列库解析资产代号和 `episode:` 首尾帧，给出可复现的逐镜 seed，选择 Ref2VA 或 FL2VA，并按配置挂上台词音频；不调用模型。本该用 FL2VA、又有台词、且该 FL2VA 工作流不接上游音频时，plan 和 run 都改成 Ref2VA（`reason` 为 `dialogue_downgrade`），除非镜上写了 `video_mode=FL2VA`。`run` 在 GET /queue 空闲后一次只提交一镜，已完成的镜会跳过，不会中断队列 |
 | `script_writer` | 剧本会话在 `<ComfyUI input>/comfytv/projects/<project>/script/`（`COMFYTV_ASSET_ROOT` 替换这一层 `comfytv`）。传入的 `root` 必须落在该 `projects/` 目录里。生成出的成片目录是 `<ComfyUI output>/comfytv/projects/<project>/`（`COMFYTV_OUTPUT_ROOT`）。版本、选段改写，以及带 sha256 的清单导入。不写 `library.yaml`。不含 `to_shots` |
+| `segment_reshoot` | 计划、执行、列出、采用、回滚或登记保护一条镜头内部的纯音频重拍。`plan` 不提交提示。`adopt` 和 `rollback` 的 `approved_by` 必须是张景。记录在 `<input>/comfytv/projects/<project_id>/reshoots/<shot_id>/takes.json` 和 `take_<n>_r<k>.json`（`COMFYTV_ASSET_ROOT` 可改输入侧的 `comfytv`）。新成片在 `<output>/comfytv/projects/<project_id>/reshoot/<shot_id>/take_<n>_r<k>.mp4`（`COMFYTV_OUTPUT_ROOT` 可改输出侧的 `comfytv`）。`protect` 把相对该项目输出目录的通配符（如 `rough_cut*.mp4`）写进 `protected.json`。匹配到的文件不会被覆盖或删除 |
 
 ## 关键套路
 

@@ -499,7 +499,10 @@ export function computePickedFromBatch(batch: string | null | undefined, wantIdx
         : Array.isArray(parsed?.images) ? parsed.images : []
     const match = images.find(im => Number(im.index) === wantIdx)
       ?? images[wantIdx - 1]
-    return match?.image_url ?? null
+    if (!match) return null
+    const video = (match as { video_url?: string }).video_url
+    if (video) return String(video)
+    return match.image_url ?? null
   } catch {
     return null
   }

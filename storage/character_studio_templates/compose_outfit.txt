@@ -1,0 +1,1 @@
+{face_picture}中的角色穿上{outfit_picture}的衣服，全身照，保持{outfit_picture}的身材。平光，纯浅灰或白底，中性表情，写实摄影，皮肤与布料纹理清楚，不使用美颜。

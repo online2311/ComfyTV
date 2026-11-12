@@ -1,0 +1,1 @@
+以{source_picture}为唯一根图。只改{part_label}：{instruction}。未点名的脸、发型、服装、身份、体型与装备保持与{source_picture}一致。不要在上一张精修结果上连续编辑。

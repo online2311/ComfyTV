@@ -6,7 +6,8 @@ PENDING_STAGES: frozenset[str] = frozenset({
 })
 
 NON_STAGE_NODES: frozenset[str] = frozenset({
-    'MaskCleanup', 'MakeProxyStage', 'TextGeneratePE', 'WhisperTranscribe',
+    'MaskCleanup', 'MakeProxyStage', 'SubtitleAlignStage', 'TextGeneratePE',
+    'WhisperTranscribe',
 })
 
 STAGE_META: dict[str, dict] = {
@@ -169,6 +170,7 @@ STAGE_META: dict[str, dict] = {
     'STMapGenStage':                {'kind': 'image'},
     'RegrainStage':                 {'kind': 'video'},
     'ContactSheetStage':            {'kind': 'image'},
+    'ConsistencyRescoreStage':      {'kind': 'image-batch', 'workflow_kind': 'video'},
     'KenBurnsStage':                {'kind': 'video'},
     'OldFilmStage':                 {'kind': 'video'},
     'AnnotateStage':                {'kind': 'video'},

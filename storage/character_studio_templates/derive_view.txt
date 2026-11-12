@@ -1,0 +1,1 @@
+以{source_picture}为唯一根图，派生{view_label}。身份、脸、发型、服装、体型、装备与{source_picture}完全一致，不从其他图再派生。平光，纯浅灰或白底，中性表情，写实。{instruction}

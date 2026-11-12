@@ -740,6 +740,13 @@ describe('computePickedFromBatch', () => {
     expect(computePickedFromBatch(batch, 2)).toBe('clip2.mp4')
   })
 
+  it('uses video_url for the picked output and keeps image_url as the preview', () => {
+    const batch = JSON.stringify({
+      images: [{ index: 1, image_url: 'frame.png', video_url: 'take.mp4' }],
+    })
+    expect(computePickedFromBatch(batch, 1)).toBe('take.mp4')
+  })
+
   it('picks a bare single-image URL once wrapped by toImagePoolJson', () => {
     const url = '/view?filename=ComfyUI_00414_.png&subfolder=&type=output'
     expect(computePickedFromBatch(toImagePoolJson(url), 1)).toBe(url)

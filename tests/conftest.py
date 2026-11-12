@@ -12,6 +12,12 @@ import pytest
 os.environ["COMFYTV_TESTING"] = "1"
 
 
+@pytest.fixture(autouse=True)
+def _comfytv_asset_root_override(monkeypatch, tmp_path_factory):
+    """Pytest temp dirs sit under this root, so explicit test folders stay inside it."""
+    monkeypatch.setenv("COMFYTV_ASSET_ROOT", str(tmp_path_factory.getbasetemp()))
+
+
 def _has_module(name: str) -> bool:
     return importlib.util.find_spec(name) is not None
 

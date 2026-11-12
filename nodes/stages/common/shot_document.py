@@ -11,7 +11,10 @@ this module does not know are kept on the shot, in place, and round-trip
 through save, load, MCP, and the Storyboard / Shot Images stages.
 
 Asset references stay codes (``CHR_…@vN#view``, ``NEW:…``, ``episode:…``).
-Resolving them to library files is a separate asset index.
+Those codes name files ComfyTV stores. Resolving them to library files is
+a separate asset index. Optional prompt-spec fields (``aspect_ratio``,
+``refs[].slot``, ``subjects``, H3 inputs) are defined in ``shot_prompt_spec``.
+They are not inserted when absent.
 
 The 16 Chinese columns (``shot_no``, ``scene_purpose``, ``image_prompt``, …)
 remain the legacy editor view. Import does not rewrite a production document
@@ -24,6 +27,14 @@ import json
 import re
 from typing import Any
 
+from .shot_prompt_spec import (
+    AliasIndex,
+    ShotPromptConfig,
+    check_document_spec,
+    check_shot_spec,
+    normalize_config,
+)
+
 # Envelope keys the production file uses. Other envelope keys are preserved.
 DOCUMENT_FIELDS = (
     "series",
@@ -32,6 +43,8 @@ DOCUMENT_FIELDS = (
     "fps",
     "target_duration_s",
     "new_assets",
+    "aspect_ratio",
+    "default_constraints",
     "shots",
 )
 
@@ -69,8 +82,19 @@ SHOT_FIELDS = (
     "lighting",
     "audio",
     "refs",
+    "subjects",
     "prompts",
     "video_plan",
+    "aspect_ratio",
+    "visual_style",
+    "opening",
+    "spatial",
+    "performance",
+    "optics",
+    "physics",
+    "end_hold",
+    "constraints",
+    "positive_locks",
 )
 
 # Legacy StoryboardStage columns. Still first-class, still preserved.
@@ -247,6 +271,48 @@ def _iter_text(shot: dict):
             elif isinstance(value, list):
                 for index, item in enumerate(value):
                     yield f"prompts.{key}[{index}]", json.dumps(item, ensure_ascii=False)
+    for field in ("performance", "optics", "physics"):
+        value = shot.get(field)
+        if isinstance(value, str):
+            yield field, value
+    for field in ("opening", "spatial"):
+        block = shot.get(field)
+        if isinstance(block, dict):
+            for key, value in block.items():
+                if isinstance(value, str):
+                    yield f"{field}.{key}", value
+    style = shot.get("visual_style")
+    if isinstance(style, dict) and isinstance(style.get("note"), str):
+        yield "visual_style.note", style["note"]
+    hold = shot.get("end_hold")
+    if isinstance(hold, dict) and isinstance(hold.get("ref"), str):
+        yield "end_hold.ref", hold["ref"]
+    for field in ("constraints", "positive_locks"):
+        items = shot.get(field)
+        if isinstance(items, list):
+            for index, item in enumerate(items):
+                if isinstance(item, str) and not item.startswith("-"):
+                    yield f"{field}[{index}]", item
+    subjects = shot.get("subjects")
+    if isinstance(subjects, list):
+        for index, subject in enumerate(subjects):
+            if not isinstance(subject, dict):
+                continue
+            for key in ("text", "retention_note", "label"):
+                value = subject.get(key)
+                if isinstance(value, str):
+                    yield f"subjects[{index}].{key}", value
+    plan = shot.get("video_plan")
+    if isinstance(plan, dict):
+        for key in (
+            "retention_analysis",
+            "integrated_description",
+            "detailed_description",
+            "non_diegetic_music",
+        ):
+            value = plan.get(key)
+            if isinstance(value, str):
+                yield f"video_plan.{key}", value
 
 
 def _character_ids(shot: dict) -> set[str]:
@@ -267,17 +333,32 @@ _SHOT_S_MIN = 5
 _SHOT_S_MAX = 15
 
 
-def validate_shots_document(doc: dict) -> tuple[list[str], list[str]]:
+def validate_shots_document(
+    doc: dict,
+    *,
+    config: ShotPromptConfig | None = None,
+    shot_ids: list[str] | None = None,
+    max_refs: int | None = None,
+    ref_limit_reason: str | None = None,
+    alias_index: AliasIndex | None = None,
+) -> tuple[list[str], list[str]]:
     """Mechanical checks from the production ``validate_shots.py``.
 
     Returns ``(errors, warnings)``. Schema-file checks are not included.
     A duration outside 5–15s is an error, matching that script's stated rule.
+    Optional prompt-spec fields are checked when present. Missing ones are
+    not errors unless ``config.strict`` is set. The default config leaves an
+    older document on the same error list as before.
 
     The episode total sums ``duration_s`` (the shot length). ``cut_to`` is
     only compared with that length; it is not the shot's contribution to the
     episode. The comparison with ``target_duration_s`` is skipped when the
     board cannot reach the target even at 15s per shot.
     """
+    cfg = normalize_config(config)
+    if isinstance(max_refs, int) and not isinstance(max_refs, bool):
+        cfg = normalize_config(cfg, max_refs=min(cfg.max_refs, max(0, max_refs)))
+    selected = None if shot_ids is None else {str(item) for item in shot_ids}
     errors: list[str] = []
     warns: list[str] = []
     if not isinstance(doc, dict):
@@ -289,6 +370,7 @@ def validate_shots_document(doc: dict) -> tuple[list[str], list[str]]:
     if not isinstance(shots, list):
         errors.append("M document.shots must be an array")
         return errors, warns
+    check_document_spec(doc, errors, warns, cfg)
 
     seen: set[str] = set()
     prev_by_scene: dict[str, dict] = {}
@@ -301,6 +383,12 @@ def validate_shots_document(doc: dict) -> tuple[list[str], list[str]]:
         missing = [key for key in _REQUIRED_SHOT if key not in shot]
         shot_id = shot.get("shot_id")
         tag = str(shot_id) if isinstance(shot_id, str) and shot_id else f"shots[{index}]"
+        if selected is not None and str(shot_id or "") not in selected:
+            duration = shot.get("duration_s")
+            if isinstance(duration, (int, float)) and not isinstance(duration, bool):
+                total += float(duration)
+                counted += 1
+            continue
         for key in missing:
             errors.append(f"M {tag}: missing {key}")
         if missing:
@@ -317,6 +405,8 @@ def validate_shots_document(doc: dict) -> tuple[list[str], list[str]]:
         if isinstance(duration, bool) or not isinstance(duration, (int, float)):
             errors.append(f"M {tag}: duration_s must be a number")
             continue
+        if isinstance(duration, float):
+            errors.append(f"M {tag}: duration_s must be an integer number of seconds")
         if duration < _SHOT_S_MIN or duration > _SHOT_S_MAX:
             errors.append(f"M {tag}: duration_s {duration} outside 5–15s")
         cut = shot.get("cut_to")
@@ -326,10 +416,14 @@ def validate_shots_document(doc: dict) -> tuple[list[str], list[str]]:
         counted += 1
         expected_frames = frames_for(duration)
         if shot.get("frames") not in (None, expected_frames):
-            warns.append(
+            message = (
                 f"M {tag}: frames {shot.get('frames')} -> compile will use "
                 f"{expected_frames} (24fps, 17n+5)"
             )
+            if cfg.frames_mismatch == "error":
+                errors.append(message)
+            else:
+                warns.append(message)
         if not isinstance(shot.get("characters"), list) or not isinstance(shot.get("dialogue"), list):
             errors.append(f"M {tag}: characters and dialogue must be arrays")
             continue
@@ -342,6 +436,11 @@ def validate_shots_document(doc: dict) -> tuple[list[str], list[str]]:
         prev_by_scene[scene_id] = shot
         _check_plan_and_prompts(shot, tag, errors, warns)
         _check_refs(shot, tag, errors, warns)
+        check_shot_spec(
+            doc, shot, tag, errors, warns, cfg,
+            alias_index=alias_index,
+            ref_limit_reason=ref_limit_reason,
+        )
         extras = shot.get("extras")
         if isinstance(extras, (int, float)) and not isinstance(extras, bool) and extras > 0:
             warns.append(f"S {tag}: extras={extras} — make sure crowd is planned")

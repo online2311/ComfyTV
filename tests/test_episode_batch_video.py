@@ -94,7 +94,7 @@ def _e01_inputs(tmp_path: Path) -> dict:
             "version": version,
             "kind": kind,
             "status": "locked",
-            "approved_by": "test",
+            "approved_by": "张景",
             "files": files,
         })
     import_series_manifest(library, {
@@ -509,7 +509,7 @@ class TestShotRules:
                 "version": 1,
                 "kind": "character",
                 "status": "locked",
-                "approved_by": "test",
+                "approved_by": "张景",
                 "files": {
                     "front": {"path": "CHR_a/v1/front.png", "media_type": "image"},
                     "back": {"path": "CHR_a/v1/back.png", "media_type": "image"},
