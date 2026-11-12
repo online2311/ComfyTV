@@ -477,12 +477,14 @@ class TestRewrite:
         def handler(system, user):
             return replacement
 
+        llm = FakeLlm(handler)
         candidate = run_revise(
-            root, session_id, FakeLlm(handler),
+            root, session_id, llm,
             doc="script",
             instruction="更口语一点",
             selection={"beat_ids": ["E01S03_b03", "E01S03_b04", "E01S03_b05"]},
         )
+        assert "E01S03_b03" in llm.calls[0]["user"]
         assert candidate["sha256_outside_changed"] is False
         assert get_session(root, session_id)["docs"]["script"]["current"] == 1
         accepted = accept_candidate(root, session_id, candidate["candidate_id"])
@@ -688,6 +690,227 @@ def get_directions(root, session_id):
     return get_session(root, session_id)["directions"]
 
 
+class TestReviewFixes:
+    def test_noncontiguous_beats_are_rejected(self, tmp_path):
+        from ComfyTV.storage.script_writer import ScriptError, run_revise
+
+        root, session_id, _v1 = TestRewrite()._imported(tmp_path)
+        changed = SCRIPT.replace("烛火跳了一下。", "烛火灭了。")
+        with pytest.raises(ScriptError, match="contiguous"):
+            run_revise(
+                root, session_id, FakeLlm(lambda system, user: changed),
+                doc="script",
+                instruction="改中间",
+                selection={"beat_ids": ["E01S03_b01", "E01S03_b03"]},
+            )
+
+    def test_outline_edit_clears_confirmation(self, tmp_path):
+        from ComfyTV.storage.script_writer import (
+            ScriptError,
+            get_session,
+            run_episode,
+            save_manual,
+        )
+
+        root, session_id = TestDialogue()._ready(tmp_path, FakeLlm(_router))
+        outline = get_session(root, session_id)["docs"]["outline"]["text"]
+        save_manual(root, session_id, doc="outline", content=outline.replace("没有补写设定。", "仍然没有补写设定。", 1))
+        session = get_session(root, session_id)
+        assert session["stage"] == "outline"
+        assert session["confirmed"] is None
+        with pytest.raises(ScriptError, match="confirmed"):
+            run_episode(root, session_id, FakeLlm(_router), episode="E01")
+
+    def test_duplicate_source_path_writes_nothing(self, tmp_path):
+        from ComfyTV.storage.script_writer import ScriptError, import_scripts
+
+        source = tmp_path / "box"
+        meta = _write(source / "episodes/E01/script_v2.md", "hello\n")
+        root = tmp_path / "spark"
+        manifest = _manifest([
+            _file_entry("episodes/E01/script_v2.md", meta, doc="script"),
+            _file_entry("episodes/E01/script_v2.md", meta, doc="script_copy"),
+        ])
+        with pytest.raises(ScriptError, match="more than once"):
+            import_scripts(root, manifest, source_dir=source)
+        assert not (root / "script" / "sessions").exists()
+
+    def test_archived_manifest_cannot_reuse_the_active_session(self, tmp_path):
+        from ComfyTV.storage.script_writer import ScriptError, get_session, import_scripts
+
+        root, source, report, _library, _script, _shots = _import_pair(tmp_path)
+        x_script = _write(source / "script" / "script.md", "archived\n")
+        archived = _manifest(
+            [_file_entry("script/script.md", x_script, doc="script_archive")],
+            status="archived",
+            lineage="X01",
+            episode=None,
+            session_id=report["session_id"],
+        )
+        with pytest.raises(ScriptError, match="status"):
+            import_scripts(root, archived, source_dir=source)
+        session = get_session(root, report["session_id"])
+        assert session["status"] == "active"
+        assert session["storyboard_current"] is True
+
+    def test_continue_cannot_cross_documents(self, tmp_path):
+        from ComfyTV.storage.script_writer import ScriptError, run_revise
+
+        root, session_id = TestDialogue()._ready(tmp_path, FakeLlm(_router))
+        outline = _outline(quoted=False).split("<<<CHARACTERS>>>")[0].replace("<<<OUTLINE>>>", "").strip() + "\n"
+        candidate = run_revise(
+            root, session_id, FakeLlm(lambda system, user: outline),
+            doc="outline", instruction="改标题以外的一句",
+        )
+        with pytest.raises(ScriptError, match="different document"):
+            run_revise(
+                root, session_id, FakeLlm(lambda system, user: "x"),
+                doc="characters", instruction="继续", candidate_id=candidate["candidate_id"],
+            )
+
+    def test_duplicate_direction_ids_are_rejected(self, tmp_path):
+        from ComfyTV.storage.script_writer import ScriptError, run_directions, start_session
+
+        root = tmp_path / "proj"
+        started = start_session(root, project="demo", idea="想法")
+        rows = json.loads(_directions(2))
+        rows[1]["id"] = rows[0]["id"]
+
+        def handler(system, user):
+            return json.dumps(rows, ensure_ascii=False)
+
+        with pytest.raises(ScriptError, match="duplicate direction id"):
+            run_directions(root, started["session_id"], FakeLlm(handler), n=2)
+
+    def test_duplicate_beat_ids_are_rejected(self, tmp_path):
+        from ComfyTV.storage.script_writer import (
+            ScriptError,
+            confirm_session,
+            run_choose,
+            run_directions,
+            run_episode,
+            start_session,
+        )
+
+        root = tmp_path / "proj"
+        started = start_session(root, project="demo", idea="想法")
+        session_id = started["session_id"]
+        llm = FakeLlm(_router)
+        run_directions(root, session_id, llm, n=4)
+        run_choose(root, session_id, llm, direction_id="d1")
+        confirm_session(root, session_id, approved_by="张景")
+        duplicated = SCRIPT + "- E01S03_b01 [动作] 她又站了一次。\n"
+
+        def handler(system, user):
+            return f"<<<SCRIPT>>>\n{duplicated}\n<<<LINES>>>\n- L1\n"
+
+        with pytest.raises(ScriptError, match="duplicate beat id"):
+            run_episode(root, session_id, FakeLlm(handler), episode="E01")
+
+    def test_outline_rewrite_rejects_quoted_synopsis(self, tmp_path):
+        from ComfyTV.storage.script_writer import ScriptError, get_session, run_revise
+
+        root, session_id = TestDialogue()._ready(tmp_path, FakeLlm(_router))
+        bad = _outline(quoted=True).split("<<<CHARACTERS>>>")[0].replace("<<<OUTLINE>>>", "")
+        with pytest.raises(ScriptError, match="引号"):
+            run_revise(
+                root, session_id, FakeLlm(lambda system, user: bad),
+                doc="outline", instruction="加一句对白",
+            )
+        assert get_session(root, session_id)["docs"]["outline"]["current"] == 1
+
+    def test_project_llm_config_is_kept_without_the_key(self, tmp_path, monkeypatch):
+        from ComfyTV.storage.script_writer import start_session
+
+        monkeypatch.setenv("DEEPSEEK_API_KEY", "file-secret-key")
+        root = tmp_path / "proj"
+        (root / "script").mkdir(parents=True)
+        (root / "script" / "config.json").write_text(json.dumps({
+            "llm": {
+                "provider": "local",
+                "local_model": "qwen",
+                "local_base_url": "http://127.0.0.1:9/v1",
+            },
+        }), encoding="utf-8")
+        started = start_session(root, project="demo", idea="想法")
+        assert started["llm"]["provider"] == "local"
+        assert started["llm"]["model"] == "qwen"
+        assert started["llm"]["base_url"] == "http://127.0.0.1:9/v1"
+        stored = (root / "script" / "sessions" / started["session_id"] / "session.json").read_text(encoding="utf-8")
+        assert "file-secret-key" not in stored
+        assert "api_key" not in started["llm"]
+
+    def test_job_usage_and_unexpected_failure(self, tmp_path):
+        from ComfyTV.storage.script_writer import dispatch, pump
+
+        root = tmp_path / "proj"
+        started = dispatch({
+            "action": "start", "root": str(root), "project": "demo", "idea": "想法",
+        })
+
+        class UsageLlm(FakeLlm):
+            def complete(self, *, system, user, model):
+                self.last_usage = {"total_tokens": 12}
+                return super().complete(system=system, user=user, model=model)
+
+        done = pump(root, UsageLlm(_router), session_id=started["session_id"])
+        assert done == []
+        queued = dispatch({
+            "action": "review", "root": str(root),
+            "session_id": started["session_id"], "doc": "brief",
+        })
+        done = pump(root, UsageLlm(_router), session_id=started["session_id"])
+        assert done[0]["result"]["usage"]["total_tokens"] == 12
+
+        class Boom:
+            def complete(self, *, system, user, model):
+                raise RuntimeError("secret-boom")
+
+        queued = dispatch({
+            "action": "review", "root": str(root),
+            "session_id": started["session_id"], "doc": "brief",
+        })
+        failed = pump(root, Boom(), session_id=started["session_id"])
+        assert failed[0]["status"] == "error"
+        assert failed[0]["error"] == "script writer job failed"
+        assert "secret-boom" not in failed[0]["error"]
+        assert queued["job_id"] == failed[0]["job_id"]
+
+    def test_two_workers_claim_one_job(self, tmp_path):
+        from ComfyTV.storage.script_writer import dispatch, pump
+
+        root = tmp_path / "proj"
+        started = dispatch({
+            "action": "start", "root": str(root), "project": "demo", "idea": "想法",
+        })
+        dispatch({
+            "action": "directions", "root": str(root),
+            "session_id": started["session_id"], "n": 4,
+        })
+        calls = {"n": 0}
+
+        class Slow(FakeLlm):
+            def complete(self, *, system, user, model):
+                calls["n"] += 1
+                return super().complete(system=system, user=user, model=model)
+
+        llm = Slow(_router)
+        results = []
+
+        def run():
+            results.append(pump(root, llm, session_id=started["session_id"]))
+
+        threads = [threading.Thread(target=run) for _ in range(2)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+        finished = [job for batch in results for job in batch]
+        assert calls["n"] == 1
+        assert len(finished) == 1
+        assert finished[0]["status"] == "done"
+
+
 class TestLlmConfig:
     def test_key_is_not_stored_or_logged(self, tmp_path, monkeypatch, caplog):
         from ComfyTV.storage.script_llm import OpenAICompatChat, ScriptError
@@ -718,6 +941,31 @@ class TestLlmConfig:
                     client.complete(system="s", user="u", model="deepseek-v4-pro")
             assert secret not in str(caught.value)
             assert secret not in caplog.text
+
+            class SplitHandler(BaseHandler):
+                def do_POST(self):
+                    length = int(self.headers.get("Content-Length", "0"))
+                    self.rfile.read(length)
+                    body = (b"x" * 290 + secret.encode())
+                    self.send_response(500)
+                    self.send_header("Content-Length", str(len(body)))
+                    self.end_headers()
+                    self.wfile.write(body)
+
+        finally:
+            server.shutdown()
+        server = make_server(SplitHandler)
+        try:
+            host, port = server.server_address
+            client = OpenAICompatChat(
+                base_url=f"http://{host}:{port}/v1",
+                model="deepseek-v4-pro",
+                api_key=secret,
+            )
+            with pytest.raises(ScriptError) as caught:
+                client.complete(system="s", user="u", model="deepseek-v4-pro")
+            assert secret not in str(caught.value)
+            assert secret[:8] not in str(caught.value)
         finally:
             server.shutdown()
 

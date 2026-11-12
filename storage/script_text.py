@@ -154,14 +154,9 @@ def _require_old_ids(before: str, after: str) -> None:
 
 def protect_beats(before: str, after: str) -> str:
     """Keep every existing beat id. Number a new ``[动作|台词|独白]`` line."""
-    if not beat_ids(before) and not any(_is_unnumbered(line) for line in after.splitlines(keepends=True)):
-        return after
-    prefix = ""
-    suffix = ""
-    mid = after
-    assigned = _assign_middle(prefix, mid, suffix) if any(
-        _is_unnumbered(line) for line in after.splitlines(keepends=True)
-    ) else after
+    assigned = after
+    if any(_is_unnumbered(line) for line in after.splitlines(keepends=True)):
+        assigned = _assign_middle("", after, "")
     _require_old_ids(before, assigned)
     return assigned
 
@@ -182,9 +177,24 @@ def apply_selection(original: str, selection: dict, model_text: str) -> tuple[st
     raise ScriptError("selection needs beat_ids or char_start/char_end")
 
 
+def _require_contiguous(original: str, selected: list[str]) -> None:
+    ordered = beat_ids(original)
+    missing = [beat_id for beat_id in selected if beat_id not in ordered]
+    if missing:
+        raise ScriptError(
+            "beat id cannot be changed or removed: " + ", ".join(missing)
+        )
+    if len(set(selected)) != len(selected):
+        raise ScriptError("selection beat_ids must be contiguous")
+    indexes = [ordered.index(beat_id) for beat_id in selected]
+    if max(indexes) - min(indexes) + 1 != len(selected):
+        raise ScriptError("selection beat_ids must be contiguous")
+
+
 def _apply_beats(original: str, selected: list[str], model_text: str) -> tuple[str, bool]:
     if not selected:
         raise ScriptError("selection beat_ids is empty")
+    _require_contiguous(original, selected)
     prefix, _mid, suffix = _span(original, selected)
     outside_ids = [beat_id for beat_id in beat_ids(original) if beat_id not in set(selected)]
     model_ids = set(beat_ids(model_text))
@@ -264,6 +274,9 @@ def parse_directions(text: str, n: int) -> list[dict]:
         row["id"] = str(item.get("id") or f"d{index}")
         row["characters"] = [str(name) for name in characters]
         rows.append(row)
+    ids = [row["id"] for row in rows]
+    if len(ids) != len(set(ids)):
+        raise ScriptError("duplicate direction id")
     for left in range(len(rows)):
         for right in range(left + 1, len(rows)):
             diffs = sum(

@@ -34,6 +34,7 @@ from .script_llm import (
     build_client,
     load_prompt,
     load_sections,
+    resolve_llm,
 )
 from .script_text import (
     apply_selection,
@@ -49,6 +50,7 @@ from .script_text import (
 )
 
 _LOCK = threading.Lock()
+_RUNNING: set[str] = set()
 _APPROVER = "张景"
 _DEFAULT_EXCLUDED = {"gumu-bixie"}
 _SCHEMA = "comfytv/script-import.v1"
@@ -104,7 +106,7 @@ def _read_json(path: Path, default):
 
 def _write_json(path: Path, data: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_suffix(path.suffix + ".tmp")
+    temporary = path.with_name(f"{path.name}.{uuid.uuid4().hex}.tmp")
     temporary.write_text(
         json.dumps(data, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
@@ -289,6 +291,10 @@ def _add_version(root: Path, session: dict, doc: str, payload: bytes, *,
     }
     info["versions"].append(record)
     info["current"] = version
+    if doc == "outline" and version > 1 and session.get("confirmed"):
+        session["confirmed"] = None
+        if session.get("stage") in ("confirmed", "episode_script"):
+            session["stage"] = "outline"
     return record
 
 
@@ -307,13 +313,13 @@ def _model_name(session: dict) -> str:
     return str(llm.get("model") or "deepseek-v4-pro")
 
 
-def _public_llm(request: dict | None) -> dict:
-    request = request if isinstance(request, dict) else {}
-    provider = str(request.get("provider") or "deepseek").strip().lower()
-    if provider not in ("deepseek", "local"):
-        raise ScriptError("llm provider must be deepseek or local")
-    model = str(request.get("model") or ("local" if provider == "local" else "deepseek-v4-pro"))
-    return {"provider": provider, "model": model}
+def _public_llm(root: Path, request: dict | None) -> dict:
+    public = resolve_llm(root, request if isinstance(request, dict) else {})["public"]
+    return {
+        "provider": public["provider"],
+        "model": public["model"],
+        "base_url": public["base_url"],
+    }
 
 
 def render_brief(root: Path, idea: str, source_text: str, reference: str) -> str:
@@ -358,7 +364,7 @@ def start_session(root, *, project: str, episode: str | None = None, idea: str =
         "source_text": source_text or "",
         "reference_works": reference_works or "",
     }
-    session["llm"] = _public_llm(llm)
+    session["llm"] = _public_llm(folder, llm)
     with _LOCK:
         brief = render_brief(folder, idea or "", source_text or "", reference_works or "")
         _add_version(
@@ -419,11 +425,16 @@ def import_scripts(root, manifest: dict, *, source_dir) -> dict:
         raise ScriptError("source_dir is not a directory", status=404)
     payloads = []
     seen_docs: set[str] = set()
+    seen_paths: set[str] = set()
     for entry in files:
         if not isinstance(entry, dict):
             raise ScriptError("each manifest file must be an object")
         rel = _safe_rel(str(entry.get("source_path") or ""))
-        if status == "archived" and rel.as_posix().startswith("episodes/"):
+        rel_key = rel.as_posix()
+        if rel_key in seen_paths:
+            raise ScriptError(f"manifest lists {rel_key} more than once")
+        seen_paths.add(rel_key)
+        if status == "archived" and rel_key.startswith("episodes/"):
             raise ScriptError("archived import cannot use an episodes/ path")
         doc = str(entry.get("doc") or _infer_doc(rel)).strip()
         doc = _token(doc, "doc")
@@ -482,10 +493,17 @@ def import_scripts(root, manifest: dict, *, source_dir) -> dict:
                 origin="import",
                 lineage=manifest.get("lineage"),
             )
+            session["llm"] = _public_llm(folder, None)
         else:
             session = _load_session(folder, session_id)
             if session.get("project") != project:
                 raise ScriptError("session belongs to a different project", status=409)
+            if session.get("status") != status:
+                raise ScriptError("session status does not match the manifest", status=409)
+            if (session.get("lineage") or None) != (manifest.get("lineage") or None):
+                raise ScriptError("session lineage does not match the manifest", status=409)
+            if (session.get("episode") or None) != (manifest.get("episode") or None):
+                raise ScriptError("session episode does not match the manifest", status=409)
         existing = {item["source_path"]: item for item in session.get("imports") or []}
         plan = []
         skipped = 0
@@ -703,7 +721,7 @@ def run_revise(root, session_id: str, llm, *, doc: str, instruction: str,
         session = _load_session(folder, session_id)
         _reject_archived(session)
         if candidate_id:
-            base_text, parent_version = _candidate_base(folder, session, candidate_id)
+            base_text, parent_version = _candidate_base(folder, session, candidate_id, doc_name)
         else:
             if doc_name not in session.get("docs", {}):
                 raise ScriptError(f"document not found: {doc_name}", status=404)
@@ -711,13 +729,22 @@ def run_revise(root, session_id: str, llm, *, doc: str, instruction: str,
             parent_version = session["docs"][doc_name]["current"]
         model = _model_name(session)
     system = load_prompt("revise", folder)
-    user = f"task: revise\ndoc: {doc_name}\ninstruction: {instruction}\n---\n{base_text}"
+    if selection:
+        scope = (
+            "selection: " + json.dumps(selection, ensure_ascii=False)
+            + "\nReturn only the replacement for that selection."
+        )
+    else:
+        scope = "selection: whole document\nReturn the whole document."
+    user = f"task: revise\ndoc: {doc_name}\ninstruction: {instruction}\n{scope}\n---\n{base_text}"
     model_text = llm.complete(system=system, user=user, model=model)
     if selection:
         updated, changed = apply_selection(base_text, selection, model_text)
     else:
         updated = protect_beats(base_text, ensure_available(model_text))
         changed = False
+    if doc_name == "outline":
+        validate_outline(updated, load_sections(folder))
     candidate = {
         "id": uuid.uuid4().hex,
         "doc": doc_name,
@@ -748,11 +775,13 @@ def run_revise(root, session_id: str, llm, *, doc: str, instruction: str,
     }
 
 
-def _candidate_base(root: Path, session: dict, candidate_id: str) -> tuple[str, int]:
+def _candidate_base(root: Path, session: dict, candidate_id: str, doc_name: str) -> tuple[str, int]:
     path = _session_dir(root, session["session_id"]) / ".candidates" / f"{candidate_id}.json"
     data = _read_json(path, None)
     if not isinstance(data, dict):
         raise ScriptError(f"candidate not found: {candidate_id}", status=404)
+    if data.get("doc") != doc_name:
+        raise ScriptError("candidate belongs to a different document")
     return str(data.get("content") or ""), int(data.get("parent_version") or 0)
 
 
@@ -794,6 +823,8 @@ def save_manual(root, session_id: str, *, doc: str, content: str) -> dict:
             raise ScriptError(f"document not found: {doc_name}", status=404)
         previous = _read_version(folder, session, doc_name)
         updated = protect_beats(previous, content)
+        if doc_name == "outline":
+            validate_outline(updated, load_sections(folder))
         record = _add_version(
             folder, session, doc_name, updated.encode("utf-8"),
             by="user", model="", note="manual",
@@ -852,12 +883,15 @@ def run_episode(root, session_id: str, llm, *, episode: str) -> dict:
         llm.complete(system=system, user=user, model=model),
         ["SCRIPT", "LINES"],
     )
-    script = protect_beats("", parts["SCRIPT"])
     lines = parts["LINES"] if parts["LINES"].endswith("\n") else parts["LINES"] + "\n"
     with _LOCK:
         session = _load_session(folder, session_id)
         if session.get("stage") != "confirmed":
             raise ScriptError("write_episode requires stage confirmed")
+        previous = ""
+        if "script" in session.get("docs", {}):
+            previous = _read_version(folder, session, "script")
+        script = protect_beats(previous, parts["SCRIPT"])
         _add_version(folder, session, "script", script.encode("utf-8"),
                      by="llm", model=model, note=f"episode {episode}")
         _add_version(folder, session, "lines", lines.encode("utf-8"),
@@ -995,31 +1029,64 @@ def _run_job(root: Path, session_id: str, action: str, payload: dict, llm) -> di
     raise ScriptError(f"unknown job action {action}")
 
 
+def _claim_queued(job_dir: Path) -> list[tuple[Path, dict]]:
+    if not job_dir.is_dir():
+        return []
+    claimed: list[tuple[Path, dict]] = []
+    with _LOCK:
+        for path in sorted(job_dir.glob("*.json")):
+            job = _read_json(path, None)
+            if not isinstance(job, dict) or job.get("status") != "queued":
+                continue
+            job["status"] = "running"
+            job["started_at"] = _now()
+            _write_json(path, job)
+            claimed.append((path, job))
+    return claimed
+
+
+def _has_queued(job_dir: Path) -> bool:
+    if not job_dir.is_dir():
+        return False
+    for path in job_dir.glob("*.json"):
+        job = _read_json(path, None)
+        if isinstance(job, dict) and job.get("status") == "queued":
+            return True
+    return False
+
+
 def pump(root, llm, *, session_id: str) -> list[dict]:
     folder = Path(root)
     session_key = _token(session_id, "session_id")
     job_dir = _session_dir(folder, session_key) / ".jobs"
-    names = sorted(path.name for path in job_dir.glob("*.json")) if job_dir.is_dir() else []
     finished = []
-    for name in names:
-        path = job_dir / name
-        job = _read_json(path, None)
-        if not isinstance(job, dict) or job.get("status") != "queued":
-            continue
-        job["status"] = "running"
-        job["started_at"] = _now()
-        _write_json(path, job)
-        try:
-            job["result"] = _run_job(folder, session_key, job["action"], job.get("payload") or {}, llm)
-            job["status"] = "done"
-            job["error"] = None
-        except ScriptError as exc:
-            job["status"] = "error"
-            job["result"] = None
-            job["error"] = str(exc)
-        job["finished_at"] = _now()
-        _write_json(path, job)
-        finished.append(job)
+    while True:
+        claimed = _claim_queued(job_dir)
+        if not claimed:
+            break
+        for path, job in claimed:
+            try:
+                result = _run_job(
+                    folder, session_key, job["action"], job.get("payload") or {}, llm,
+                )
+                usage = _usage(llm)
+                if usage and isinstance(result, dict) and "usage" not in result:
+                    result = dict(result)
+                    result["usage"] = usage
+                job["result"] = result
+                job["status"] = "done"
+                job["error"] = None
+            except ScriptError as exc:
+                job["status"] = "error"
+                job["result"] = None
+                job["error"] = str(exc)
+            except Exception:
+                job["status"] = "error"
+                job["result"] = None
+                job["error"] = "script writer job failed"
+            job["finished_at"] = _now()
+            _write_json(path, job)
+            finished.append(job)
     return finished
 
 
@@ -1039,19 +1106,32 @@ def _root_from_args(args: dict) -> Path:
 def _maybe_thread(root: Path, session_id: str) -> None:
     if os.environ.get("COMFYTV_TESTING") == "1":
         return
+    with _LOCK:
+        if session_id in _RUNNING:
+            return
+        _RUNNING.add(session_id)
     threading.Thread(
-        target=_pump_live, args=(root, session_id), daemon=True,
+        target=_pump_live, args=(Path(root), session_id), daemon=True,
     ).start()
 
 
 def _pump_live(root: Path, session_id: str) -> None:
+    job_dir = _session_dir(root, session_id) / ".jobs"
     try:
-        session = _load_session(root, session_id)
-        client = build_client(root, session.get("llm") if isinstance(session.get("llm"), dict) else {})
-    except ScriptError as exc:
-        _fail_queued(root, session_id, str(exc))
-        return
-    pump(root, client, session_id=session_id)
+        try:
+            session = _load_session(root, session_id)
+            client = build_client(root, session.get("llm") if isinstance(session.get("llm"), dict) else {})
+        except ScriptError as exc:
+            _fail_queued(root, session_id, str(exc))
+            return
+        pump(root, client, session_id=session_id)
+    finally:
+        with _LOCK:
+            more = _has_queued(job_dir)
+            if not more:
+                _RUNNING.discard(session_id)
+        if more:
+            _pump_live(root, session_id)
 
 
 def _fail_queued(root: Path, session_id: str, message: str) -> None:

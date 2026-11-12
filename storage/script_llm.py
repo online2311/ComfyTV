@@ -209,8 +209,8 @@ class OpenAICompatChat:
             with urllib.request.urlopen(request, timeout=self.timeout) as response:
                 raw = response.read()
         except urllib.error.HTTPError as exc:
-            detail = exc.read().decode("utf-8", errors="replace")[:300]
-            detail = redact(detail, self._api_key)
+            detail = redact(exc.read().decode("utf-8", errors="replace"), self._api_key)
+            detail = detail[:300]
             raise ScriptError(
                 f"LLM request failed with HTTP {exc.code}: {detail}",
                 status=502,
