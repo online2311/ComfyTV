@@ -7,6 +7,7 @@ from ...storage.segment_reshoot import (
     adopt,
     list_reshoots,
     plan,
+    protect,
     rollback,
     run,
     status,
@@ -22,11 +23,13 @@ async def _segment_reshoot(args: dict) -> dict:
         "list": list_reshoots,
         "adopt": adopt,
         "rollback": rollback,
+        "protect": protect,
     }
     handler = handlers.get(action)
     if handler is None:
         raise ValueError(
-            f"unknown action {action!r} — valid: plan, run, status, list, adopt, rollback"
+            "unknown action "
+            f"{action!r} — valid: plan, run, status, list, adopt, rollback, protect"
         )
     try:
         return await asyncio.to_thread(handler, args)
@@ -47,11 +50,14 @@ TOOLS: dict[str, dict] = {
             "move the active version pointer and require approved_by '张景'. "
             "Records are JSON under the ComfyUI input directory at "
             "<input>/comfytv/projects/<project_id>/reshoots/<shot_id>/ "
-            "(COMFYTV_ASSET_ROOT overrides that comfytv folder). "
+            "(COMFYTV_ASSET_ROOT overrides that comfytv folder) "
             "(takes.json plus take_<n>_r<k>.json). New media is "
-            "comfytv/reshoot/<project_id>/<shot_id>/take_<n>_r<k>.mp4 in the "
-            "output directory. Imported takes and protected rough_cut files "
-            "are not overwritten. lipsync and regen are refused. "
+            "<output>/comfytv/projects/<project_id>/reshoot/<shot_id>/"
+            "take_<n>_r<k>.mp4 (COMFYTV_OUTPUT_ROOT overrides that comfytv "
+            "folder). action 'protect' records glob patterns, relative to "
+            "that project output directory, for finished files such as "
+            "rough_cut*.mp4. Those files are not overwritten or deleted. "
+            "lipsync and regen are refused. "
             "length_policy defaults to fit; ripple and allow_multiple are opt-in."
         ),
         "inputSchema": {
@@ -59,7 +65,10 @@ TOOLS: dict[str, dict] = {
             "properties": {
                 "action": {
                     "type": "string",
-                    "enum": ["plan", "run", "status", "list", "adopt", "rollback"],
+                    "enum": [
+                        "plan", "run", "status", "list", "adopt", "rollback",
+                        "protect",
+                    ],
                 },
                 "project_id": {"type": "string"},
                 "shot_id": {"type": "string"},
@@ -85,6 +94,8 @@ TOOLS: dict[str, dict] = {
                 "next_shot_id": {"type": "string"},
                 "created_by": {"type": "string"},
                 "previews": {"type": "boolean"},
+                "patterns": {"type": "array", "items": {"type": "string"}},
+                "kind": {"type": "string"},
             },
             "required": ["action", "project_id"],
             "additionalProperties": False,

@@ -9,6 +9,7 @@ from ..storage.segment_reshoot import (
     adopt,
     list_reshoots,
     plan,
+    protect,
     rollback,
     run,
     status,
@@ -64,6 +65,11 @@ async def reshoot_status(request: web.Request) -> web.Response:
 @routes.get("/comfytv/segment_reshoot/list")
 async def reshoot_list(request: web.Request) -> web.Response:
     return await _in_thread(list_reshoots, _query_args(request))
+
+
+@routes.post("/comfytv/segment_reshoot/protect")
+async def protect_reshoot(request: web.Request) -> web.Response:
+    return await _in_thread(protect, await _payload(request))
 
 
 @routes.post("/comfytv/segment_reshoot/adopt")

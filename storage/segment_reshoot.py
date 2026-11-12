@@ -17,6 +17,7 @@ that can reuse the episode-batch workflows.
 
 from __future__ import annotations
 
+import fnmatch
 import hashlib
 import json
 import os
@@ -37,7 +38,7 @@ from ..runners.segment_splice import (
     probe_video,
     splice_pieces,
 )
-from .asset_root import project_dir
+from .asset_root import project_dir, project_output_dir
 
 APPROVER = "张景"
 SCHEMA = "comfytv/reshoot.v1"
@@ -208,6 +209,38 @@ def register_imported_version(project_id: str, shot_id: str, *, take: int,
         _merge_version(index, version)
         _save_takes(project, shot, index)
         return _public_takes(index)
+
+
+def protect(args: dict) -> dict:
+    """Record glob patterns under this project's output directory.
+
+    Patterns are relative to ``project_output_dir``. A pattern that is
+    absolute, or that contains ``..``, is rejected. Nothing is deleted.
+    """
+    project = _project_id(args)
+    raw = args.get("patterns")
+    if isinstance(raw, str):
+        raw = [raw]
+    if not isinstance(raw, list) or not raw:
+        raise ReshootError("patterns is required")
+    kind = str(args.get("kind") or "finished").strip() or "finished"
+    patterns = [_validate_output_pattern(project, item) for item in raw]
+    with _LOCK:
+        doc = _load_protected(project)
+        known = {row.get("pattern") for row in doc["entries"]}
+        for pattern in patterns:
+            if pattern in known:
+                continue
+            doc["entries"].append({
+                "kind": kind,
+                "pattern": pattern,
+                "scope": "project_output",
+                "immutable": True,
+                "rewrite": False,
+            })
+            known.add(pattern)
+        _save_protected(project, doc)
+        return json.loads(json.dumps(doc))
 
 
 def register_protected(project_id: str, *, kind: str, legacy_path: str,
@@ -946,7 +979,7 @@ def _storage_note(project: str, shot: str, version_id: str) -> dict:
         "records_dir": f"comfytv/projects/{project}/reshoots/{shot}",
         "record": f"{file_name}.json",
         "takes": "takes.json",
-        "media": f"comfytv/reshoot/{project}/{shot}/{file_name}.mp4",
+        "media": f"comfytv/projects/{project}/reshoot/{shot}/{file_name}.mp4",
         "protected": f"comfytv/projects/{project}/protected.json",
     }
 
@@ -968,23 +1001,46 @@ def _record_path(project: str, shot: str, reshoot_id: str) -> Path:
 
 
 def _media_dir(project: str, shot: str) -> Path:
-    return Path(folder_paths.get_output_directory()) / "comfytv" / "reshoot" / project / shot
+    return project_output_dir(project) / "reshoot" / shot
 
 
 def _media_path(project: str, shot: str, version_id: str) -> Path:
     return _media_dir(project, shot) / f"{version_id.replace('/', '_')}.mp4"
 
 
-def _assert_destination_allowed(project: str, dest: Path) -> None:
-    if _ROUGH_CUT_RE.match(dest.name):
-        raise ReshootError(f"refusing to write {dest.name}")
-    posix = dest.as_posix()
-    if "/comfytv/reshoot/" not in posix:
-        raise ReshootError("reshoot output must stay under comfytv/reshoot")
+def _validate_output_pattern(project: str, pattern) -> str:
+    text = str(pattern or "").strip().replace("\\", "/")
+    if not text or text.startswith(("/", "~")):
+        raise ReshootError("pattern must stay inside the project output directory")
+    parts = Path(text).parts
+    if ".." in parts or any(part.startswith("~") for part in parts):
+        raise ReshootError("pattern must stay inside the project output directory")
+    root = project_output_dir(project).resolve()
+    sample = "".join("x" if char in "*?[" else char for char in text).replace("]", "")
+    candidate = (root / sample).resolve()
+    try:
+        candidate.relative_to(root)
+    except ValueError as exc:
+        raise ReshootError("pattern must stay inside the project output directory") from exc
+    return text
+
+
+def _protected_hit(project: str, dest: Path) -> str | None:
+    root = project_output_dir(project).resolve()
+    try:
+        relative = dest.resolve().relative_to(root).as_posix()
+    except (ValueError, OSError):
+        relative = ""
     for entry in _load_protected(project)["entries"]:
+        pattern = str(entry.get("pattern") or "")
         legacy = str(entry.get("legacy_path") or "")
-        if legacy and posix.endswith(legacy.lstrip("./")):
-            raise ReshootError(f"refusing to write protected path {legacy}")
+        if pattern:
+            if fnmatch.fnmatch(relative, pattern) or (
+                "/" not in pattern and fnmatch.fnmatch(dest.name, pattern)
+            ):
+                return pattern
+        if legacy and dest.as_posix().endswith(legacy.lstrip("./")):
+            return legacy
         url = entry.get("url")
         if url:
             try:
@@ -992,7 +1048,25 @@ def _assert_destination_allowed(project: str, dest: Path) -> None:
             except (RuntimeError, ValueError, OSError):
                 protected = None
             if protected is not None and protected == dest.resolve():
-                raise ReshootError(f"refusing to write protected file {legacy or url}")
+                return legacy or str(url)
+    return None
+
+
+def _assert_destination_allowed(project: str, dest: Path) -> None:
+    if _ROUGH_CUT_RE.match(dest.name):
+        raise ReshootError(f"refusing to write {dest.name}")
+    root = project_output_dir(project).resolve()
+    try:
+        relative = dest.resolve().relative_to(root)
+    except (ValueError, OSError) as exc:
+        raise ReshootError(
+            "reshoot output must stay under the project output directory"
+        ) from exc
+    if not relative.parts or relative.parts[0] != "reshoot":
+        raise ReshootError("reshoot output must stay under project_output_dir/reshoot")
+    hit = _protected_hit(project, dest)
+    if hit:
+        raise ReshootError(f"refusing to write protected path {hit}")
 
 
 def _load_takes(project: str, shot: str) -> dict | None:

@@ -443,6 +443,9 @@ class TestAudioSplice:
         assert result["prompt_id"] == prompt_id_for(project, f"{shot}/take_1/r1")
         assert "rough_cut" not in result["output"]["url"]
         assert result["storage"]["records_dir"] == f"comfytv/projects/{project}/reshoots/{shot}"
+        assert result["storage"]["media"].startswith(
+            f"comfytv/projects/{project}/reshoot/{shot}/"
+        )
 
 
 class TestHttp:
@@ -495,6 +498,38 @@ class TestHttp:
         payload = await listed.json()
         assert payload["takes"]["versions"][0]["id"] == "take_1"
         assert payload["takes"]["versions"][0]["immutable"] is True
+
+
+class TestProtectedOutput:
+    def test_patterns_must_stay_inside_the_project_output(self, reset_db):
+        from ComfyTV.storage.asset_root import project_output_dir
+        from ComfyTV.storage.segment_reshoot import (
+            ReshootError, _assert_destination_allowed, protect,
+        )
+
+        project = f"protect-{uuid.uuid4().hex[:8]}"
+        saved = protect({
+            "project_id": project,
+            "kind": "rough_cut",
+            "patterns": ["rough_cut*.mp4", "reshoot/*/*.mp4"],
+        })
+        patterns = [row["pattern"] for row in saved["entries"]]
+        assert patterns == ["rough_cut*.mp4", "reshoot/*/*.mp4"]
+        again = protect({
+            "project_id": project,
+            "patterns": ["rough_cut*.mp4"],
+        })
+        assert [row["pattern"] for row in again["entries"]] == patterns
+        for bad in ("../secret.mp4", "/tmp/x.mp4", "final/../../outside.mp4"):
+            with pytest.raises(ReshootError, match="project output"):
+                protect({"project_id": project, "patterns": [bad]})
+        root = project_output_dir(project)
+        blocked = root / "reshoot" / "E01S01_01" / "take_1_r1.mp4"
+        with pytest.raises(ReshootError, match="protected"):
+            _assert_destination_allowed(project, blocked)
+        named = root / "final" / "rough_cut_r6.mp4"
+        with pytest.raises(ReshootError, match="rough_cut"):
+            _assert_destination_allowed(project, named)
 
 
 class TestReviewGuards:

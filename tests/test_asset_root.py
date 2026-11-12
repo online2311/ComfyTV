@@ -7,20 +7,42 @@ import folder_paths
 
 def test_default_root_is_the_input_comfytv_folder(monkeypatch):
     monkeypatch.delenv("COMFYTV_ASSET_ROOT", raising=False)
-    from ComfyTV.storage.asset_root import comfytv_asset_root, project_dir
+    monkeypatch.delenv("COMFYTV_OUTPUT_ROOT", raising=False)
+    from ComfyTV.storage.asset_root import (
+        comfytv_asset_root,
+        comfytv_output_root,
+        project_dir,
+        project_output_dir,
+        series_dir,
+    )
 
     root = comfytv_asset_root()
     assert root == Path(folder_paths.get_input_directory()) / "comfytv"
     assert project_dir("idol-mv-hit") == root / "projects" / "idol-mv-hit"
+    assert series_dir("gumu-sx") == root / "series" / "gumu-sx"
+    output = comfytv_output_root()
+    assert output == Path(folder_paths.get_output_directory()) / "comfytv"
+    assert project_output_dir("idol-mv-hit") == output / "projects" / "idol-mv-hit"
 
 
-def test_env_replaces_the_input_folder(monkeypatch, tmp_path):
-    override = tmp_path / "assets"
-    monkeypatch.setenv("COMFYTV_ASSET_ROOT", str(override))
-    from ComfyTV.storage.asset_root import comfytv_asset_root, project_dir
+def test_env_replaces_the_input_and_output_folders(monkeypatch, tmp_path):
+    assets = tmp_path / "assets"
+    media = tmp_path / "media"
+    monkeypatch.setenv("COMFYTV_ASSET_ROOT", str(assets))
+    monkeypatch.setenv("COMFYTV_OUTPUT_ROOT", str(media))
+    from ComfyTV.storage.asset_root import (
+        comfytv_asset_root,
+        comfytv_output_root,
+        project_dir,
+        project_output_dir,
+        series_dir,
+    )
 
-    assert comfytv_asset_root() == override
-    assert project_dir("gumu") == override / "projects" / "gumu"
+    assert comfytv_asset_root() == assets
+    assert project_dir("gumu") == assets / "projects" / "gumu"
+    assert series_dir("gumu-sx") == assets / "series" / "gumu-sx"
+    assert comfytv_output_root() == media
+    assert project_output_dir("gumu") == media / "projects" / "gumu"
 
 
 def test_reshoot_records_are_not_written_beside_the_database(reset_db, monkeypatch, tmp_path):
