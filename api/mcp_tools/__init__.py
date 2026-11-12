@@ -131,7 +131,7 @@ from .storyboard_tool import _storyboard  # noqa: F401
 from .character_studio import _character_studio  # noqa: F401
 from ..mcp_skill_tool import SKILL_TOOL
 
-from . import _shared, info, canvas, stages, runs, bot_tools, workflows, nodes, library, series_library, media, director_scene, layer_editor, storyboard_tool, character_studio
+from . import _shared, info, canvas, stages, runs, bot_tools, workflows, nodes, library, series_library, media, director_scene, layer_editor, storyboard_tool, character_studio, episode_batch
 
 TOOLS: dict[str, dict] = {}
 TOOLS.update(info.TOOLS)
@@ -148,4 +148,5 @@ TOOLS.update(director_scene.TOOLS)
 TOOLS.update(layer_editor.TOOLS)
 TOOLS.update(storyboard_tool.TOOLS)
 TOOLS.update(character_studio.TOOLS)
+TOOLS.update(episode_batch.TOOLS)
 TOOLS["skill"] = SKILL_TOOL
