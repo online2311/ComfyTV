@@ -27,7 +27,9 @@ instruction, and every other model gets no extra system text. ``xhigh``,
 ``medium``, ``low``, and ``off`` are manual and do not depend on detection.
 ``medium`` and ``off`` insert nothing. Thinking off inserts nothing, matching
 the official template (the effort block is omitted when ``enable_thinking``
-is false).
+is false). Each run logs whether the xhigh sentence was inserted or skipped
+(model kind and the effort that was decided). The log line is a short marker:
+it never includes the prompt, the system text, or a checkpoint path.
 
 The composed system text is handed to core ``TextGenerateV2.execute``. This
 module does not copy that sampler. An empty answer is a node error. The bot
@@ -280,6 +282,186 @@ def system_prompt_for(
     return compose_system_prompt(user_system, instructions)
 
 
+def _model_kind(detection: PeDetection) -> str:
+    if detection.rejected_as_9b:
+        return "9b"
+    if detection.is_pe:
+        return "pe"
+    if detection.saw_checkpoint:
+        return "other"
+    return "unknown"
+
+
+def _log_reasoning_sentence(detection: PeDetection, effort: Any, *, thinking: bool) -> None:
+    """Record whether the official xhigh sentence was inserted.
+
+    The marker names the model kind and the effort that was decided. It does
+    not include prompt text or checkpoint paths.
+    """
+    requested = _normalize_effort(effort)
+    decided = resolved_effort(effort, thinking=thinking, is_pe=detection.is_pe)
+    kind = _model_kind(detection)
+    if decided == "xhigh":
+        _log.info(
+            "[ComfyTV/textgen-pe] inserted xhigh reasoning sentence model=%s requested=%s decided=%s",
+            kind,
+            requested,
+            decided,
+        )
+        return
+    _log.info(
+        "[ComfyTV/textgen-pe] skipped xhigh reasoning sentence model=%s requested=%s decided=%s",
+        kind,
+        requested,
+        decided,
+    )
+
+
+def _generated_count(ids: Any) -> int | None:
+    """New-token count from ``clip.generate``, which returns a flat id list."""
+    if ids is None or isinstance(ids, (str, bytes)):
+        return None
+    shape = getattr(ids, "shape", None)
+    if shape is not None:
+        try:
+            dims = [int(dim) for dim in shape]
+        except (TypeError, ValueError):
+            dims = []
+        if dims:
+            return dims[-1] if len(dims) > 1 else dims[0]
+    if isinstance(ids, (list, tuple)):
+        if not ids:
+            return 0
+        first = ids[0]
+        if isinstance(first, (list, tuple)):
+            return max(len(row) for row in ids)
+        return len(ids)
+    return None
+
+
+def _called_max_length(args: tuple, kwargs: dict, fallback: int) -> int | None:
+    if "max_length" in kwargs:
+        raw = kwargs["max_length"]
+    elif len(args) >= 3:
+        raw = args[2]
+    else:
+        raw = fallback
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        return None
+
+
+def _noop() -> None:
+    return None
+
+
+def _install_generate_watch(clip: Any, max_length: int):
+    """Count tokens from the next ``clip.generate`` call and restore it after.
+
+    TextGenerateV2 stops when ``len(ids)`` reaches ``max_length`` or a stop
+    token is emitted. A count at the cap is finish=length, the same check the
+    bot LLM path uses. A clip that cannot be wrapped is left alone.
+    """
+    state = {"count": None, "hit": False}
+    original = getattr(clip, "generate", None)
+    if not callable(original):
+        return state, _noop
+
+    on_instance = "generate" in getattr(clip, "__dict__", {})
+
+    def wrapped(*args, **kwargs):
+        ids = original(*args, **kwargs)
+        count = _generated_count(ids)
+        state["count"] = count
+        limit = _called_max_length(args, kwargs, max_length)
+        if count is not None and limit is not None and count >= limit:
+            state["hit"] = True
+        return ids
+
+    try:
+        setattr(clip, "generate", wrapped)
+    except Exception:
+        _log.debug("could not observe generate token count (%s)", type(clip).__name__)
+        return state, _noop
+
+    def restore() -> None:
+        try:
+            if on_instance:
+                setattr(clip, "generate", original)
+            else:
+                delattr(clip, "generate")
+        except Exception:
+            _log.debug("could not restore generate (%s)", type(clip).__name__)
+
+    return state, restore
+
+
+def _json_brackets_closed(text: str) -> bool:
+    stack: list[str] = []
+    pairs = {"}": "{", "]": "["}
+    in_string = False
+    escape = False
+    for char in text:
+        if in_string:
+            if escape:
+                escape = False
+            elif char == "\\":
+                escape = True
+            elif char == '"':
+                in_string = False
+            continue
+        if char == '"':
+            in_string = True
+            continue
+        if char in "{[":
+            stack.append(char)
+            continue
+        if char in pairs:
+            if not stack or stack[-1] != pairs[char]:
+                return False
+            stack.pop()
+    return not stack and not in_string
+
+
+def _answer_state(text: str) -> str:
+    body = text.strip()
+    if not body:
+        return "empty"
+    if "<think>" in body and "</think>" not in body:
+        return "truncated"
+    if body[0] in "{[" and not _json_brackets_closed(body):
+        return "truncated"
+    return "complete"
+
+
+def _limit_was_hit(*, hit_tokens: bool, thinking: bool, text: str, reasoning: str) -> bool:
+    """True when generation stopped on the token cap, or thinking left no finished answer.
+
+    An empty answer with no reasoning is a different failure (the model emitted
+    nothing) and is reported by ``ensure_answer_present`` on its own.
+    """
+    if hit_tokens:
+        return True
+    if not thinking:
+        return False
+    state = _answer_state(text)
+    if state == "truncated":
+        return True
+    if state == "empty" and reasoning.strip():
+        return True
+    return False
+
+
+def _log_length_limit(max_length: int, text: str) -> None:
+    _log.warning(
+        "[ComfyTV/textgen-pe] hit max_length=%s answer=%s. "
+        "Raise max_length; 8192 is recommended for daily 9B expansion.",
+        max_length,
+        _answer_state(text),
+    )
+
+
 def empty_answer_message(
     *,
     thinking: bool,
@@ -436,7 +618,9 @@ class TextGeneratePE(io.ComfyNode):
                     max=32768,
                     tooltip=(
                         "Maximum tokens to generate, including thinking. "
-                        "4096 is the official MiniMax-H3-Image-PE recommendation."
+                        "4096 is the official MiniMax-H3-Image-PE recommendation and stays the default. "
+                        "The widget accepts at least 8192 (maximum 32768). "
+                        "8192 is the suggested daily value for Qwen3.5-9B expansion."
                     ),
                 ),
                 io.DynamicCombo.Input(
@@ -526,33 +710,45 @@ class TextGeneratePE(io.ComfyNode):
         thinking_on = _as_bool(thinking, default=True)
         length = int(max_length)
         detection = detect_pe(clip, model_file or "")
+        _log_reasoning_sentence(detection, reasoning_effort, thinking=thinking_on)
         composed = system_prompt_for(
             system_prompt,
             reasoning_effort,
             thinking=thinking_on,
             is_pe=detection.is_pe,
         )
-        result = call_text_generate_v2(
-            clip=clip,
-            prompt=prompt,
-            max_length=length,
-            sampling_mode=sampling_mode,
-            image=image,
-            thinking=thinking_on,
-            use_default_template=use_default_template,
-            video=video,
-            audio=audio,
-            mtp=mtp,
-            system_prompt=composed,
-            images=images,
-            videos=videos,
-            audios=audios,
-        )
-        text, reasoning = _result_texts(result)
-        ensure_answer_present(
-            text,
-            reasoning,
-            thinking=thinking_on,
-            max_length=length,
-        )
-        return result
+        watched, restore_generate = _install_generate_watch(clip, length)
+        try:
+            result = call_text_generate_v2(
+                clip=clip,
+                prompt=prompt,
+                max_length=length,
+                sampling_mode=sampling_mode,
+                image=image,
+                thinking=thinking_on,
+                use_default_template=use_default_template,
+                video=video,
+                audio=audio,
+                mtp=mtp,
+                system_prompt=composed,
+                images=images,
+                videos=videos,
+                audios=audios,
+            )
+            text, reasoning = _result_texts(result)
+            if _limit_was_hit(
+                hit_tokens=bool(watched["hit"]),
+                thinking=thinking_on,
+                text=text,
+                reasoning=reasoning,
+            ):
+                _log_length_limit(length, text)
+            ensure_answer_present(
+                text,
+                reasoning,
+                thinking=thinking_on,
+                max_length=length,
+            )
+            return result
+        finally:
+            restore_generate()
