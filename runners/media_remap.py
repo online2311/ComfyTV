@@ -173,7 +173,7 @@ def frame_hold(view_url: str, *, first_frame: int = 0, increment: int = 0,
     return path_to_view_url(out)
 
 
-def render_sequence(segments, *, progress=None) -> str:
+def render_sequence(segments, *, progress=None, video_encoder=None, report=None) -> str:
     segs = []
     for s in segments or []:
         url = (s.get('url') or '').strip()
@@ -191,6 +191,7 @@ def render_sequence(segments, *, progress=None) -> str:
 
     total = len(segs) * 2
     step = 0
+    encoder_report = report
     report = make_progress(progress, total, "sequence")
 
     def _tick(text):
@@ -223,7 +224,12 @@ def render_sequence(segments, *, progress=None) -> str:
     def _render_group(g):
         if len(g) == 1:
             return g[0]
-        return concat_videos(g)
+        group_report = {} if encoder_report is not None else None
+        joined = concat_videos(g, video_encoder=video_encoder, report=group_report)
+        if encoder_report is not None and group_report:
+            encoder_report["video_encoder"] = group_report.get("video_encoder")
+            encoder_report["audio_encoder"] = group_report.get("audio_encoder")
+        return joined
 
     result = _render_group(groups[0])
     _tick("concat")

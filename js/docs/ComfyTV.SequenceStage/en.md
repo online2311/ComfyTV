@@ -4,7 +4,7 @@
 
 ## What this node does
 
-Sequence is a mini edit-assembly node. Wire up to twelve `COMFYTV_VIDEO` clips into its auto-growing **videos** input, then arrange them into a playback order with the on-node segment list. Each segment can carry an in-point, an out-point, a transition type, and a transition duration; the node concatenates them into a single clip in that order.
+Sequence is a mini edit-assembly node. Wire `COMFYTV_VIDEO` clips into its auto-growing **videos** input (up to 100 slots; a new slot appears when you connect the last one), then arrange them into a playback order with the on-node segment list. Each segment can carry an in-point, an out-point, a transition type, and a transition duration; the node concatenates them into a single clip in that order. Hard cuts use the same ffmpeg join as Video Concat: size and frame rate follow the first clip in a cut group, and a clip with no soundtrack gets silence of the same length so later audio does not drift.
 
 If you don't define any segments, Sequence simply strings the connected clips together, in slot order, with hard cuts. It runs on **▶ Run** (renders the assembled sequence) and needs at least one connected clip. Output is a single `COMFYTV_VIDEO`.
 
@@ -22,7 +22,7 @@ To hand the result to a native ComfyUI node, insert a **Bridge** (`ComfyTV/Bridg
 JSON `[{slot, in_s, out_s, transition, trans_dur}]` describing, in playback order, which slot plays, its in/out trim points (seconds), and the transition into it plus its duration. Driven by the on-node segment-list UI, not typed by hand. Leave empty to just concatenate all connected clips with cuts.
 
 ### videos (input)
-An auto-growing set of `COMFYTV_VIDEO` slots (`video0`, `video1`, …), up to 12. Connect one clip per slot; the `segments` list references these by slot name.
+An auto-growing set of `COMFYTV_VIDEO` slots (`video0`, `video1`, …), up to 100. Connect one clip per slot; the `segments` list references these by slot name. Canvases saved with the old 12-slot cap still open, because the slot names did not change.
 
 ## Outputs
 

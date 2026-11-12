@@ -2,6 +2,7 @@ from . import projects   # noqa: F401
 from . import entries    # noqa: F401
 from . import assets     # noqa: F401
 from . import series_library  # noqa: F401
+from . import segment_reshoot  # noqa: F401
 from . import outputs    # noqa: F401
 from . import stages     # noqa: F401
 from . import stage_params  # noqa: F401
@@ -29,6 +30,7 @@ from . import canvas_state  # noqa: F401
 from . import collab     # noqa: F401
 from . import exec_errors   # noqa: F401
 from . import mcp        # noqa: F401
+from . import episode_batch  # noqa: F401  — registers POST /comfytv/episode_batch
 from . import mcp_commands  # noqa: F401
 from . import prompt_lint   # noqa: F401
 from . import bot        # noqa: F401

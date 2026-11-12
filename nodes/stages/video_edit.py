@@ -1,4 +1,5 @@
 from ._common import *  # noqa: F401, F403
+from .common.emit import _encoder_report
 from .common.fx_helpers import (  # noqa: F401
     _progress_cb, _need_video, _simple_video_op, _hidden_combo, _hidden_float,
 )
@@ -130,7 +131,23 @@ class VideoConcatStage(io.ComfyNode):
                                 socketless=True, extra_dict={"hidden": True},
                                 tooltip="JSON list of video slot keys in concat order — "
                                         "driven by the reorder strip in the node body."),
-                io.Autogrow.Input("videos", template=_video_template(12)),
+                io.Combo.Input(
+                    "video_encoder",
+                    options=["auto", "nvenc", "cpu"],
+                    default="auto",
+                    optional=True,
+                    socketless=True,
+                    extra_dict={"hidden": True},
+                    tooltip="auto tries h264_nvenc once per ffmpeg and falls back to "
+                            "libx264. nvenc fails the run if the GPU encoder cannot open. "
+                            "cpu forces libx264. When this stays auto, "
+                            "COMFYTV_VIDEO_ENCODER applies.",
+                ),
+                io.Autogrow.Input(
+                    "videos",
+                    template=_video_template(VIDEO_ASSEMBLY_SLOT_MAX),
+                    tooltip=VIDEO_ASSEMBLY_TOOLTIP,
+                ),
             ],
             outputs=[COMFYTV_VIDEO.Output("video")],
             is_output_node=True,
@@ -139,7 +156,7 @@ class VideoConcatStage(io.ComfyNode):
 
     @classmethod
     def execute(cls, force_run_token=0, project_id="", parent_output_id=0,
-                clip_order="", videos=None):
+                clip_order="", videos=None, video_encoder="auto"):
         def _norm(k):
             return str(k).split('.')[-1]
 
@@ -166,9 +183,14 @@ class VideoConcatStage(io.ComfyNode):
             comfy.model_management.throw_exception_if_processing_interrupted()
             _emit_progress(cls, value, total, text)
 
-        payload = concat_videos(urls, progress=_progress)
+        report: dict = {}
+        payload = concat_videos(
+            urls, progress=_progress, video_encoder=video_encoder, report=report,
+        )
+        params, extra_ui = _encoder_report(report)
         return _stage_emit_auto(cls, project_id=project_id, payload_str=payload,
-                                parent_output_id=parent_output_id)
+                                parent_output_id=parent_output_id,
+                                params=params, extra_ui=extra_ui)
 
 
 class VideoSpeedStage(io.ComfyNode):

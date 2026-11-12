@@ -219,12 +219,67 @@ class TestLoaderExecute:
         (uploads / "dropped.png").write_text("y")
         nested = uploads / "deeper"
         nested.mkdir()
-        (nested / "ignored.png").write_text("z")
+        (nested / "kept.png").write_text("z")
         monkeypatch.setattr(folder_paths, "get_input_directory", lambda: str(tmp_path))
         monkeypatch.setattr(folder_paths, "filter_files_content_types",
                             lambda files, kinds: files, raising=False)
         files = loaders._list_input_files(["image"])
-        assert files == ["comfytv/uploads/dropped.png", "root.png"]
+        assert files == [
+            "comfytv/uploads/deeper/kept.png",
+            "comfytv/uploads/dropped.png",
+            "root.png",
+        ]
+
+    def test_video_loader_lists_nested_series_and_blocks_escape(self, monkeypatch, tmp_path):
+        from ComfyTV.nodes.stages import loaders
+        from ComfyTV.nodes.stages.loaders import VideoLoaderStage
+        import folder_paths
+
+        outside = tmp_path / "outside"
+        (outside / "nested").mkdir(parents=True)
+        (outside / "secret.mp4").write_bytes(b"secret")
+        (outside / "nested" / "hidden.mp4").write_bytes(b"hidden")
+        root = tmp_path / "input"
+        series = root / "comfytv" / "series" / "gumu-sx"
+        series.mkdir(parents=True)
+        (series / "xxx.mp4").write_bytes(b"clip")
+        (root / "note.txt").write_text("not a video")
+        (root / "escape.mp4").symlink_to(outside / "secret.mp4")
+        (root / "alias.mp4").symlink_to(series / "xxx.mp4")
+        (root / "linked-dir").symlink_to(outside, target_is_directory=True)
+
+        def _videos(files, kinds):
+            if "video" not in kinds:
+                return files
+            return [f for f in files if f.lower().endswith((".mp4", ".mkv", ".webm", ".mov"))]
+
+        monkeypatch.setattr(folder_paths, "get_input_directory", lambda: str(root))
+        monkeypatch.setattr(folder_paths, "filter_files_content_types", _videos, raising=False)
+        files = loaders._list_input_files(["video"])
+        assert files == ["alias.mp4", "comfytv/series/gumu-sx/xxx.mp4"]
+        assert "escape.mp4" not in files
+        assert not any("secret" in f or "hidden" in f or f.startswith("linked-dir") for f in files)
+        assert all(".." not in f.split("/") for f in files)
+
+        schema = VideoLoaderStage.define_schema()
+        video = next(inp for inp in schema.kw["inputs"] if inp.args and inp.args[0] == "video")
+        assert video.kw["options"] == ["alias.mp4", "comfytv/series/gumu-sx/xxx.mp4"]
+
+    def test_list_input_files_keeps_backslash_in_posix_filename(self, monkeypatch, tmp_path):
+        from ComfyTV.nodes.stages import loaders
+        import folder_paths
+        series = tmp_path / "comfytv" / "series" / "gumu-sx"
+        series.mkdir(parents=True)
+        (tmp_path / "scene\\take.mp4").write_bytes(b"v")
+        (series / "scene\\take.mp4").write_bytes(b"v")
+        monkeypatch.setattr(folder_paths, "get_input_directory", lambda: str(tmp_path))
+        monkeypatch.setattr(folder_paths, "filter_files_content_types",
+                            lambda files, kinds: files, raising=False)
+        files = loaders._list_input_files(["video"])
+        assert files == [
+            "comfytv/series/gumu-sx/scene\\take.mp4",
+            "scene\\take.mp4",
+        ]
 
 
 # ─── Stage execute() smoke tests — runner-less stages ──────────────────────
@@ -463,7 +518,7 @@ class TestVideoAudioEditStageExecute:
         from ComfyTV.nodes.stages import video_edit
         captured = {}
 
-        def fake_concat(urls, progress=None):
+        def fake_concat(urls, progress=None, **_ignored):
             captured['urls'] = list(urls)
             return "/view?filename=out.mp4"
 

@@ -71,6 +71,7 @@ from .video_timeline import (
 from .video_analysis import (
     VideoScopesStage, SceneDetectStage, ContactSheetStage,
 )
+from .consistency import ConsistencyRescoreStage
 from .video_generate import PatternStage, KenBurnsStage
 from .fx_chain import FXChainStage
 from .audio_process import (
@@ -120,6 +121,7 @@ from .material import MaterialStage
 from .split_part import SplitPartStage, MaskCleanup
 from .custom_stage import CustomStage
 from ..subtitle_align import SubtitleAlignStage
+from ..textgen_pe import TextGeneratePE
 from ..whisper_transcribe import WhisperTranscribe
 
 
@@ -172,7 +174,7 @@ def stage_classes() -> list:
         Select0rStage, ArtFXStage, GlitchFXStage, KaleidoscopeStage,
         WaveWarpStage, WaterStage, LightGraffitiStage,
         Video360StabilizeStage, Card3DStage, STMapGenStage,
-        RegrainStage, ContactSheetStage,
+        RegrainStage, ContactSheetStage, ConsistencyRescoreStage,
         AudioStemSplitStage, AudioNoiseReductionStage, AudioMIRStage,
         ScoreStage, ScoreEditorStage, MidiEditorStage, ScoreToMidiStage,
         SF2SynthStage, ClickTrackStage, ChordAccompStage, MuseReverbStage,
@@ -194,6 +196,7 @@ def stage_classes() -> list:
         CustomStage,
         WhisperTranscribe,
         SubtitleAlignStage,
+        TextGeneratePE,
         *_bridge_classes(),
     ]
 

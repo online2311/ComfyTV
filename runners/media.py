@@ -22,6 +22,7 @@ from ._audio_io import (  # noqa: F401
     _encode_audio_array,
     _new_aac_stream,
 )
+from .ffmpeg_concat import concat_videos as _ffmpeg_concat_videos
 
 _log = logging.getLogger(__name__)
 
@@ -625,134 +626,11 @@ def extract_frames_multi(view_url: str, times) -> str:
     return json.dumps({'images': images})
 
 
-def concat_videos(view_urls: list, progress=None) -> str:
-    import av
-    import numpy as np
-    from fractions import Fraction
-
-    urls = [u for u in (view_urls or []) if (u or '').strip()]
-    if len(urls) < 2:
-        raise RuntimeError(f"concat: need at least 2 videos, got {len(urls)}")
-
-    srcs = [localize(u) for u in urls]
-
-    width = height = 0
-    rate = None
-    any_audio = False
-    for i, src in enumerate(srcs):
-        with av.open(str(src)) as probe:
-            if not probe.streams.video:
-                raise RuntimeError(f"concat: clip {i + 1} has no video stream")
-            v = probe.streams.video[0]
-            if i == 0:
-                width = v.width - (v.width % 2)
-                height = v.height - (v.height % 2)
-                rate = v.average_rate or 24
-            if probe.streams.audio:
-                any_audio = True
-    if width <= 0 or height <= 0:
-        raise RuntimeError(f"concat: first clip has invalid dimensions ({width}x{height})")
-
-    out = fresh_output_path('.mp4')
-    AUDIO_RATE = 44100
-    AAC_FRAME = 1024
-    out_tb = Fraction(1, 90000)
-
-    with av.open(str(out), 'w') as outp:
-        out_v = outp.add_stream('libx264', rate=rate)
-        out_v.width = width
-        out_v.height = height
-        out_v.pix_fmt = 'yuv420p'
-        out_v.codec_context.time_base = out_tb
-
-        out_a = None
-        if any_audio:
-            out_a = outp.add_stream('aac', rate=AUDIO_RATE)
-            out_a.layout = 'stereo'
-
-        samples_written = 0
-        pending = np.zeros((2, 0), dtype=np.float32)
-
-        def emit_audio(flush=False):
-            nonlocal pending, samples_written
-            while pending.shape[1] >= AAC_FRAME or (flush and pending.shape[1] > 0):
-                n = min(AAC_FRAME, pending.shape[1])
-                chunk, pending = pending[:, :n], pending[:, n:]
-                af = av.AudioFrame.from_ndarray(
-                    np.ascontiguousarray(chunk), format='fltp', layout='stereo')
-                af.sample_rate = AUDIO_RATE
-                af.pts = samples_written
-                af.time_base = Fraction(1, AUDIO_RATE)
-                samples_written += n
-                for pkt in out_a.encode(af):
-                    outp.mux(pkt)
-
-        offset = 0.0
-        for i, src in enumerate(srcs):
-            if progress is not None:
-                progress(i, len(srcs), f"clip {i + 1}/{len(srcs)}")
-            clip_audio = []
-            clip_end = 0.0
-            with av.open(str(src)) as inp:
-                in_v = inp.streams.video[0]
-                in_a = inp.streams.audio[0] if inp.streams.audio else None
-                if i == 0:
-                    from .media_filter import copy_color_tags
-                    copy_color_tags(in_v.codec_context,
-                                    out_v.codec_context)
-                try:
-                    frame_dur = 1.0 / float(in_v.average_rate)
-                except (TypeError, ZeroDivisionError):
-                    frame_dur = 1.0 / 24.0
-                resampler = None
-                if in_a is not None and out_a is not None:
-                    resampler = av.AudioResampler(format='fltp', layout='stereo', rate=AUDIO_RATE)
-
-                prev_t = None
-                for packet in inp.demux():
-                    if packet.stream is in_v:
-                        for frame in packet.decode():
-                            if frame.pts is not None and frame.time_base:
-                                t = float(frame.pts * frame.time_base)
-                            else:
-                                t = (prev_t + frame_dur) if prev_t is not None else 0.0
-                            prev_t = t
-                            clip_end = max(clip_end, t + frame_dur)
-                            nf = frame.reformat(width=width, height=height, format='yuv420p')
-                            nf.pts = int(round((offset + t) / out_tb))
-                            nf.time_base = out_tb
-                            for pkt in out_v.encode(nf):
-                                outp.mux(pkt)
-                    elif resampler is not None and packet.stream is in_a:
-                        for frame in packet.decode():
-                            for rf in resampler.resample(frame):
-                                clip_audio.append(rf.to_ndarray().astype(np.float32, copy=False))
-                if resampler is not None:
-                    for rf in resampler.resample(None):
-                        clip_audio.append(rf.to_ndarray().astype(np.float32, copy=False))
-
-            if out_a is not None:
-                target = int(round(clip_end * AUDIO_RATE))
-                got = (np.concatenate(clip_audio, axis=1)
-                       if clip_audio else np.zeros((2, 0), dtype=np.float32))
-                if got.shape[1] > target:
-                    got = got[:, :target]
-                elif got.shape[1] < target:
-                    got = np.concatenate(
-                        [got, np.zeros((2, target - got.shape[1]), dtype=np.float32)], axis=1)
-                pending = np.concatenate([pending, got], axis=1)
-                emit_audio()
-
-            offset += clip_end
-
-        if out_a is not None:
-            emit_audio(flush=True)
-            for pkt in out_a.encode():
-                outp.mux(pkt)
-        for pkt in out_v.encode():
-            outp.mux(pkt)
-
-    return path_to_view_url(out)
+def concat_videos(view_urls: list, progress=None, *,
+                  video_encoder: str | None = None, report: dict | None = None) -> str:
+    return _ffmpeg_concat_videos(
+        view_urls, progress=progress, video_encoder=video_encoder, report=report,
+    )
 
 
 __all__ = [

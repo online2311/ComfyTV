@@ -54,6 +54,8 @@ CORE_MCP_TOOLS = [
     "canvas_focus",
     "arrange_canvas",
     "storyboard",
+    "episode_batch",
+    "segment_reshoot",
     "skill",
     "ask_user",
     "remember",
@@ -71,7 +73,10 @@ CODEX_INSTRUCTIONS = (
     "With no page open, `run_stage` and `graph_run` return a job_id "
     "immediately and run one at a time on ComfyUI's queue; poll "
     "`queue_status`. `resume_queue` continues unfinished stages after a "
-    "restart. Do not interrupt the ComfyUI queue.\n"
+    "restart. Do not interrupt the ComfyUI queue. "
+    "`episode_batch` plans one VideoStage per shot (action plan does not "
+    "submit). action run submits one shot at a time and waits until "
+    "GET /queue is empty before the next.\n"
     "- Look at results with `view_image` (returns real pixels), "
     "`media_frame`, `fx_preview`.\n"
     "- The `skill` tool lists installed skills (instruction packs). When a "
