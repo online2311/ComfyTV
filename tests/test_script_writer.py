@@ -664,6 +664,22 @@ class TestReviewAndJobs:
         })
         assert status["status"] == "done"
 
+    def test_omitted_root_uses_the_asset_project_dir(self, tmp_path, monkeypatch):
+        from ComfyTV.storage.script_writer import dispatch
+
+        monkeypatch.setenv("COMFYTV_ASSET_ROOT", str(tmp_path / "assets"))
+        started = dispatch({
+            "action": "start",
+            "project": "gumu-shuangxiu",
+            "idea": "一句想法",
+        })
+        session = (
+            tmp_path / "assets" / "projects" / "gumu-shuangxiu"
+            / "script" / "sessions" / started["session_id"] / "session.json"
+        )
+        assert session.is_file()
+        assert "未指定" in started["docs"]["brief"]["text"]
+
     def test_to_shots_is_not_available(self, tmp_path):
         from ComfyTV.storage.script_writer import ScriptError, dispatch
 

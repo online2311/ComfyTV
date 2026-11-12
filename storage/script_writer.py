@@ -1,7 +1,9 @@
 """Script sessions stored under a ComfyTV project directory.
 
-Layout, relative to the project root passed as ``root`` (not the series
-library folder)::
+Layout, relative to the project root. Pass ``root``, or omit it and the
+default is ``project_dir(project)`` under ``comfytv_asset_root()``
+(``<ComfyUI input>/comfytv/projects/<project>``, or ``COMFYTV_ASSET_ROOT``).
+Series libraries stay beside that, under ``<asset root>/series/``::
 
     script/index.json
     script/config.json
@@ -28,7 +30,7 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
-from ..backup import data_dir
+from .asset_root import project_dir
 from .script_llm import (
     ScriptError,
     build_client,
@@ -1098,7 +1100,10 @@ def _root_from_args(args: dict) -> Path:
         project = args["manifest"].get("project")
     if not project:
         raise ScriptError("root is required")
-    path = Path(data_dir()) / "projects" / _token(str(project), "project")
+    try:
+        path = project_dir(_token(str(project), "project"))
+    except ValueError as exc:
+        raise ScriptError(str(exc)) from exc
     path.mkdir(parents=True, exist_ok=True)
     return path
 

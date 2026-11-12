@@ -11,7 +11,9 @@ TOOLS: dict[str, dict] = {
     "script_writer": {
         "description": (
             "Script sessions stored under a project directory's script/ folder. "
-            "Pass root, the project directory. This does not read or write "
+            "The default root is <ComfyUI input>/comfytv/projects/<project> "
+            "(COMFYTV_ASSET_ROOT replaces the comfytv directory). Pass root to "
+            "use another folder. This does not read or write "
             "library.yaml; character IDs stay on series_library. "
             "Versions only grow: .versions/<doc>/v<n>.<ext> is written once and "
             "kept. An import copies bytes into imported/<source_path> and never "
