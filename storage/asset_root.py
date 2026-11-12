@@ -1,8 +1,18 @@
-"""ComfyTV asset root under ComfyUI's input directory.
+"""Root directory for ComfyTV project and series files on disk.
 
-Series libraries live at ``<root>/series/<series_id>``. Project files,
-including scripts, live at ``<root>/projects/<project>``. ``COMFYTV_ASSET_ROOT``
-replaces ``<ComfyUI input>/comfytv`` when it is set.
+The database and its backups stay in ``backup.data_dir`` (the ComfyUI user
+directory). Video-generation assets use the ComfyUI input directory so series
+libraries and per-project records share one tree:
+
+``<input>/comfytv/projects/<project_id>/``
+``<input>/comfytv/series/<series_id>/``
+
+Generated outputs use the ComfyUI output directory:
+
+``<output>/comfytv/projects/<project_id>/``
+
+``COMFYTV_ASSET_ROOT`` replaces ``<input>/comfytv``.
+``COMFYTV_OUTPUT_ROOT`` replaces ``<output>/comfytv``.
 """
 
 from __future__ import annotations
@@ -12,22 +22,33 @@ from pathlib import Path
 
 import folder_paths
 
-_TOKEN_CHARS = set("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._-")
-
 
 def comfytv_asset_root() -> Path:
+    """``<input>/comfytv``, or ``COMFYTV_ASSET_ROOT`` when that env var is set."""
     override = os.environ.get("COMFYTV_ASSET_ROOT", "").strip()
     if override:
-        return Path(override)
+        return Path(os.path.expanduser(override))
     return Path(folder_paths.get_input_directory()) / "comfytv"
 
 
 def project_dir(project: str) -> Path:
-    return comfytv_asset_root() / "projects" / _token(project)
+    """Directory for one project's records, under the asset root."""
+    return comfytv_asset_root() / "projects" / project
 
 
-def _token(project: str) -> str:
-    text = str(project or "").strip()
-    if not text or text in {".", ".."} or any(char not in _TOKEN_CHARS for char in text):
-        raise ValueError("project is not a safe id")
-    return text
+def series_dir(series: str) -> Path:
+    """Directory for one series library, under the asset root."""
+    return comfytv_asset_root() / "series" / series
+
+
+def comfytv_output_root() -> Path:
+    """``<output>/comfytv``, or ``COMFYTV_OUTPUT_ROOT`` when that env var is set."""
+    override = os.environ.get("COMFYTV_OUTPUT_ROOT", "").strip()
+    if override:
+        return Path(os.path.expanduser(override))
+    return Path(folder_paths.get_output_directory()) / "comfytv"
+
+
+def project_output_dir(project: str) -> Path:
+    """Directory for one project's generated outputs."""
+    return comfytv_output_root() / "projects" / project

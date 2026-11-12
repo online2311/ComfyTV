@@ -16,6 +16,11 @@ from aiohttp import web
 from aiohttp.test_utils import TestClient, TestServer
 
 
+@pytest.fixture(autouse=True)
+def _asset_root_env(tmp_path, monkeypatch):
+    monkeypatch.setenv("COMFYTV_ASSET_ROOT", str(tmp_path))
+
+
 SECTIONS = ("改编说明", "人物表", "节拍与爽点", "分集/分场梗概", "叙事资产清单")
 
 SCRIPT = """## E01S03 石室 夜 (预算 40s)
@@ -157,7 +162,7 @@ def _import_pair(tmp_path: Path):
         _file_entry("episodes/E01/shots.json", shots_meta, doc="shots"),
         _file_entry("episodes/E01/script_v1.md", older_meta, doc="script_v1"),
     ])
-    root = tmp_path / "spark-project"
+    root = tmp_path / "projects" / "spark-project"
     root.mkdir(parents=True, exist_ok=True)
     (root / "library.yaml").write_text("schema_version: 1\nassets: []\n", encoding="utf-8")
     library_before = (root / "library.yaml").read_bytes()
@@ -199,7 +204,7 @@ class TestImport:
 
         source = tmp_path / "box"
         meta = _write(source / "episodes/E01/script_v2.md", "hello\n")
-        root = tmp_path / "spark"
+        root = tmp_path / "projects" / "spark"
         bad_hash = _manifest([
             _file_entry("episodes/E01/script_v2.md", {**meta, "sha256": "0" * 64}, doc="script"),
         ])
@@ -318,7 +323,7 @@ class TestImport:
 
         source = tmp_path / "box"
         meta = _write(source / "script" / "script.md", "独立项目\n")
-        root = tmp_path / "bixie"
+        root = tmp_path / "projects" / "bixie"
         manifest = _manifest(
             [_file_entry("script/script.md", meta, doc="script")],
             project="gumu-bixie",
@@ -349,7 +354,7 @@ class TestDialogue:
             start_session,
         )
 
-        root = tmp_path / "proj"
+        root = tmp_path / "projects" / "proj"
         started = start_session(
             root,
             project="gumu-shuangxiu",
@@ -380,7 +385,7 @@ class TestDialogue:
         llm = FakeLlm(_router)
         root, session_id = self._ready(tmp_path, llm)
         assert llm.calls[0]["model"] == "deepseek-v4-pro"
-        other = tmp_path / "other"
+        other = tmp_path / "projects" / "other"
         started = start_session(other, project="demo", idea="想法")
         with pytest.raises(ScriptError, match="张景"):
             confirm_session(other, started["session_id"], approved_by="视频制作助手")
@@ -388,7 +393,7 @@ class TestDialogue:
     def test_quoted_synopsis_is_rejected(self, tmp_path):
         from ComfyTV.storage.script_writer import ScriptError, run_choose, run_directions, start_session
 
-        root = tmp_path / "proj"
+        root = tmp_path / "projects" / "proj"
         started = start_session(root, project="demo", idea="想法")
         session_id = started["session_id"]
 
@@ -407,7 +412,7 @@ class TestDialogue:
     def test_identical_directions_are_rejected(self, tmp_path):
         from ComfyTV.storage.script_writer import ScriptError, run_directions, start_session
 
-        root = tmp_path / "proj"
+        root = tmp_path / "projects" / "proj"
         started = start_session(root, project="demo", idea="想法")
         row = json.loads(_directions(1))[0]
 
@@ -420,7 +425,7 @@ class TestDialogue:
     def test_confirm_required_before_episode(self, tmp_path):
         from ComfyTV.storage.script_writer import ScriptError, run_episode, start_session
 
-        root = tmp_path / "proj"
+        root = tmp_path / "projects" / "proj"
         started = start_session(root, project="demo", idea="想法")
         with pytest.raises(ScriptError, match="confirmed"):
             run_episode(root, started["session_id"], FakeLlm(_router), episode="E01")
@@ -432,7 +437,7 @@ class TestRewrite:
 
         source = tmp_path / "box"
         meta = _write(source / "episodes/E01/script_v2.md", SCRIPT)
-        root = tmp_path / "spark"
+        root = tmp_path / "projects" / "spark"
         report = import_scripts(
             root,
             _manifest([_file_entry("episodes/E01/script_v2.md", meta, doc="script")]),
@@ -583,7 +588,7 @@ class TestRewrite:
 
         source = tmp_path / "box"
         meta = _write(source / "script" / "script.md", SCRIPT)
-        root = tmp_path / "spark"
+        root = tmp_path / "projects" / "spark"
         report = import_scripts(
             root,
             _manifest(
@@ -603,7 +608,7 @@ class TestReviewAndJobs:
     def test_review_can_be_turned_off(self, tmp_path):
         from ComfyTV.storage.script_writer import ScriptError, run_review, start_session
 
-        root = tmp_path / "proj"
+        root = tmp_path / "projects" / "proj"
         started = start_session(root, project="demo", idea="想法")
         (root / "script" / "config.json").write_text(
             json.dumps({"review_enabled": False}),
@@ -615,7 +620,7 @@ class TestReviewAndJobs:
     def test_review_writes_a_version_when_enabled(self, tmp_path):
         from ComfyTV.storage.script_writer import get_session, run_review, start_session
 
-        root = tmp_path / "proj"
+        root = tmp_path / "projects" / "proj"
         started = start_session(root, project="demo", idea="想法")
         result = run_review(root, started["session_id"], FakeLlm(_router), doc="brief")
         assert "8 分" in result["text"]
@@ -624,7 +629,7 @@ class TestReviewAndJobs:
     def test_prompt_file_is_replaceable(self, tmp_path):
         from ComfyTV.storage.script_writer import run_directions, start_session
 
-        root = tmp_path / "proj"
+        root = tmp_path / "projects" / "proj"
         started = start_session(root, project="demo", idea="想法")
         prompt = root / "script" / "prompts" / "directions.md"
         prompt.parent.mkdir(parents=True)
@@ -636,7 +641,7 @@ class TestReviewAndJobs:
     def test_job_returns_before_the_fake_llm_runs(self, tmp_path):
         from ComfyTV.storage.script_writer import dispatch, get_session, pump
 
-        root = tmp_path / "proj"
+        root = tmp_path / "projects" / "proj"
         started = dispatch({
             "action": "start",
             "root": str(root),
@@ -680,6 +685,24 @@ class TestReviewAndJobs:
         assert session.is_file()
         assert "未指定" in started["docs"]["brief"]["text"]
 
+    def test_missing_root_and_project_is_rejected(self):
+        from ComfyTV.storage.script_writer import ScriptError, dispatch
+
+        with pytest.raises(ScriptError, match="root or project"):
+            dispatch({"action": "start", "idea": "一句想法"})
+
+    def test_root_outside_the_projects_tree_is_rejected(self, tmp_path):
+        from ComfyTV.storage.script_writer import ScriptError, dispatch
+
+        with pytest.raises(ScriptError, match="projects directory"):
+            dispatch({
+                "action": "start",
+                "root": str(tmp_path / "elsewhere"),
+                "project": "demo",
+                "idea": "一句想法",
+            })
+        assert not (tmp_path / "elsewhere").exists()
+
     def test_to_shots_is_not_available(self, tmp_path):
         from ComfyTV.storage.script_writer import ScriptError, dispatch
 
@@ -689,7 +712,7 @@ class TestReviewAndJobs:
     def test_unavailable_does_not_save_a_softer_draft(self, tmp_path):
         from ComfyTV.storage.script_writer import ScriptError, run_directions, start_session
 
-        root = tmp_path / "proj"
+        root = tmp_path / "projects" / "proj"
         started = start_session(root, project="demo", idea="想法")
 
         def handler(system, user):
@@ -742,7 +765,7 @@ class TestReviewFixes:
 
         source = tmp_path / "box"
         meta = _write(source / "episodes/E01/script_v2.md", "hello\n")
-        root = tmp_path / "spark"
+        root = tmp_path / "projects" / "spark"
         manifest = _manifest([
             _file_entry("episodes/E01/script_v2.md", meta, doc="script"),
             _file_entry("episodes/E01/script_v2.md", meta, doc="script_copy"),
@@ -787,7 +810,7 @@ class TestReviewFixes:
     def test_duplicate_direction_ids_are_rejected(self, tmp_path):
         from ComfyTV.storage.script_writer import ScriptError, run_directions, start_session
 
-        root = tmp_path / "proj"
+        root = tmp_path / "projects" / "proj"
         started = start_session(root, project="demo", idea="想法")
         rows = json.loads(_directions(2))
         rows[1]["id"] = rows[0]["id"]
@@ -808,7 +831,7 @@ class TestReviewFixes:
             start_session,
         )
 
-        root = tmp_path / "proj"
+        root = tmp_path / "projects" / "proj"
         started = start_session(root, project="demo", idea="想法")
         session_id = started["session_id"]
         llm = FakeLlm(_router)
@@ -839,7 +862,7 @@ class TestReviewFixes:
         from ComfyTV.storage.script_writer import start_session
 
         monkeypatch.setenv("DEEPSEEK_API_KEY", "file-secret-key")
-        root = tmp_path / "proj"
+        root = tmp_path / "projects" / "proj"
         (root / "script").mkdir(parents=True)
         (root / "script" / "config.json").write_text(json.dumps({
             "llm": {
@@ -859,7 +882,7 @@ class TestReviewFixes:
     def test_job_usage_and_unexpected_failure(self, tmp_path):
         from ComfyTV.storage.script_writer import dispatch, pump
 
-        root = tmp_path / "proj"
+        root = tmp_path / "projects" / "proj"
         started = dispatch({
             "action": "start", "root": str(root), "project": "demo", "idea": "想法",
         })
@@ -895,7 +918,7 @@ class TestReviewFixes:
     def test_two_workers_claim_one_job(self, tmp_path):
         from ComfyTV.storage.script_writer import dispatch, pump
 
-        root = tmp_path / "proj"
+        root = tmp_path / "projects" / "proj"
         started = dispatch({
             "action": "start", "root": str(root), "project": "demo", "idea": "想法",
         })
@@ -1067,7 +1090,7 @@ class TestHttp:
     async def test_http_import(self, client, tmp_path):
         source = tmp_path / "box"
         meta = _write(source / "episodes/E01/script_v2.md", "P01_yangguo\n")
-        root = tmp_path / "spark"
+        root = tmp_path / "projects" / "spark"
         manifest = _manifest([
             _file_entry("episodes/E01/script_v2.md", meta, doc="script"),
         ])

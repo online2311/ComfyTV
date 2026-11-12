@@ -106,7 +106,7 @@ url = "http://127.0.0.1:8188/comfytv/mcp"
 | `director_get/director_edit` | 读写导演台 clip 时间线 |
 | `storyboard` | 读取、替换或校验分镜阶段的完整镜头文档（`shots.json` 字段和自定义键）。`get_stage` 对很长的 `storyboard_data` 只给预览。`validate` 的整集总时长按每镜 `duration_s` 相加，`cut_to` 只和该镜时长比较。镜头少到即使每镜 15 秒也达不到 `target_duration_s` 时（单镜或很短的片段），不再拿整集目标来比 |
 | `episode_batch` | 按分镜为每镜准备或提交一个 VideoStage。`plan` 用系列库解析资产代号和 `episode:` 首尾帧，给出可复现的逐镜 seed，选择 Ref2VA 或 FL2VA，并按配置挂上台词音频；不调用模型。本该用 FL2VA、又有台词、且该 FL2VA 工作流不接上游音频时，plan 和 run 都改成 Ref2VA（`reason` 为 `dialogue_downgrade`），除非镜上写了 `video_mode=FL2VA`。`run` 在 GET /queue 空闲后一次只提交一镜，已完成的镜会跳过，不会中断队列 |
-| `script_writer` | 剧本会话默认在 `<ComfyUI input>/comfytv/projects/<project>/script/`（`COMFYTV_ASSET_ROOT` 可改 `comfytv` 这一层；也可传 `root`）。版本、选段改写，以及带 sha256 的清单导入。不写 `library.yaml`。不含 `to_shots` |
+| `script_writer` | 剧本会话在 `<ComfyUI input>/comfytv/projects/<project>/script/`（`COMFYTV_ASSET_ROOT` 替换这一层 `comfytv`）。传入的 `root` 必须落在该 `projects/` 目录里。生成出的成片目录是 `<ComfyUI output>/comfytv/projects/<project>/`（`COMFYTV_OUTPUT_ROOT`）。版本、选段改写，以及带 sha256 的清单导入。不写 `library.yaml`。不含 `to_shots` |
 
 ## 关键套路
 

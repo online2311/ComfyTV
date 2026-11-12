@@ -30,7 +30,7 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
-from .asset_root import project_dir
+from .asset_root import comfytv_asset_root, project_dir
 from .script_llm import (
     ScriptError,
     build_client,
@@ -343,10 +343,14 @@ def render_brief(root: Path, idea: str, source_text: str, reference: str) -> str
     return text
 
 
+def _as_project_root(root) -> Path:
+    return _require_inside_projects(Path(root))
+
+
 def start_session(root, *, project: str, episode: str | None = None, idea: str = "",
                   source_text: str = "", reference_works: str = "", series: str | None = None,
                   llm: dict | None = None) -> dict:
-    folder = Path(root)
+    folder = _as_project_root(root)
     project_id = _token(project, "project")
     if project_id in _excluded(folder):
         raise ScriptError(f"project {project_id} is excluded")
@@ -416,7 +420,7 @@ def _manifest_files(manifest: dict) -> list[dict]:
 def import_scripts(root, manifest: dict, *, source_dir) -> dict:
     if not isinstance(manifest, dict):
         raise ScriptError("manifest must be an object")
-    folder = Path(root)
+    folder = _as_project_root(root)
     files = _manifest_files(manifest)
     project = _token(str(manifest.get("project")), "project")
     if project in _excluded(folder):
@@ -1092,18 +1096,29 @@ def pump(root, llm, *, session_id: str) -> list[dict]:
     return finished
 
 
+def _projects_root() -> Path:
+    return (comfytv_asset_root() / "projects").resolve()
+
+
+def _require_inside_projects(path: Path) -> Path:
+    candidate = path.expanduser().resolve()
+    allowed = _projects_root()
+    if candidate != allowed and allowed not in candidate.parents:
+        raise ScriptError("root must be inside the ComfyTV projects directory")
+    return candidate
+
+
 def _root_from_args(args: dict) -> Path:
-    if args.get("root"):
-        return Path(str(args["root"]))
+    raw_root = args.get("root")
     project = args.get("project")
     if not project and isinstance(args.get("manifest"), dict):
         project = args["manifest"].get("project")
-    if not project:
-        raise ScriptError("root is required")
-    try:
+    if raw_root:
+        path = _require_inside_projects(Path(str(raw_root)))
+    elif project:
         path = project_dir(_token(str(project), "project"))
-    except ValueError as exc:
-        raise ScriptError(str(exc)) from exc
+    else:
+        raise ScriptError("root or project is required")
     path.mkdir(parents=True, exist_ok=True)
     return path
 
