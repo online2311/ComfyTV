@@ -71,6 +71,7 @@ from .video_timeline import (
 from .video_analysis import (
     VideoScopesStage, SceneDetectStage, ContactSheetStage,
 )
+from .consistency import ConsistencyRescoreStage
 from .video_generate import PatternStage, KenBurnsStage
 from .fx_chain import FXChainStage
 from .audio_process import (
@@ -172,7 +173,7 @@ def stage_classes() -> list:
         Select0rStage, ArtFXStage, GlitchFXStage, KaleidoscopeStage,
         WaveWarpStage, WaterStage, LightGraffitiStage,
         Video360StabilizeStage, Card3DStage, STMapGenStage,
-        RegrainStage, ContactSheetStage,
+        RegrainStage, ContactSheetStage, ConsistencyRescoreStage,
         AudioStemSplitStage, AudioNoiseReductionStage, AudioMIRStage,
         ScoreStage, ScoreEditorStage, MidiEditorStage, ScoreToMidiStage,
         SF2SynthStage, ClickTrackStage, ChordAccompStage, MuseReverbStage,

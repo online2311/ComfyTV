@@ -59817,7 +59817,7 @@ class ArrayStream {
 }
 let sparkPromise = null;
 function loadSpark() {
-  return sparkPromise ?? (sparkPromise = import("./spark.module-D1PJny5K.mjs"));
+  return sparkPromise ?? (sparkPromise = import("./spark.module-CYDjaMct.mjs"));
 }
 const MESH_MODEL_EXTENSIONS = [".glb", ".gltf", ".fbx", ".obj", ".stl", ".dae"];
 const SPLAT_MODEL_EXTENSIONS = [".spz", ".splat", ".ksplat"];
@@ -87123,7 +87123,7 @@ const _sfc_main$4v = /* @__PURE__ */ defineComponent({
       }
     });
     const AgentPanelRoot = /* @__PURE__ */ defineAsyncComponent({
-      loader: () => import("./AgentPanelRoot-29cTX-w4.mjs"),
+      loader: () => import("./AgentPanelRoot-Bi2JTZkZ.mjs"),
       errorComponent: AgentPanelLoadError,
       onError: (error2, _retry, fail) => {
         reportError(error2, { errorType: "agent_panel_load_failure" });
@@ -92081,7 +92081,10 @@ function computePickedFromBatch(batch2, wantIdx) {
     const parsed = JSON.parse(String(batch2));
     const images = Array.isArray(parsed == null ? void 0 : parsed.clips) ? parsed.clips : Array.isArray(parsed == null ? void 0 : parsed.images) ? parsed.images : [];
     const match = images.find((im) => Number(im.index) === wantIdx) ?? images[wantIdx - 1];
-    return (match == null ? void 0 : match.image_url) ?? null;
+    if (!match) return null;
+    const video = match.video_url;
+    if (video) return String(video);
+    return match.image_url ?? null;
   } catch {
     return null;
   }
@@ -149814,7 +149817,7 @@ async function parseToObject(file) {
     return new OBJLoader2().parse(await file.text());
   }
   if (lower.endsWith(".stl")) {
-    const { STLLoader } = await import("./STLLoader-TN5EdO96.mjs");
+    const { STLLoader } = await import("./STLLoader-DQn2LO5x.mjs");
     const geometry = new STLLoader().parse(await file.arrayBuffer());
     const material = new MeshStandardMaterial({ color: 13421772 });
     const group = new Group();
@@ -149822,7 +149825,7 @@ async function parseToObject(file) {
     return group;
   }
   if (lower.endsWith(".dae")) {
-    const { ColladaLoader } = await import("./ColladaLoader-CMKElx16.mjs");
+    const { ColladaLoader } = await import("./ColladaLoader-DznVstNz.mjs");
     const collada = new ColladaLoader().parse(await file.text(), "");
     if (!(collada == null ? void 0 : collada.scene)) throw new Error(`failed to parse ${file.name}`);
     return collada.scene;
@@ -248449,4 +248452,4 @@ export {
   DropdownMenuRoot_default as y,
   DropdownMenuTrigger_default as z
 };
-//# sourceMappingURL=main-C4zjU8af.mjs.map
+//# sourceMappingURL=main-Ci6HKQvT.mjs.map
