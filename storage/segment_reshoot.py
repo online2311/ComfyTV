@@ -250,6 +250,12 @@ def register_protected(project_id: str, *, kind: str, legacy_path: str,
         return json.loads(json.dumps(doc))
 
 
+def _project_id(args: dict) -> str:
+    if "project_id" not in args or not str(args.get("project_id") or "").strip():
+        raise ReshootError("project_id is required")
+    return _require_id(str(args["project_id"]), "project_id")
+
+
 def plan(args: dict) -> dict:
     with _LOCK:
         return _plan(args)
@@ -270,7 +276,7 @@ def status(args: dict) -> dict:
 
 
 def list_reshoots(args: dict) -> dict:
-    project = _require_id(str(args.get("project_id") or "default"), "project_id")
+    project = _project_id(args)
     shot = args.get("shot_id")
     with _LOCK:
         protected = _load_protected(project)
@@ -316,7 +322,7 @@ def adopt(args: dict) -> dict:
 def rollback(args: dict) -> dict:
     with _LOCK:
         _require_approver(args.get("approved_by"))
-        project = _require_id(str(args.get("project_id") or "default"), "project_id")
+        project = _project_id(args)
         shot = _require_id(str(args.get("shot_id") or ""), "shot_id")
         target = str(args.get("to") or "").strip()
         if not target:
@@ -339,7 +345,7 @@ def _plan(args: dict) -> dict:
     _reject_unavailable_mode(mode)
     if mode != "audio_only":
         raise ReshootError("mode must be audio_only, lipsync, or regen")
-    project = _require_id(str(args.get("project_id") or "default"), "project_id")
+    project = _project_id(args)
     source = _source_args(args)
     shot = _require_id(str(source.get("shot_id") or args.get("shot_id") or ""), "shot_id")
     take = _require_take(source.get("take", 1))
@@ -393,9 +399,10 @@ def _plan(args: dict) -> dict:
                 "the rest of the window is silence"
             )
         audio_sha = file_sha256(audio_path)
-        window["audio"] = {"url": _as_view_url(audio_path, str(audio_url)), "sha256": audio_sha}
+        window["audio"] = {"url": _media_ref(audio_path, str(audio_url)), "sha256": audio_sha}
         window["audio_duration_s"] = audio_s
         aligned.append(window)
+    aligned.sort(key=lambda row: (int(row["frame_start"]), int(row["frame_end"])))
     _reject_overlaps(aligned)
     warnings.append(
         "audio_only replaces sound inside the aligned window and keeps the picture. "
@@ -410,7 +417,7 @@ def _plan(args: dict) -> dict:
         recommendation = "audio_only"
         warnings.append("lips_visible is false; audio_only is the recommended mode")
     source_sha = file_sha256(src_path)
-    source_url = _as_view_url(src_path, str(source.get("url")))
+    source_url = _media_ref(src_path, str(source.get("url")))
     supplied_prompt = _optional_text(source.get("prompt_id"))
     index = _load_takes(project, shot)
     if index is None:
@@ -429,11 +436,14 @@ def _plan(args: dict) -> dict:
         "immutable": True,
         "reshoot_id": None,
     })
-    k = _next_revision(index, take)
+    k = _next_revision(project, shot, index, take)
     reshoot_id = f"{shot}/take_{take}/r{k}"
     version_id = f"take_{take}/r{k}"
     prompt_id = prompt_id_for(project, reshoot_id)
-    previews = _previews(args, src_path, project, shot, aligned[0], probed["frame_count"], warnings)
+    previews = _previews(
+        args, src_path, project, shot, aligned[0], probed["frame_count"],
+        source_sha, warnings,
+    )
     now = _now()
     record = {
         "schema": SCHEMA,
@@ -506,8 +516,6 @@ def _execute(record: dict) -> dict:
     shot = record["shot_id"]
     dest = _media_path(project, shot, record["version_id"])
     _assert_destination_allowed(project, dest)
-    if dest.exists() and not (record.get("output") or {}).get("sha256"):
-        dest.unlink()
     if dest.exists():
         raise ReshootError(f"refusing to overwrite {dest.name}")
     record["status"] = "running"
@@ -566,13 +574,16 @@ def _execute(record: dict) -> dict:
 def _pieces(record: dict, n_frames: int, fps: Fraction) -> list[dict]:
     pieces: list[dict] = []
     cursor = 0
-    for window in record["windows"]:
+    windows = sorted(record["windows"], key=lambda row: int(row["frame_start"]))
+    for window in windows:
         start = int(window["frame_start"])
         end = int(window["frame_end"])
+        if start < cursor:
+            raise ReshootError("windows are out of order")
         if start > cursor:
             pieces.append(_keep(cursor, start))
         span = end - start
-        audio = _resolve_media(window["audio"]["url"], "audio")
+        audio = _checked_audio(record, window, fps)
         if record["length_policy"] == "ripple":
             audio_s = probe_audio_duration(audio)
             out_frames = max(1, int(round(audio_s * float(fps))))
@@ -594,6 +605,25 @@ def _pieces(record: dict, n_frames: int, fps: Fraction) -> list[dict]:
     return [piece for piece in pieces if piece["out_frames"] > 0]
 
 
+def _checked_audio(record: dict, window: dict, fps: Fraction) -> Path:
+    audio = _resolve_media(window["audio"]["url"], "audio")
+    expected = str((window.get("audio") or {}).get("sha256") or "")
+    actual = file_sha256(audio)
+    if expected and actual != expected:
+        raise ReshootError("replacement audio sha256 no longer matches the plan")
+    start = int(window["frame_start"])
+    end = int(window["frame_end"])
+    window_s = (end - start) / float(fps)
+    if record["length_policy"] == "fit":
+        audio_s = probe_audio_duration(audio)
+        if audio_s > window_s + (1 / float(fps)):
+            raise ReshootError(
+                f"audio is {audio_s:.3f}s and the planned window is {window_s:.3f}s; "
+                "length_policy 'fit' refuses to spill past the window"
+            )
+    return audio
+
+
 def _keep(start: int, end: int) -> dict:
     return {
         "frame_start": start,
@@ -610,14 +640,16 @@ def _point_at(project: str, shot: str, version_id: str, *, approved_by: str,
     if index is None:
         raise ReshootError(f"no takes for {shot}", status=404)
     previous = index.get("active")
+    stale = _selection_stale(
+        project, shot, index, version_id, previous, cut_to=cut_to, next_shot_id=next_shot_id,
+    )
     index["active"] = version_id
     index["active_approved_by"] = approved_by
     index["active_at"] = _now()
+    index["stale"] = stale
     _save_takes(project, shot, index)
-    stale: list[dict] = []
     if adopted_id:
         record = _read_record(project, shot, adopted_id)
-        stale = _stale(record, cut_to=cut_to, next_shot_id=next_shot_id)
         record["status"] = "adopted"
         record["adopted_by"] = approved_by
         record["adopted_at"] = index["active_at"]
@@ -640,27 +672,29 @@ def _point_at(project: str, shot: str, version_id: str, *, approved_by: str,
     }
 
 
-def _stale(record: dict, *, cut_to, next_shot_id) -> list[dict]:
-    shot = record["shot_id"]
+def _selection_stale(project: str, shot: str, index: dict, version_id: str,
+                     previous: str | None, *, cut_to, next_shot_id) -> list[dict]:
+    """Invalidations for a pointer change. Raises before any file is written."""
+    if cut_to is not None and (isinstance(cut_to, bool) or not isinstance(cut_to, (int, float))):
+        raise ReshootError("cut_to must be a number of seconds")
     rows = [
         {"kind": kind, "shot_id": shot, "stale": True, "rewrite": False}
         for kind in ("subtitles", "rough_cut", "upscale")
     ]
-    fps = Fraction(record["source"]["fps_rational"])
-    start = int(record["window"]["frame_start"])
-    end = int(record["window"]["frame_end"])
-    n_frames = int(record["source"]["frame_count"])
-    if cut_to is None:
-        covers = end >= n_frames
-        frame = n_frames - 1
-    else:
-        try:
-            cut_s = float(cut_to)
-        except (TypeError, ValueError) as exc:
-            raise ReshootError("cut_to must be a number of seconds") from exc
-        frame = max(0, int(cut_s * float(fps)) - 1)
-        covers = start <= frame < end
-    if covers:
+    target = next((row for row in index["versions"] if row["id"] == version_id), None)
+    records = []
+    if target and target.get("reshoot_id"):
+        records.append(_read_record(project, shot, target["reshoot_id"]))
+    if previous and previous != version_id:
+        previous_row = next((row for row in index["versions"] if row["id"] == previous), None)
+        if previous_row and previous_row.get("reshoot_id"):
+            records.append(_read_record(project, shot, previous_row["reshoot_id"]))
+    covered = False
+    frame = None
+    for record in records:
+        hit, frame = _window_covers(record, cut_to)
+        covered = covered or hit
+    if covered:
         rows.append({
             "kind": "prev_last_frame",
             "shot_id": _optional_text(next_shot_id),
@@ -671,8 +705,30 @@ def _stale(record: dict, *, cut_to, next_shot_id) -> list[dict]:
     return rows
 
 
+def _window_covers(record: dict, cut_to) -> tuple[bool, int]:
+    fps = Fraction(record["source"]["fps_rational"])
+    n_frames = int(record["source"]["frame_count"])
+    windows = record.get("windows") or [record["window"]]
+    if cut_to is None:
+        frame = n_frames - 1
+        covers = any(int(window["frame_end"]) >= n_frames for window in windows)
+        return covers, frame
+    if isinstance(cut_to, bool):
+        raise ReshootError("cut_to must be a number of seconds")
+    try:
+        cut_s = float(cut_to)
+    except (TypeError, ValueError) as exc:
+        raise ReshootError("cut_to must be a number of seconds") from exc
+    frame = max(0, int(cut_s * float(fps)) - 1)
+    covers = any(
+        int(window["frame_start"]) <= frame < int(window["frame_end"])
+        for window in windows
+    )
+    return covers, frame
+
+
 def _previews(args, src: Path, project: str, shot: str, window: dict,
-              n_frames: int, warnings: list[str]) -> dict:
+              n_frames: int, source_sha: str, warnings: list[str]) -> dict:
     if args.get("previews") is False:
         return {}
     start = int(window["frame_start"])
@@ -680,7 +736,7 @@ def _previews(args, src: Path, project: str, shot: str, window: dict,
     before = start - 1 if start > 0 else None
     after = end if end < n_frames else None
     out: dict = {}
-    folder = _media_dir(project, shot) / "previews"
+    folder = _media_dir(project, shot) / "previews" / source_sha[:12]
     try:
         if before is not None:
             dest = folder / f"f{before:06d}.png"
@@ -769,11 +825,25 @@ def _resolve_media(url: str, label: str) -> Path:
         raise ReshootError(f"{label} is not a readable file: {text}") from None
 
 
-def _as_view_url(path: Path, original: str) -> str:
-    try:
-        return path_to_view_url(path)
-    except (ValueError, TypeError):
-        return original
+def _media_ref(path: Path, original: str) -> str:
+    """A /view URL only when the file is inside a ComfyUI media root.
+
+    ``path_to_view_url`` otherwise keeps just the file name, which can point
+    at a different file in the output directory.
+    """
+    resolved = path.resolve()
+    for type_ in ("output", "input", "temp"):
+        base = Path(folder_paths.get_directory_by_type(type_)).resolve()
+        try:
+            resolved.relative_to(base)
+        except ValueError:
+            continue
+        return path_to_view_url(resolved, type_)
+    if original and not str(original).startswith("/view"):
+        candidate = Path(original)
+        if candidate.is_file() and candidate.resolve() == resolved:
+            return str(resolved)
+    return str(resolved)
 
 
 def _require_approver(value) -> None:
@@ -820,7 +890,8 @@ def _blank(value) -> bool:
     return value is None or value == ""
 
 
-def _next_revision(index: dict, take: int) -> int:
+def _next_revision(project: str, shot: str, index: dict, take: int) -> int:
+    """Next r<k>, counting planned records as well as finished versions."""
     highest = 0
     prefix = f"take_{take}/r"
     for row in index["versions"]:
@@ -828,6 +899,16 @@ def _next_revision(index: dict, take: int) -> int:
         if ident.startswith(prefix):
             try:
                 highest = max(highest, int(ident[len(prefix):]))
+            except ValueError:
+                continue
+    folder = _shot_dir(project, shot)
+    marker = f"take_{take}_r"
+    if folder.is_dir():
+        for path in folder.glob(f"{marker}*.json"):
+            if not path.stem.startswith(marker):
+                continue
+            try:
+                highest = max(highest, int(path.stem[len(marker):]))
             except ValueError:
                 continue
     return highest + 1
@@ -960,7 +1041,7 @@ def _load_reshoots(project: str, shot: str) -> list[dict]:
 
 
 def _require_record(args: dict) -> dict:
-    project = _require_id(str(args.get("project_id") or "default"), "project_id")
+    project = _project_id(args)
     reshoot_id = str(args.get("reshoot_id") or "").strip()
     match = _RESHOOT_RE.match(reshoot_id)
     if match is None:

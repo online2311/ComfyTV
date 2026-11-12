@@ -1,5 +1,7 @@
 """HTTP access to segment reshoot plans, splices, and version pointers."""
 
+import asyncio
+
 from aiohttp import web
 
 from ..storage.segment_reshoot import (
@@ -37,49 +39,38 @@ def _query_args(request: web.Request) -> dict:
     return args
 
 
-@routes.post("/comfytv/segment_reshoot/plan")
-async def plan_reshoot(request: web.Request) -> web.Response:
+async def _in_thread(fn, args: dict) -> web.Response:
     try:
-        return web.json_response(plan(await _payload(request)))
+        return web.json_response(await asyncio.to_thread(fn, args))
     except ReshootError as exc:
         return _error(exc)
+
+
+@routes.post("/comfytv/segment_reshoot/plan")
+async def plan_reshoot(request: web.Request) -> web.Response:
+    return await _in_thread(plan, await _payload(request))
 
 
 @routes.post("/comfytv/segment_reshoot/run")
 async def run_reshoot(request: web.Request) -> web.Response:
-    try:
-        return web.json_response(run(await _payload(request)))
-    except ReshootError as exc:
-        return _error(exc)
+    return await _in_thread(run, await _payload(request))
 
 
 @routes.get("/comfytv/segment_reshoot/status")
 async def reshoot_status(request: web.Request) -> web.Response:
-    try:
-        return web.json_response(status(_query_args(request)))
-    except ReshootError as exc:
-        return _error(exc)
+    return await _in_thread(status, _query_args(request))
 
 
 @routes.get("/comfytv/segment_reshoot/list")
 async def reshoot_list(request: web.Request) -> web.Response:
-    try:
-        return web.json_response(list_reshoots(_query_args(request)))
-    except ReshootError as exc:
-        return _error(exc)
+    return await _in_thread(list_reshoots, _query_args(request))
 
 
 @routes.post("/comfytv/segment_reshoot/adopt")
 async def adopt_reshoot(request: web.Request) -> web.Response:
-    try:
-        return web.json_response(adopt(await _payload(request)))
-    except ReshootError as exc:
-        return _error(exc)
+    return await _in_thread(adopt, await _payload(request))
 
 
 @routes.post("/comfytv/segment_reshoot/rollback")
 async def rollback_reshoot(request: web.Request) -> web.Response:
-    try:
-        return web.json_response(rollback(await _payload(request)))
-    except ReshootError as exc:
-        return _error(exc)
+    return await _in_thread(rollback, await _payload(request))

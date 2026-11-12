@@ -198,11 +198,13 @@ def _cut_piece(ffmpeg: str, source: Path, dest: Path, piece: dict,
     elif probe["has_audio"]:
         t0 = start / float(fps)
         t1 = end / float(fps)
+        # Fill a leading timestamp gap with silence before the trim. Resetting
+        # timestamps first would drop that gap and start the kept sound early.
         audio = (
-            f"[0:a]atrim=start={t0:.6f}:end={t1:.6f},asetpts=PTS-STARTPTS,"
-            f"aformat=sample_fmts=fltp:channel_layouts=stereo,"
-            f"aresample={_AUDIO_RATE},apad,atrim=end={duration:.6f},"
-            f"asetpts=PTS-STARTPTS[a]"
+            f"[0:a]aformat=sample_fmts=fltp:channel_layouts=stereo,"
+            f"aresample={_AUDIO_RATE}:async=1:first_pts=0,"
+            f"atrim=start={t0:.6f}:end={t1:.6f},asetpts=PTS-STARTPTS,"
+            f"apad,atrim=end={duration:.6f},asetpts=PTS-STARTPTS[a]"
         )
     else:
         pad = f"{duration + 0.5:.3f}"

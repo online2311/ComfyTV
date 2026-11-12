@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import uuid
 import wave
 from fractions import Fraction
 from pathlib import Path
@@ -288,8 +289,9 @@ class TestAudioSplice:
         source_sha = _sha(source)
         replacement = _output_file("tone-880.wav")
         _write_tone(replacement, 2.0, 880)
+        project = f"audio-only-{uuid.uuid4().hex[:8]}"
         base = {
-            "project_id": "audio-only",
+            "project_id": project,
             "mode": "audio_only",
             "previews": False,
             "source": {
@@ -318,7 +320,7 @@ class TestAudioSplice:
             assert _psnr(out_frames[index], src_frames[index]) >= 40
         assert _tone_hz(url, 2.4, 3.6) == pytest.approx(880, abs=20)
         r1_sha = first["output"]["sha256"]
-        again = run({"project_id": "audio-only", "reshoot_id": first["reshoot_id"]})
+        again = run({"project_id": project, "reshoot_id": first["reshoot_id"]})
         assert again["output"]["sha256"] == r1_sha
 
         second = run(base)
@@ -327,15 +329,15 @@ class TestAudioSplice:
         assert _sha(from_url_path(first["output"]["url"])) == r1_sha
 
         with pytest.raises(ReshootError, match="approved_by"):
-            adopt({"project_id": "audio-only", "reshoot_id": first["reshoot_id"]})
+            adopt({"project_id": project, "reshoot_id": first["reshoot_id"]})
         with pytest.raises(ReshootError, match="张景"):
             adopt({
-                "project_id": "audio-only",
+                "project_id": project,
                 "reshoot_id": first["reshoot_id"],
                 "approved_by": "助手",
             })
         adopted = adopt({
-            "project_id": "audio-only",
+            "project_id": project,
             "reshoot_id": first["reshoot_id"],
             "approved_by": "张景",
             "cut_to": 5,
@@ -344,12 +346,13 @@ class TestAudioSplice:
         assert adopted["active"] == "take_2/r1"
         assert any(row["kind"] == "rough_cut" and row["rewrite"] is False for row in adopted["stale"])
         rolled = rollback({
-            "project_id": "audio-only",
+            "project_id": project,
             "shot_id": "E01S02_03",
             "to": "take_2",
             "approved_by": "张景",
         })
         assert rolled["active"] == "take_2"
+        assert any(row["kind"] == "subtitles" and row["rewrite"] is False for row in rolled["stale"])
         assert _sha(source) == source_sha
 
     def test_ripple_shifts_the_tail(self, reset_db):
@@ -361,7 +364,7 @@ class TestAudioSplice:
         audio = _output_file("ripple-3s.wav")
         _write_tone(audio, 3.0, 660)
         result = run({
-            "project_id": "ripple",
+            "project_id": f"ripple-{uuid.uuid4().hex[:8]}",
             "mode": "audio_only",
             "previews": False,
             "length_policy": "ripple",
@@ -385,7 +388,7 @@ class TestAudioSplice:
             run,
         )
 
-        project = "idol-mv-hit"
+        project = f"idol-mv-hit-{uuid.uuid4().hex[:8]}"
         shot = "E01S01_01"
         source = _output_file("idol-take-1.mp4")
         _write_clip(source, seconds=3, hz=440)
@@ -492,6 +495,134 @@ class TestHttp:
         payload = await listed.json()
         assert payload["takes"]["versions"][0]["id"] == "take_1"
         assert payload["takes"]["versions"][0]["immutable"] is True
+
+
+class TestReviewGuards:
+    def test_project_id_is_required(self):
+        from ComfyTV.storage.segment_reshoot import ReshootError, plan
+
+        with pytest.raises(ReshootError, match="project_id"):
+            plan({"mode": "audio_only", "shot_id": "E01S01_01"})
+
+    def test_a_second_plan_reserves_the_next_revision(self, reset_db):
+        from ComfyTV.storage.segment_reshoot import plan
+
+        source = _output_file("reserve-src.mp4")
+        if not source.exists():
+            _write_clip(source, seconds=2)
+        audio = _output_file("reserve-tone.wav")
+        _write_tone(audio, 0.4, 660)
+        project = f"reserve-{uuid.uuid4().hex[:8]}"
+        first = plan({**_call(source, str(audio), project=project), "t_start": 0.2, "t_end": 0.7})
+        second = plan({**_call(source, str(audio), project=project), "t_start": 1.0, "t_end": 1.4})
+        assert first["version_id"] == "take_2/r1"
+        assert second["version_id"] == "take_2/r2"
+        assert first["windows"][0]["t_start"] != second["windows"][0]["t_start"]
+
+    def test_windows_are_stored_in_time_order(self, reset_db):
+        from ComfyTV.storage.segment_reshoot import plan
+
+        source = _output_file("order-src.mp4")
+        if not source.exists():
+            _write_clip(source, seconds=4)
+        audio = _output_file("order-tone.wav")
+        _write_tone(audio, 0.4, 550)
+        later = {"t_start": 2.0, "t_end": 2.4, "audio": str(audio)}
+        earlier = {"t_start": 0.4, "t_end": 0.8, "audio": str(audio)}
+        planned = plan({
+            **_call(source, str(audio), project=f"order-{uuid.uuid4().hex[:8]}"),
+            "windows": [later, earlier],
+            "allow_multiple": True,
+        })
+        assert planned["windows"][0]["frame_start"] < planned["windows"][1]["frame_start"]
+        assert planned["window"]["frame_start"] == planned["windows"][0]["frame_start"]
+
+    def test_run_does_not_delete_an_existing_output(self, reset_db):
+        from ComfyTV.storage.segment_reshoot import ReshootError, _media_path, plan, run
+
+        source = _output_file("keep-src.mp4")
+        if not source.exists():
+            _write_clip(source, seconds=2)
+        audio = _output_file("keep-tone.wav")
+        _write_tone(audio, 0.4, 440)
+        project = f"keep-file-{uuid.uuid4().hex[:8]}"
+        planned = plan(_call(source, str(audio), project=project))
+        dest = _media_path(project, "E01S02_03", planned["version_id"])
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes(b"finished-version")
+        with pytest.raises(ReshootError, match="overwrite"):
+            run({"project_id": project, "reshoot_id": planned["reshoot_id"]})
+        assert dest.read_bytes() == b"finished-version"
+
+    def test_run_rejects_audio_that_no_longer_matches_the_plan(self, reset_db):
+        from ComfyTV.storage.segment_reshoot import ReshootError, plan, run
+
+        source = _output_file("hash-src.mp4")
+        if not source.exists():
+            _write_clip(source, seconds=2)
+        audio = _output_file("hash-tone.wav")
+        _write_tone(audio, 0.4, 440)
+        project = f"hash-audio-{uuid.uuid4().hex[:8]}"
+        planned = plan(_call(source, str(audio), project=project))
+        _write_tone(audio, 0.4, 880)
+        with pytest.raises(ReshootError, match="sha256"):
+            run({"project_id": project, "reshoot_id": planned["reshoot_id"]})
+
+    def test_bad_cut_to_does_not_move_the_pointer(self, reset_db):
+        from ComfyTV.storage.segment_reshoot import ReshootError, adopt, list_reshoots, run
+
+        source = _output_file("cut-src.mp4")
+        if not source.exists():
+            _write_clip(source, seconds=2)
+        audio = _output_file("cut-tone.wav")
+        _write_tone(audio, 0.4, 500)
+        project = f"bad-cut-{uuid.uuid4().hex[:8]}"
+        done = run(_call(source, str(audio), project=project))
+        before = list_reshoots({"project_id": project, "shot_id": "E01S02_03"})
+        with pytest.raises(ReshootError, match="cut_to"):
+            adopt({
+                "project_id": project,
+                "reshoot_id": done["reshoot_id"],
+                "approved_by": "张景",
+                "cut_to": "later",
+            })
+        after = list_reshoots({"project_id": project, "shot_id": "E01S02_03"})
+        assert after["takes"]["active"] == before["takes"]["active"]
+
+    def test_a_path_outside_the_output_root_is_stored_absolutely(self, reset_db, tmp_path):
+        from ComfyTV.storage.segment_reshoot import plan
+
+        source = _output_file("abs-src.mp4")
+        if not source.exists():
+            _write_clip(source, seconds=2)
+        audio = tmp_path / "outside.wav"
+        _write_tone(audio, 0.4, 470)
+        planned = plan(_call(source, str(audio), project=f"abs-path-{uuid.uuid4().hex[:8]}"))
+        assert planned["inputs"]["audio"]["url"] == str(audio.resolve())
+        assert not planned["inputs"]["audio"]["url"].startswith("/view")
+
+    def test_previews_are_namespaced_by_source(self, reset_db):
+        from ComfyTV.storage.segment_reshoot import plan
+
+        first_src = _output_file("prev-a.mp4")
+        second_src = _output_file("prev-b.mp4")
+        _write_clip(first_src, seconds=2, hz=440)
+        _write_clip(second_src, seconds=2, hz=880, w=32, h=32)
+        audio = _output_file("prev-tone.wav")
+        _write_tone(audio, 0.4, 500)
+        project = f"previews-{uuid.uuid4().hex[:8]}"
+        one = plan({
+            **_call(first_src, str(audio), project=project),
+            "previews": True,
+            "source": {"url": _view(first_src), "shot_id": "E01S02_03", "take": 1},
+        })
+        two = plan({
+            **_call(second_src, str(audio), project=project),
+            "previews": True,
+            "source": {"url": _view(second_src), "shot_id": "E01S02_03", "take": 2},
+        })
+        assert one["inputs"]["first_frame"]["sha256"] != two["inputs"]["first_frame"]["sha256"]
+        assert one["inputs"]["first_frame"]["url"] != two["inputs"]["first_frame"]["url"]
 
 
 def _tone(reset_db) -> Path:

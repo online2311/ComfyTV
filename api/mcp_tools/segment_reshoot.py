@@ -1,5 +1,7 @@
 """MCP tool for planning and adopting an audio-only segment reshoot."""
 
+import asyncio
+
 from ...storage.segment_reshoot import (
     ReshootError,
     adopt,
@@ -13,24 +15,23 @@ from ...storage.segment_reshoot import (
 
 async def _segment_reshoot(args: dict) -> dict:
     action = str(args.get("action") or "")
+    handlers = {
+        "plan": plan,
+        "run": run,
+        "status": status,
+        "list": list_reshoots,
+        "adopt": adopt,
+        "rollback": rollback,
+    }
+    handler = handlers.get(action)
+    if handler is None:
+        raise ValueError(
+            f"unknown action {action!r} — valid: plan, run, status, list, adopt, rollback"
+        )
     try:
-        if action == "plan":
-            return plan(args)
-        if action == "run":
-            return run(args)
-        if action == "status":
-            return status(args)
-        if action == "list":
-            return list_reshoots(args)
-        if action == "adopt":
-            return adopt(args)
-        if action == "rollback":
-            return rollback(args)
+        return await asyncio.to_thread(handler, args)
     except ReshootError as exc:
         raise ValueError(str(exc)) from exc
-    raise ValueError(
-        f"unknown action {action!r} — valid: plan, run, status, list, adopt, rollback"
-    )
 
 
 TOOLS: dict[str, dict] = {
@@ -84,7 +85,7 @@ TOOLS: dict[str, dict] = {
                 "created_by": {"type": "string"},
                 "previews": {"type": "boolean"},
             },
-            "required": ["action"],
+            "required": ["action", "project_id"],
             "additionalProperties": False,
         },
         "handler": _segment_reshoot,
