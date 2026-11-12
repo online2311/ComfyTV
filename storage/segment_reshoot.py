@@ -1,8 +1,9 @@
 """Segment reshoot records for one shot.
 
-Files live under the ComfyTV data directory (the same root as the database
-and the series-library binding file), keyed by project id. Finished media
-is a new file under the ComfyUI output directory so ``/view`` can serve it.
+Files live under the ComfyUI input directory at
+``<input>/comfytv/projects/<project_id>/`` (see ``storage.asset_root``).
+Finished media is a new file under the ComfyUI output directory so ``/view``
+can serve it. The database backup directory is not used for these records.
 
 Nothing here writes a legacy project tree. An imported take keeps its
 shot id, take number, prompt id, legacy path, and sha256. A reshoot appends
@@ -29,14 +30,14 @@ from pathlib import Path
 
 import folder_paths
 
-from ..backup import data_dir
+from ..runners._media_paths import localize, path_to_view_url
 from ..runners.segment_splice import (
     extract_frame_png,
     probe_audio_duration,
     probe_video,
     splice_pieces,
 )
-from ..runners._media_paths import localize, path_to_view_url
+from .asset_root import project_dir
 
 APPROVER = "张景"
 SCHEMA = "comfytv/reshoot.v1"
@@ -951,7 +952,7 @@ def _storage_note(project: str, shot: str, version_id: str) -> dict:
 
 
 def _project_dir(project: str) -> Path:
-    return Path(data_dir()) / "projects" / project
+    return project_dir(project)
 
 
 def _shot_dir(project: str, shot: str) -> Path:
