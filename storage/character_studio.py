@@ -41,6 +41,8 @@ _LEGACY_ID = re.compile(r"^P(?P<num>\d+)_(?P<slug>[A-Za-z0-9_]+)$")
 _PICTURE = re.compile(r"<Picture (\d+)>")
 _PROVENANCE = {"self", "licensed", "ai_generated"}
 _MUTABLE = {"draft", "candidate"}
+_AUDIO_EXT = {".wav", ".flac", ".mp3", ".ogg", ".m4a", ".aac", ".opus"}
+_TEXT_EXT = {".md", ".txt", ".yaml", ".yml", ".json", ".csv"}
 _REFINE_OPS = {"face": "refine_face", "hair": "refine_hair", "outfit": "refine_outfit"}
 
 
@@ -212,9 +214,11 @@ def compose_outfit(root, code: str, face: str, outfit_body: str, *,
         raise SeriesLibraryError("image_1 must be face or outfit_body")
     count = _batch_count(config, batch, kind="compose")
     seeds = _seed_run(seed, count)
-    face_rel, face_copied = _stage_image(folder, record, _image_source(folder, face), "src_face")
+    staged = uuid.uuid4().hex[:8]
+    face_rel, face_copied = _stage_image(
+        folder, record, _image_source(folder, face), f"src_face_{staged}")
     outfit_rel, outfit_copied = _stage_image(
-        folder, record, _image_source(folder, outfit_body), "src_outfit")
+        folder, record, _image_source(folder, outfit_body), f"src_outfit_{staged}")
     ordered = (
         [("outfit_body", outfit_rel), ("face", face_rel)]
         if which == "outfit_body"
@@ -241,9 +245,9 @@ def compose_outfit(root, code: str, face: str, outfit_body: str, *,
     )
     files = {}
     if face_copied:
-        files["src_face"] = _image_file(face_rel, ["studio_input"])
+        files[Path(face_rel).stem] = _image_file(face_rel, ["studio_input"])
     if outfit_copied:
-        files["src_outfit"] = _image_file(outfit_rel, ["studio_input"])
+        files[Path(outfit_rel).stem] = _image_file(outfit_rel, ["studio_input"])
     changes: dict = {"studio_history": _with_history(record, entry)}
     if files:
         changes["files"] = files
@@ -356,7 +360,10 @@ def refine(root, code: str, part: str, instruction: str, *,
         outputs=outputs,
         by=by,
     )
-    changes: dict = {"studio_history": _with_history(record, entry)}
+    changes: dict = {
+        "studio_history": _with_history(record, entry),
+        "refine_root_version": int(record["version"]),
+    }
     if files_update:
         changes["files"] = files_update
     if part in ("face", "hair"):
@@ -483,7 +490,7 @@ def pick_candidate(root, code: str, op_id: str, index: int, as_view: str, *,
     if view in needs:
         needs = [item for item in needs if item != view]
     updated = _write(folder, record, {
-        "files": {view: _image_file(rel, _usage_for(view, config))},
+        "files": {view: _stored_file(rel, source_path, view, config)},
         "studio_history": history,
         "needs_rederive": needs,
     })
@@ -884,19 +891,24 @@ def _stage_image(folder: Path, record: dict, source: Path, name: str) -> tuple[s
 
 
 def _pin_refine_root(folder: Path, record: dict) -> tuple[str, dict]:
+    """Keep one root per draft. A new version starts again from that draft's front."""
+    version = int(record["version"])
     files = record.get("files") if isinstance(record.get("files"), dict) else {}
     current = files.get("root")
-    if isinstance(current, dict) and current.get("path"):
-        path = folder / str(current["path"])
-        if path.is_file():
-            return str(current["path"]).replace("\\", "/"), {}
+    pinned_for = record.get("refine_root_version")
+    if (
+        pinned_for == version
+        and isinstance(current, dict)
+        and current.get("path")
+        and (folder / str(current["path"])).is_file()
+    ):
+        return str(current["path"]).replace("\\", "/"), {}
     front = _material_rel(folder, record, "front")
-    rel = f"{record['id']}/v{int(record['version'])}/root.png"
+    rel = f"{record['id']}/v{version}/root.png"
     dest = _safe_dest(folder, rel)
-    if not dest.exists():
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(folder / front, dest)
-        _writable(dest)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(folder / front, dest)
+    _writable(dest)
     return rel, {"root": _image_file(rel, ["studio_input"])}
 
 
@@ -937,6 +949,15 @@ def _writable(path: Path) -> None:
 
 def _image_file(rel: str, usage: list[str]) -> dict:
     return {"path": rel, "media_type": "image", "usage": list(usage)}
+
+
+def _stored_file(rel: str, source: Path, view: str, config: dict) -> dict:
+    ext = source.suffix.lower()
+    if ext in _AUDIO_EXT or view == "voice_ref":
+        return {"path": rel, "media_type": "audio", "usage": ["voice_clone"]}
+    if ext in _TEXT_EXT:
+        return {"path": rel, "media_type": "text", "usage": ["text"]}
+    return _image_file(rel, _usage_for(view, config))
 
 
 def _usage_for(view: str, config: dict) -> list[str]:

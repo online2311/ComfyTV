@@ -183,6 +183,7 @@ def register_series_asset(root, asset: dict) -> dict:
         doc.setdefault("assets", []).append(prepared)
         if prepared.get("kind") == "character":
             _assert_alias_unique(doc, prepared["id"])
+        _require_locked_dependencies(doc, [prepared])
         _save(folder, doc, preamble)
         if prepared["status"] == "locked":
             _chmod_version(folder, prepared["id"], prepared["version"])
@@ -220,6 +221,20 @@ def character_dependencies(root, code: str) -> list[dict]:
 
 def character_dependency_rows(doc: dict, record: dict) -> list[dict]:
     return [_resolve_dependency(doc, ref) for ref in _character_dep_refs(record)]
+
+
+def _require_locked_dependencies(doc: dict, records: list[dict]) -> None:
+    """Locked characters in this write must not point at missing or unlocked deps."""
+    for record in records:
+        if record.get("kind") != "character" or record.get("status") != "locked":
+            continue
+        gaps = [row for row in character_dependency_rows(doc, record) if not row["locked"]]
+        if not gaps:
+            continue
+        label = f"{record['id']}@v{int(record['version'])}"
+        listed = ", ".join(f"{row['code']} ({row['status']})" for row in gaps)
+        raise SeriesLibraryError(
+            f"cannot lock {label}; dependencies are not locked: {listed}")
 
 
 def lock_series_asset(root, code: str, *, approved_by: str,
@@ -435,6 +450,7 @@ def import_series_manifest(root, manifest: dict | None = None, *,
             for prepared in staged:
                 if prepared.get("kind") == "character":
                     _assert_alias_unique(doc, prepared["id"])
+            _require_locked_dependencies(doc, staged)
             _save(folder, doc, preamble)
             for prepared in staged:
                 if prepared.get("status") == "locked":

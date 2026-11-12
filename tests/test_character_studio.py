@@ -413,7 +413,7 @@ class TestStudioHistoryAndWorkflows:
         assert entry["prompt_hash"] == hashlib.sha256(text.encode("utf-8")).hexdigest()
         image_1 = prompt[conds[0]["inputs"]["image_1"][0]]
         image_2 = prompt[conds[0]["inputs"]["image_2"][0]]
-        assert image_1["inputs"]["image"].endswith("src_outfit.png")
+        assert "/src_outfit_" in image_1["inputs"]["image"]
         assert image_1["inputs"]["image"].startswith("comfytv/series/gumu-sx/")
         assert image_2["inputs"]["image"].endswith("front.png")
         assert {int(item) for item in re.findall(r"<Picture (\d+)>", text)} == {1, 2}
@@ -605,3 +605,169 @@ class TestMcpQueue:
                 "root": str(root),
                 "name": "没有这个人",
             })
+
+    async def test_resolve_alias_uses_the_bound_library(self, tmp_path, monkeypatch):
+        import folder_paths
+
+        import ComfyTV.api.mcp_tools.character_studio as tool
+        from ComfyTV.storage.series_library import bind_series_library
+
+        root = _library(tmp_path)
+        user = tmp_path / "user"
+        user.mkdir()
+        monkeypatch.setattr(folder_paths, "get_user_directory", lambda: str(user))
+        bind_series_library(root)
+        found = await tool._character_studio({
+            "action": "resolve_alias",
+            "name": "小龙女",
+        })
+        assert found["resolved"]["id"] == "CHR_xiaolongnv"
+        assert found["resolved"]["ref"].endswith("#front")
+
+
+class TestReviewFixes:
+    def test_later_compose_does_not_overwrite_a_pending_input(self, tmp_path):
+        from ComfyTV.storage.character_studio import compose_outfit
+
+        root = _library(tmp_path)
+        first_clothes = tmp_path / "clothes-a.png"
+        second_clothes = tmp_path / "clothes-b.png"
+        first_clothes.write_bytes(b"clothes-a")
+        second_clothes.write_bytes(b"clothes-b")
+        face = "CHR_xiaolongnv@v1#front"
+        first = compose_outfit(root, "CHR_xiaolongnv@v1", face, str(first_clothes), batch=2, seed=1)
+        second = compose_outfit(root, first["code"], face, str(second_clothes), batch=2, seed=2)
+        prefix = "comfytv/series/gumu-sx/"
+
+        def staged_outfit(prompt):
+            cond = _conditioning(prompt)[0]
+            name = prompt[cond["inputs"]["image_1"][0]]["inputs"]["image"]
+            assert name.startswith(prefix)
+            return root / name[len(prefix):]
+
+        first_file = staged_outfit(first["prompt"])
+        second_file = staged_outfit(second["prompt"])
+        assert first_file != second_file
+        assert first_file.read_bytes() == b"clothes-a"
+        assert second_file.read_bytes() == b"clothes-b"
+
+    def test_new_version_refines_from_the_approved_front(self, tmp_path):
+        from ComfyTV.storage.character_studio import pick_candidate, refine
+        from ComfyTV.storage.series_library import (
+            get_series_asset,
+            lock_series_asset,
+            update_draft_series_asset,
+        )
+
+        root = _library(tmp_path)
+        first = refine(root, "CHR_xiaolongnv@v1", "hair", "马尾", seed=2)
+        assert (root / "CHR_xiaolongnv/v1/root.png").read_bytes() == b"front-bytes"
+        approved = tmp_path / "approved.png"
+        approved.write_bytes(b"approved-front")
+        record = get_series_asset(root, first["code"])
+        history = record["studio_history"]
+        history[-1]["outputs"] = [str(approved)]
+        update_draft_series_asset(root, first["code"], {"studio_history": history})
+        pick_candidate(root, first["code"], history[-1]["op_id"], 1, "front")
+        lock_series_asset(root, first["code"], approved_by="张景")
+
+        again = refine(root, first["code"], "hair", "再改发型", seed=3)
+        assert again["code"] == "CHR_xiaolongnv@v2"
+        assert (root / "CHR_xiaolongnv/v2/root.png").read_bytes() == b"approved-front"
+        assert (root / "CHR_xiaolongnv/v1/root.png").read_bytes() == b"front-bytes"
+        assert again["asset"]["refine_root_version"] == 2
+
+        changed = tmp_path / "later.png"
+        changed.write_bytes(b"later-front")
+        record = get_series_asset(root, again["code"])
+        history = record["studio_history"]
+        history[-1]["outputs"] = [str(changed)]
+        update_draft_series_asset(root, again["code"], {"studio_history": history})
+        pick_candidate(root, again["code"], history[-1]["op_id"], 1, "front")
+        stayed = refine(root, again["code"], "hair", "同一稿再改", seed=4)
+        assert stayed["code"] == "CHR_xiaolongnv@v2"
+        assert (root / "CHR_xiaolongnv/v2/root.png").read_bytes() == b"approved-front"
+
+    def test_locked_import_rejects_unlocked_dependencies(self, tmp_path):
+        from ComfyTV.storage.series_library import (
+            SeriesLibraryError,
+            import_series_manifest,
+            register_series_asset,
+        )
+
+        root = tmp_path / "lib"
+        face = b"face"
+        voice = b"RIFFvoice"
+        _write(root, "CHR_a/v1/front.png", face)
+        _write(root, "VOX_a/v1/voice_ref.wav", voice)
+
+        def manifest(voice_status):
+            return {
+                "schema_version": 1,
+                "series": {"id": "gumu-sx"},
+                "assets": [
+                    {
+                        "id": "CHR_a",
+                        "version": 1,
+                        "kind": "character",
+                        "status": "locked",
+                        "approved_by": "张景",
+                        "voice": "VOX_a@v1",
+                        "files": {"front": {"path": "CHR_a/v1/front.png", "media_type": "image"}},
+                    },
+                    {
+                        "id": "VOX_a",
+                        "version": 1,
+                        "kind": "voice",
+                        "status": voice_status,
+                        "approved_by": "张景",
+                        "files": {
+                            "voice_ref": {"path": "VOX_a/v1/voice_ref.wav", "media_type": "audio"},
+                        },
+                    },
+                ],
+            }
+
+        with pytest.raises(SeriesLibraryError, match="VOX_a@v1"):
+            import_series_manifest(root, manifest("draft"))
+        assert not (root / "library.yaml").exists()
+
+        imported = import_series_manifest(root, manifest("locked"))
+        assert "CHR_a@v1" in imported["added"]
+        assert "VOX_a@v1" in imported["added"]
+
+        other = tmp_path / "register"
+        _write(other, "VOX_b/v1/voice_ref.wav", b"vox")
+        _write(other, "CHR_b/v1/front.png", b"faceb")
+        register_series_asset(other, {
+            "id": "VOX_b",
+            "version": 1,
+            "kind": "voice",
+            "status": "draft",
+            "files": {"voice_ref": {"path": "VOX_b/v1/voice_ref.wav", "media_type": "audio"}},
+        })
+        with pytest.raises(SeriesLibraryError, match="VOX_b@v1"):
+            register_series_asset(other, {
+                "id": "CHR_b",
+                "version": 1,
+                "kind": "character",
+                "status": "locked",
+                "approved_by": "张景",
+                "voice": "VOX_b@v1",
+                "files": {"front": {"path": "CHR_b/v1/front.png", "media_type": "image"}},
+            })
+
+    def test_voice_pick_is_stored_as_audio(self, tmp_path):
+        from ComfyTV.storage.character_studio import pick_candidate, voice_audition
+
+        root = _library(tmp_path)
+        audition = voice_audition(root, "VOX_xiaolongnv@v1", "一句试音。", [1, 2, 3])
+        chosen = tmp_path / "take.wav"
+        chosen.write_bytes(b"RIFFtake")
+        picked = pick_candidate(
+            root, audition["code"], audition["op_id"], 1, "voice_ref", source=str(chosen),
+        )
+        stored = picked["asset"]["files"]["voice_ref"]
+        assert stored["media_type"] == "audio"
+        assert stored["usage"] == ["voice_clone"]
+        assert stored["sha256"] == hashlib.sha256(b"RIFFtake").hexdigest()

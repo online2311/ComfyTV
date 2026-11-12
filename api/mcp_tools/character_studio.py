@@ -39,7 +39,7 @@ async def _queue(planned: dict, folder) -> dict:
 
 async def _character_studio(args: dict) -> dict:
     action = str(args.get("action") or "")
-    folder = None if action == "resolve_alias" and not (args.get("root") or args.get("series")) else _folder(args)
+    folder = _folder(args)
     try:
         if action == "get":
             return get_character(folder, str(args.get("code") or ""))
